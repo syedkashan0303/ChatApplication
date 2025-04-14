@@ -3,36 +3,24 @@
   "WorkspaceRootPath": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|d:\\projects\\live_workingprojects\\chatapplication\\views\\home\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|solutionrelative:views\\home\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|d:\\projects\\live_workingprojects\\chatapplication\\controllers\\homecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|solutionrelative:controllers\\homecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|d:\\projects\\live_workingprojects\\chatapplication\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|d:\\projects\\live_workingprojects\\chatapplication\\models\\chatmessage.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|solutionrelative:models\\chatmessage.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|d:\\projects\\live_workingprojects\\chatapplication\\properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|solutionrelative:properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|d:\\projects\\live_workingprojects\\chatapplication\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
       "RelativeMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|d:\\projects\\live_workingprojects\\chatapplication\\basicchathub.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|solutionrelative:basicchathub.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|d:\\projects\\live_workingprojects\\chatapplication\\roleviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|solutionrelative:roleviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|d:\\projects\\live_workingprojects\\chatapplication\\views\\shared\\_layout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|solutionrelative:views\\shared\\_layout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|d:\\projects\\live_workingprojects\\chatapplication\\scaffoldingreadme.txt||{8B382828-6202-11D1-8870-0000F87579D2}",
-      "RelativeMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|solutionrelative:scaffoldingreadme.txt||{8B382828-6202-11D1-8870-0000F87579D2}"
+      "AbsoluteMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|d:\\projects\\live_workingprojects\\chatapplication\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A7B19E72-0184-4C64-9254-CBE88B3676AC}|SignalRMVC.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -42,7 +30,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 5,
+          "SelectedChildIndex": 4,
           "Children": [
             {
               "$type": "Bookmark",
@@ -60,94 +48,62 @@
               "RelativeDocumentMoniker": "appsettings.json",
               "ToolTip": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\appsettings.json",
               "RelativeToolTip": "appsettings.json",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAkAAAD/AAAA",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2024-08-26T14:06:46.561Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "BasicChatHub.cs",
-              "DocumentMoniker": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\BasicChatHub.cs",
-              "RelativeDocumentMoniker": "BasicChatHub.cs",
-              "ToolTip": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\BasicChatHub.cs",
-              "RelativeToolTip": "BasicChatHub.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAqwAcAAAAdAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-08-26T13:45:10.464Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "HomeController.cs",
-              "DocumentMoniker": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Controllers\\HomeController.cs",
-              "RelativeDocumentMoniker": "Controllers\\HomeController.cs",
-              "ToolTip": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Controllers\\HomeController.cs",
-              "RelativeToolTip": "Controllers\\HomeController.cs",
-              "ViewState": "AQIAABcAAAAAAAAAAAAgwCAAAAAgAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-08-26T11:59:37.11Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "Index.cshtml",
-              "DocumentMoniker": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Views\\Home\\Index.cshtml",
-              "RelativeDocumentMoniker": "Views\\Home\\Index.cshtml",
-              "ToolTip": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Views\\Home\\Index.cshtml",
-              "RelativeToolTip": "Views\\Home\\Index.cshtml",
-              "ViewState": "AgIAAGgAAAAAAAAAAAAYwHkAAAAJAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2024-08-26T11:58:59.555Z",
+              "WhenOpened": "2025-04-14T13:38:22.934Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "RoleViewModel.cs",
-              "DocumentMoniker": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\RoleViewModel.cs",
-              "RelativeDocumentMoniker": "RoleViewModel.cs",
-              "ToolTip": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\RoleViewModel.cs",
-              "RelativeToolTip": "RoleViewModel.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAUAAAAFAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-08-26T11:56:17.111Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 4,
               "Title": "Program.cs",
               "DocumentMoniker": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Program.cs",
               "RelativeDocumentMoniker": "Program.cs",
               "ToolTip": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Program.cs",
               "RelativeToolTip": "Program.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAADIAAAAAAAAA",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-08-26T11:19:09.008Z"
+              "WhenOpened": "2025-04-14T13:38:18.741Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "_Layout.cshtml",
-              "DocumentMoniker": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Views\\Shared\\_Layout.cshtml",
-              "RelativeDocumentMoniker": "Views\\Shared\\_Layout.cshtml",
-              "ToolTip": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Views\\Shared\\_Layout.cshtml",
-              "RelativeToolTip": "Views\\Shared\\_Layout.cshtml",
-              "ViewState": "AQIAAA0AAAAAAAAAAAAYwBQAAAA3AAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2024-08-26T11:16:45.419Z"
+              "DocumentIndex": 0,
+              "Title": "HomeController.cs",
+              "DocumentMoniker": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Controllers\\HomeController.cs",
+              "RelativeDocumentMoniker": "Controllers\\HomeController.cs",
+              "ToolTip": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Controllers\\HomeController.cs",
+              "RelativeToolTip": "Controllers\\HomeController.cs",
+              "ViewState": "AgIAAEIAAAAAAAAAAAAAwEoAAABUAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-04-14T13:37:07.725Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": "ScaffoldingReadMe.txt",
-              "DocumentMoniker": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\ScaffoldingReadMe.txt",
-              "RelativeDocumentMoniker": "ScaffoldingReadMe.txt",
-              "ToolTip": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\ScaffoldingReadMe.txt",
-              "RelativeToolTip": "ScaffoldingReadMe.txt",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003109|",
-              "WhenOpened": "2024-08-26T11:16:29.81Z"
+              "DocumentIndex": 2,
+              "Title": "launchSettings.json",
+              "DocumentMoniker": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Properties\\launchSettings.json",
+              "RelativeDocumentMoniker": "Properties\\launchSettings.json",
+              "ToolTip": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Properties\\launchSettings.json",
+              "RelativeToolTip": "Properties\\launchSettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-04-14T13:36:41.756Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ChatMessage.cs",
+              "DocumentMoniker": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Models\\ChatMessage.cs",
+              "RelativeDocumentMoniker": "Models\\ChatMessage.cs",
+              "ToolTip": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\Models\\ChatMessage.cs",
+              "RelativeToolTip": "Models\\ChatMessage.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAhAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-04-14T13:36:05.006Z",
+              "EditorCaption": ""
             }
           ]
         }

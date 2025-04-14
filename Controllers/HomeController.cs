@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SignalRMVC.Areas.Identity.Data;
+using SignalRMVC.Models;
 using System.Security.Claims;
 
 namespace SignalRMVC.Controllers
@@ -30,7 +31,7 @@ namespace SignalRMVC.Controllers
 
             var model = new RoleViewModel();
             var user = await _userManager.GetUserAsync(User);
-            if(user is not null)
+            if (user is not null)
             {
                 var roles1 = await _db.UserRoles
     .Where(ur => ur.UserId == user.Id)
@@ -48,6 +49,21 @@ namespace SignalRMVC.Controllers
         [Authorize]
         public async Task<IActionResult> SendMessageToAll(string user, string message)
         {
+
+            var senderUser = await _userManager.FindByNameAsync(user);
+
+            var chatMessage = new ChatMessage
+            {
+                SenderId = senderUser?.Id,
+                ReceiverId = null, // for broadcast
+                Message = message,
+                GroupName = null,
+                CreatedOn = DateTime.Now
+            };
+
+            _db.ChatMessages.Add(chatMessage);
+            await _db.SaveChangesAsync();
+
             await _basicChatHub.Clients.All.SendAsync("MessageReceived", user, message);
             return Ok();
         }
@@ -60,6 +76,23 @@ namespace SignalRMVC.Controllers
 
             if (!string.IsNullOrEmpty(userId))
             {
+                var senderUser = await _userManager.FindByNameAsync(sender);
+                var receiverUser = await _userManager.FindByEmailAsync(receiver);
+
+                if (receiverUser != null)
+                {
+                    var chatMessage = new ChatMessage
+                    {
+                        SenderId = senderUser?.Id,
+                        ReceiverId = receiverUser.Id,
+                        Message = message
+                    };
+
+                    _db.ChatMessages.Add(chatMessage);
+                    await _db.SaveChangesAsync();
+                }
+
+
                 await _basicChatHub.Clients.User(userId).SendAsync("MessageReceived", sender, message);
             }
             return Ok();

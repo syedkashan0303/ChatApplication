@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SignalRMVC")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+92e9df6537a0f9ad4daad21f3ffbce3c6881f16e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+76c64b8521c71bf91ef89e1bad2ec76a0e9469f5")]
 [assembly: System.Reflection.AssemblyProductAttribute("SignalRMVC")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SignalRMVC")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

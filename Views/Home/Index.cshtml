@@ -1,98 +1,155 @@
 ﻿@model RoleViewModel
 
-<div class="container">
-    <div class="row">&nbsp;</div>
 
-    <div class="row">
-        <div class="col-3">Role</div>
-        <div class="col-6" id="role" style="color:blue">@Model.UserRoles?.FirstOrDefault()</div>
-    </div>
-    <div class="row">
-        <div class="col-3">Sender</div>
-        <div class="col-6"><input class="col-12" type="text" value="@User.Identity?.Name" id="senderEmail" disabled /></div>
-    </div>
-    <div class="row">
-        <div class="col-3">Receiver</div>
-        <div class="col-6"><input class="col-12" type="text" id="receiverEmail" /></div>
-    </div>
-    <div class="row">
-        <div class="col-3">Message</div>
-        <div class="col-6"><input class="col-12" type="text" id="chatMessage" /></div>
-    </div>
-    <div class="row">&nbsp;</div>
-    <div class="row">
-        <div class="col-6">
-            <input type="button" id="sendMessage" value="Send Message" />
-        </div>
-        <div class="col-6">
-            <input type="button" id="sendMessageToGroup" value="Send Message to Group" />
-        </div>
-    </div>
-    <div class="row">
-        <div class="col-12">
-            <hr />
-        </div>
-    </div>
-    <div class="row">
-        <div class="col-6">
-            <ul id="messagesList"></ul>
-        </div>
-    </div>
+<style>
+    #messagesList {
+        list-style-type: none;
+        padding-left: 0;
+    }
 
+    .card-footer {
+        background-color: #f9f9f9;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+</style>
+
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <strong>Chat Room</strong>
+                </div>
+
+                <div class="card-body">
+                    <div class="mb-3 row">
+                        <label class="col-sm-3 col-form-label">Role:</label>
+                        <div class="col-sm-9">
+                            <span id="role" style="color:blue">@Model.UserRoles?.FirstOrDefault()</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label class="col-sm-3 col-form-label">Sender:</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control" value="@User.Identity?.Name" id="senderEmail" disabled />
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label class="col-sm-3 col-form-label">Receiver:</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control" id="receiverEmail" placeholder="Leave empty for broadcast" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label class="col-sm-3 col-form-label">Message:</label>
+                        <div class="col-sm-9">
+                            <textarea class="form-control" id="chatMessage" rows="2" placeholder="Type your message here..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="text-end">
+                        <button type="button" class="btn btn-success" id="sendMessage">Send</button>
+                        @* <button type="button" class="btn btn-secondary" id="sendMessageToGroup">Send to Group</button> *@
+                    </div>
+                </div>
+
+                <div class="card-footer" style="max-height: 300px; overflow-y: auto;">
+                    <ul id="messagesList" class="list-group list-group-flush"></ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.js"></script>
 
-
 <script>
+
 
     var connectionChat = new signalR.HubConnectionBuilder().withUrl("/hubs/basicchat").build();
 
     document.getElementById("sendMessage").disabled = false;
+
     connectionChat.on("MessageReceived", function (user, message) {
         var li = document.createElement("li");
+        li.className = "list-group-item border-0 d-flex";
+
+        var senderEmail = document.getElementById("senderEmail").value;
+
+        var isOwnMessage = user === senderEmail;
+
+        var bubble = document.createElement("div");
+        bubble.className = isOwnMessage
+            ? "align-self-end bg-success text-white rounded px-3 py-2 mb-1"
+            : "align-self-start bg-light text-dark rounded px-3 py-2 mb-1";
+
+        bubble.style.maxWidth = "70%";
+        bubble.textContent = `${user}: ${message}`;
+
+        li.appendChild(bubble);
         document.getElementById("messagesList").appendChild(li);
-        li.textContent = `${user} - ${message}`;
+
+        // Auto-scroll to bottom
+        var messagesBox = document.querySelector('.card-footer');
+        messagesBox.scrollTop = messagesBox.scrollHeight;
     });
+
+
+
+    // connectionChat.on("MessageReceived", function (user, message) {
+    // 	var li = document.createElement("li");
+    // 	li.className = "list-group-item";
+    // 	li.textContent = `${user}: ${message}`;
+    // 	document.getElementById("messagesList").appendChild(li);
+    // });
 
     document.getElementById("sendMessage").addEventListener("click", function (event) {
         var sender = document.getElementById("senderEmail").value;
-        var message = document.getElementById("chatMessage").value;
         var receiver = document.getElementById("receiverEmail").value;
-        if (receiver.length > 0) {
+        var message = document.getElementById("chatMessage").value.trim();
 
+        if (!message) return;
+
+        if (receiver.length > 0) {
             $.ajax({
                 url: '/SendMessageToReceiver',
                 type: 'GET',
                 data: { sender: sender, receiver: receiver, message: message },
                 success: function (response) {
                     console.log(response);
+                    document.getElementById("chatMessage").value = '';
                 },
                 error: function (error) {
                     console.error('Error:', error);
                 }
             });
-        }
-        else {
-            //send message to all of the users
-
+        } else {
             $.ajax({
                 url: '/SendMessageToAll',
                 type: 'GET',
                 data: { user: sender, message: message },
                 success: function (response) {
                     console.log(response);
+                    document.getElementById("chatMessage").value = '';
                 },
                 error: function (error) {
                     console.error('Error:', error);
                 }
             });
-
         }
+
         event.preventDefault();
-    })
+    });
 
-
+    // Optional: Group message sending
+    /*
     document.getElementById("sendMessageToGroup").addEventListener("click", function (event) {
         var message = document.getElementById("chatMessage").value;
 
@@ -109,14 +166,12 @@
         });
 
         event.preventDefault();
-    })
-
+    });
+    */
 
     connectionChat.start().then(function () {
         var sender = document.getElementById("senderEmail").value;
         connectionChat.send("JoinGroup", sender);
         document.getElementById("sendMessage").disabled = false;
     });
-
-
 </script>
