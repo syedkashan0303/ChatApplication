@@ -20,5 +20,6 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         // Add your customizations after calling base.OnModelCreating(builder);
     }
     public DbSet<ChatMessage> ChatMessages { get; set; }
+    public DbSet<ChatRoom> ChatRoom { get; set; }
 
 }

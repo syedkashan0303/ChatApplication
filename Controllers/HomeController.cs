@@ -44,7 +44,6 @@ namespace SignalRMVC.Controllers
 
         }
 
-
         [HttpGet("SendMessageToAll")]
         [Authorize]
         public async Task<IActionResult> SendMessageToAll(string user, string message)
@@ -100,20 +99,76 @@ namespace SignalRMVC.Controllers
 
         [HttpGet("SendMessageToGroup")]
         [Authorize]
-        public async Task SendMessageToGroup(string message)
+        public async Task SendMessageToGroup(string user,string room, string message)
         {
-            var user = GetUserId();
-            var role = (await GetUserRoles(user)).FirstOrDefault();
-            var username = _db.Users.FirstOrDefault(u => u.Id == user)?.Email ?? "";
-
-
-            if (!string.IsNullOrEmpty(role))
+            var senderUser = await _userManager.FindByNameAsync(user);
+            var chatMessage = new ChatMessage
             {
-                await _basicChatHub.Clients.Group(role).SendAsync("MessageReceived", username, message);
-            }
+                SenderId = senderUser?.Id,
+                ReceiverId = null, // for broadcast
+                Message = message,
+                GroupName = room,
+                CreatedOn = DateTime.Now
+            };
+
+            _db.ChatMessages.Add(chatMessage);
+            await _db.SaveChangesAsync();
+            await _basicChatHub.Clients.Group(room).SendAsync("MessageReceived", senderUser.UserName, message);
+
+
+            //var role = (await GetUserRoles(user)).FirstOrDefault();
+
+
+            //if (!string.IsNullOrEmpty(role))
+            //{
+            //}
 
         }
+        [HttpPost]
+        public async Task<IActionResult> CreateRoom([FromForm] string roomName)
+        {
+            if (!string.IsNullOrWhiteSpace(roomName))
+            {
+                var exists = await _db.ChatRoom.AnyAsync(r => r.Name == roomName);
+                if (!exists)
+                {
+                    _db.ChatRoom.Add(new ChatRoom { Name = roomName });
+                    await _db.SaveChangesAsync();
+                }
+            }
 
+            return Ok();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetMessagesByRoom(string roomName)
+        {
+            var messages = await _db.ChatMessages
+                .Where(m => m.GroupName == roomName)
+                .OrderBy(m => m.CreatedOn)
+                .Join(
+                    _db.Users,
+                    message => message.SenderId,
+                    user => user.Id,
+                    (message, user) => new
+                    {
+                        sender = user.UserName, // Or use user.UserName or FullName if you have it
+                        message = message.Message,
+                        createdOn = message.CreatedOn
+                    }
+                )
+                .ToListAsync();
+
+
+            return Json(messages);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRooms()
+        {
+            var rooms = await _db.ChatRoom.Select(r => r.Name).ToListAsync();
+            return Json(rooms);
+        }
         private string GetUserId()
         {
             var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -125,6 +180,20 @@ namespace SignalRMVC.Controllers
             var user = await _userManager.FindByIdAsync(userId);
             var roles = await _userManager.GetRolesAsync(user);
             return roles;
+        }
+
+
+        public async Task<IActionResult> CreateGroup()
+        {
+            var model = new RoleViewModel();
+            var user = await _userManager.GetUserAsync(User);
+            if (user is not null)
+            {
+                var roles1 = await _db.UserRoles.Where(ur => ur.UserId == user.Id).ToListAsync();
+                var roles = await _userManager.GetRolesAsync(user);
+                model.UserRoles = roles;
+            }
+            return View(model);
         }
 
     }

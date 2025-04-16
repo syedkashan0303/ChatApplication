@@ -35,6 +35,11 @@ namespace SignalRMVC
             return roles;
         }
 
+
+
+
+        #region Group / Room working
+
         public static List<string> GroupsJoined { get; set; } = new List<string>();
 
         [Authorize]
@@ -49,6 +54,27 @@ namespace SignalRMVC
                 await Groups.AddToGroupAsync(Context.ConnectionId, role);
             }
         }
+
+
+        public async Task JoinRoom(string roomName)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, roomName);
+            await Clients.Group(roomName).SendAsync("MessageReceived", "System", $"A new user has joined room: {roomName}");
+        }
+
+        public async Task LeaveRoom(string roomName)
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomName);
+            await Clients.Group(roomName).SendAsync("MessageReceived", "System", $"A user has left room: {roomName}");
+        }
+
+        public async Task SendMessageToRoom(string roomName, string user, string message)
+        {
+            await Clients.Group(roomName).SendAsync("MessageReceived", user, message);
+        }
+
+
+        #endregion
 
     }
 }
