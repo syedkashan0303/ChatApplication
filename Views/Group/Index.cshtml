@@ -1,0 +1,305 @@
+﻿@model IEnumerable<SignalRMVC.Models.ChatRoom>
+
+@{
+	ViewData["Title"] = "Chat Rooms";
+}
+
+<h1>Chat Rooms</h1>
+
+
+<button type="button" id="showCreateGroupModal" class="btn btn-primary">
+	<i class="fas fa-plus-circle"></i> Create New Group
+
+</button>
+<br />
+<br />
+<table id="chatRoomsTable" class="table table-striped table-bordered nowrap" style="width:100%">
+	<thead>
+		<tr>
+			<th>
+				@Html.DisplayNameFor(model => model.Name)
+			</th>
+			<th>Actions</th>
+		</tr>
+	</thead>
+	<tbody>
+		@foreach (var item in Model)
+		{
+			<tr id="row-@item.Id">
+				<td class="editable" data-id="@item.Id" data-field="Name">
+					@Html.DisplayFor(modelItem => item.Name)
+				</td>
+				<td>
+					<button class="btn btn-sm btn-warning edit-btn" data-id="@item.Id">Edit</button>
+					<button class="btn btn-sm btn-info save-btn" data-id="@item.Id" style="display:none">Save</button>
+					<button class="btn btn-sm btn-secondary cancel-btn" data-id="@item.Id" style="display:none">Cancel</button>
+					<button class="btn btn-sm btn-danger delete-btn" data-id="@item.Id">Delete</button>
+				</td>
+			</tr>
+		}
+	</tbody>
+</table>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">Confirm Delete</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<p>Are you sure you want to delete this chat room?</p>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+				<button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+<!-- Create Group Modal -->
+<div class="modal fade" id="createGroupModal" tabindex="-1" aria-labelledby="createGroupModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="createGroupModalLabel">Create New Group</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<form id="groupCreateForm">
+					<div class="mb-3">
+						<label for="Name" class="form-label">Group Name *</label>
+						<input type="text" class="form-control" id="Name" name="Name" required>
+						<div class="invalid-feedback">Please enter a group name.</div>
+					</div>
+				</form>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+				<button type="button" class="btn btn-primary" id="createGroupBtn">Create Group</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+@section Scripts {
+	<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+	<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+	<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+	<script>
+		$(document).ready(function () {
+			// Initialize DataTable
+			var table = $('#chatRoomsTable').DataTable({
+				responsive: true,
+				columnDefs: [
+					{ orderable: false, targets: -1 }
+				]
+			});
+
+			// Delete functionality (previous implementation)
+			var deleteId;
+			$('body').on('click', '.delete-btn', function () {
+				deleteId = $(this).data('id');
+				$('#deleteModal').modal('show');
+			});
+
+			$('#confirmDelete').click(function () {
+				$.ajax({
+					url: '/Group/Delete/' + deleteId,
+					type: 'POST',
+					success: function (result) {
+						if (result.success) {
+							table.row('#row-' + deleteId).remove().draw();
+							$('#deleteModal').modal('hide');
+							toastr.success(result.message);
+						} else {
+							toastr.error(result.message);
+						}
+					},
+					error: function (xhr) {
+						toastr.error('An error occurred while deleting the chat room.');
+					}
+				});
+			});
+
+			// Inline Edit functionality
+			$('body').on('click', '.edit-btn', function () {
+				var id = $(this).data('id');
+				var $row = $('#row-' + id);
+
+				// Convert to editable mode
+				$row.find('.editable').each(function() {
+					var $cell = $(this);
+					var currentValue = $cell.text().trim();
+					$cell.html(`<input type="text" class="form-control form-control-sm" value="${currentValue}" />`);
+				});
+
+				// Toggle buttons
+				$row.find('.edit-btn').hide();
+				$row.find('.delete-btn').hide();
+				$row.find('.save-btn').show();
+				$row.find('.cancel-btn').show();
+			});
+
+			$('body').on('click', '.cancel-btn', function () {
+				var id = $(this).data('id');
+				var $row = $('#row-' + id);
+
+				// Reload the row to cancel changes
+				$.ajax({
+					url: '/Group/Details/' + id,
+					type: 'GET',
+					success: function(data) {
+						$row.find('.editable').each(function() {
+							var $cell = $(this);
+							var field = $cell.data('field');
+							$cell.text(data[field]);
+						});
+
+						// Toggle buttons
+						$row.find('.edit-btn').show();
+						$row.find('.delete-btn').show();
+						$row.find('.save-btn').hide();
+						$row.find('.cancel-btn').hide();
+					}
+				});
+			});
+
+			$('body').on('click', '.save-btn', function () {
+				var id = $(this).data('id');
+				var $row = $('#row-' + id);
+				var data = { Id: id };
+
+				// Collect edited values
+				$row.find('.editable').each(function() {
+					var $cell = $(this);
+					var field = $cell.data('field');
+					data[field] = $cell.find('input').val();
+				});
+
+				// Save changes
+				$.ajax({
+					url: '/Group/EditInline',
+					type: 'POST',
+					contentType: 'application/json',
+					data: JSON.stringify(data),
+					success: function(result) {
+						if (result.success) {
+							// Update display values
+							$row.find('.editable').each(function() {
+								var $cell = $(this);
+								var field = $cell.data('field');
+								$cell.text(data[field]);
+							});
+
+							// Toggle buttons
+							$row.find('.edit-btn').show();
+							$row.find('.delete-btn').show();
+							$row.find('.save-btn').hide();
+							$row.find('.cancel-btn').hide();
+
+							toastr.success(result.message);
+						} else {
+							toastr.error(result.message);
+						}
+					},
+					error: function(xhr) {
+						toastr.error('An error occurred while saving changes.');
+					}
+				});
+			});
+
+
+			 // Initialize modal
+		  var createGroupModal = new bootstrap.Modal(document.getElementById('createGroupModal'));
+
+		  // Show modal (you can trigger this from a button click)
+		  $('#showCreateGroupModal').on('click', function() {
+			createGroupModal.show();
+		  });
+
+		  // Form validation
+		  $('#groupCreateForm').on('submit', function(e) {
+			e.preventDefault();
+			if (this.checkValidity()) {
+			  createGroup();
+			} else {
+			  $(this).addClass('was-validated');
+			}
+		  });
+
+		  // Create group button click handler
+		  $('#createGroupBtn').on('click', function() {
+			$('#groupCreateForm').trigger('submit');
+		  });
+
+		  // Function to handle group creation
+		  function createGroup() {
+			var $btn = $('#createGroupBtn');
+			var originalText = $btn.html();
+
+			// Show loading state
+			$btn.prop('disabled', true);
+			$btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating...');
+
+			// Prepare form data
+			var formData = {
+			  name: $('#Name').val()
+			};
+
+			// AJAX request to create group
+			$.ajax({
+			  url: '/Group/CreateGroup', // Update with your API endpoint
+			  type: 'POST',
+			  contentType: 'application/json',
+			  data: JSON.stringify(formData),
+			  success: function(response) {
+				if (response.success) {
+				  // Show success message
+				  toastr.success('Group created successfully!');
+				  refreshGroupsList();
+				} else {
+				  toastr.success('Failed to create group.');
+				}
+			  },
+			  error: function(xhr) {
+				showError(xhr.responseJSON?.message || 'An error occurred while creating the group.');
+			  },
+			  complete: function() {
+				// Reset button state
+				$btn.html(originalText);
+				$btn.prop('disabled', false);
+			  }
+			});
+		  }
+
+		  // Function to refresh groups list
+		  function refreshGroupsList() {
+		   setTimeout(location.reload(), 2500);
+
+		  }
+
+		  // Function to show error messages
+		  function showError(message) {
+			// You can implement a toast or alert for errors
+			alert(message); // Simple example - replace with better error handling
+		  }
+
+		  // Reset form when modal is closed
+		  $('#createGroupModal').on('hidden.bs.modal', function() {
+			$('#groupCreateForm')[0].reset();
+			$('#groupCreateForm').removeClass('was-validated');
+		  });
+
+		});
+
+	</script>
+}
