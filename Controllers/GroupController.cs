@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -24,6 +25,7 @@ namespace SignalRMVC.Controllers
             _userManager = userManager;
         }
 
+        #region Group
         // GET: Group
         public async Task<IActionResult> Index()
         {
@@ -79,26 +81,6 @@ namespace SignalRMVC.Controllers
             }
         }
 
-        [HttpPost]
-        public async Task<IActionResult> CreateRoom([FromBody] string roomName)
-        {
-            if (!string.IsNullOrWhiteSpace(roomName))
-            {
-                var exists = await _context.ChatRoom.AnyAsync(r => r.Name == roomName);
-                if (!exists)
-                {
-                    _context.ChatRoom.Add(new ChatRoom
-                    {
-                        Name = roomName,
-                        isDelete = false,
-                        CreatedOn = DateTime.Now
-                    });
-                    await _context.SaveChangesAsync();
-                }
-            }
-            return Ok();
-        }
-
         public async Task<IActionResult> CreateGroup([FromBody] ChatRoom model)
         {
             try
@@ -115,6 +97,22 @@ namespace SignalRMVC.Controllers
 
                 _context.ChatRoom.Add(group);
                 await _context.SaveChangesAsync();
+                var user = GetUserId();
+
+                var groupUserMapping = new GroupUserMapping
+                {
+                    UserId = user,
+                    GroupId = group.Id,
+                    Active = true,
+                    AddedBy = user,
+                    RemovedBy = "0",
+                    CreatedOn = DateTime.Now
+                };
+
+                _context.GroupUserMapping.Add(groupUserMapping);
+                await _context.SaveChangesAsync();
+
+
 
                 return Ok(new
                 {
@@ -162,11 +160,11 @@ namespace SignalRMVC.Controllers
                 return Json(new { success = false, message = "Error deleting chat room: " + ex.Message });
             }
         }
+        #endregion
 
-        #region
+        #region User
         public async Task<IActionResult> UserList()
         {
-
             var user = GetUserId();
             var userList = await _context.Users
                 .Select(u => new UserViewModel
@@ -181,7 +179,6 @@ namespace SignalRMVC.Controllers
                     AccessFailedCount = u.AccessFailedCount
                 })
                 .ToListAsync();
-
             return View(userList);
         }
 
@@ -243,6 +240,126 @@ namespace SignalRMVC.Controllers
         {
             var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             return userId;
+        }
+
+        #endregion
+
+        #region Group User Mapping
+
+        [HttpGet]
+        public async Task<IActionResult> UserListInGroup(int id)
+        {
+            try
+            {
+                var user = GetUserId();
+                var groupUserList = await _context.GroupUserMapping.Where(x=>x.Active && x.GroupId == id).Select(x=>x.UserId).ToListAsync();
+                var userList = await _context.Users
+                    .Select(u => new UserViewModel
+                    {
+                        Id = u.Id,
+                        UserName = u.UserName,
+                        Email = u.Email,
+                        IsCurrentUser = (user == u.Id ? true : false),
+                        PhoneNumber = u.PhoneNumber,
+                        IsAlreadyInGroup = (groupUserList.Contains(u.Id) ? true : false)
+                    }).ToListAsync();
+
+                return Json(userList);
+            }
+            catch (Exception es)
+            {
+                return Json(es);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateUserGroupMapping([FromForm] string userId, [FromForm] int GroupId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(userId) || GroupId <= 0)
+                    return BadRequest(new { success = false, message = "Group And User is required." });
+                var user = GetUserId();
+
+                var userGroupMapping = _context.GroupUserMapping.FirstOrDefault(x => x.GroupId == GroupId && x.UserId == userId);
+                if (userGroupMapping != null)
+                {
+                    userGroupMapping.Active = true;
+                    userGroupMapping.AddedBy = user;
+                    userGroupMapping.CreatedOn = DateTime.Now;
+                    _context.GroupUserMapping.Update(userGroupMapping);
+                    await _context.SaveChangesAsync();
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "User Add in Group successfully!",
+                    });
+                }
+
+                var groupUserMapping = new GroupUserMapping
+                {
+                    UserId = userId,
+                    GroupId = GroupId,
+                    Active = true,
+                    AddedBy = user,
+                    RemovedBy = "0",
+                    CreatedOn = DateTime.Now
+                };
+
+                _context.GroupUserMapping.Add(groupUserMapping);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "User Add in Group successfully!",
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = $"Error User Mapping with group: {ex.Message}"
+                });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RemoveUserGroupMapping([FromForm] string userId, [FromForm] int GroupId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(userId) || GroupId <= 0)
+                    return BadRequest(new { success = false, message = "Group And User is required." });
+                var user = GetUserId();
+                var userGroupMapping = _context.GroupUserMapping.FirstOrDefault(x => x.GroupId == GroupId && x.UserId == userId);
+                if (userGroupMapping != null)
+                {
+                    userGroupMapping.Active = false;
+                    userGroupMapping.RemovedBy = user;
+                    _context.GroupUserMapping.Update(userGroupMapping);
+                    await _context.SaveChangesAsync();
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "User Add in Group successfully!",
+                    });
+                }
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Some thing is wrong Please try again!",
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = $"Error User Mapping with group: {ex.Message}"
+                });
+            }
         }
 
         #endregion

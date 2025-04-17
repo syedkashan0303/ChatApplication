@@ -146,7 +146,10 @@ namespace SignalRMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> GetRooms()
         {
-            var rooms = await _db.ChatRoom.Where(x=>!x.isDelete).Select(r => r.Name).ToListAsync();
+            var user = GetUserId();
+            var groupUserList = await _db.GroupUserMapping.Where(x => x.Active && x.UserId == user).Select(x => x.GroupId).ToListAsync();
+
+            var rooms = await _db.ChatRoom.Where(x=>!x.isDelete && groupUserList.Contains(x.Id)).Select(r => r.Name).ToListAsync();
             return Json(rooms);
         }
         private string GetUserId()

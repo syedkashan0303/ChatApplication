@@ -9,31 +9,38 @@
 
 <button type="button" id="showCreateGroupModal" class="btn btn-primary">
 	<i class="fas fa-plus-circle"></i> Create New Group
-
 </button>
+
 <br />
 <br />
+<input type="hidden" id="selectedGroupId" value="0" />
+<input type="hidden" id="selectedGroupName" value="" />
+
 <table id="chatRoomsTable" class="table table-striped table-bordered nowrap" style="width:100%">
 	<thead>
 		<tr>
-			<th>
+			<th style="width: 70%;">
 				@Html.DisplayNameFor(model => model.Name)
 			</th>
-			<th>Actions</th>
+			<th style="width: 30%;">Actions</th>
 		</tr>
 	</thead>
 	<tbody>
 		@foreach (var item in Model)
 		{
 			<tr id="row-@item.Id">
-				<td class="editable" data-id="@item.Id" data-field="Name">
+				<td class="editable" data-id="@item.Id" data-field="Name" style="width: 70%;">
 					@Html.DisplayFor(modelItem => item.Name)
 				</td>
-				<td>
+				<td style="width: 30%;">
 					<button class="btn btn-sm btn-warning edit-btn" data-id="@item.Id">Edit</button>
 					<button class="btn btn-sm btn-info save-btn" data-id="@item.Id" style="display:none">Save</button>
 					<button class="btn btn-sm btn-secondary cancel-btn" data-id="@item.Id" style="display:none">Cancel</button>
 					<button class="btn btn-sm btn-danger delete-btn" data-id="@item.Id">Delete</button>
+					<button type="button" class="btn btn-primary showUsersBtn" data-bs-toggle="modal" data-bs-target="#userListModal" id="showUsersBtn" data-id="@item.Id">
+						Add Or Remove Users
+					</button>
+
 				</td>
 			</tr>
 		}
@@ -80,6 +87,37 @@
 			<div class="modal-footer">
 				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
 				<button type="button" class="btn btn-primary" id="createGroupBtn">Create Group</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- User List Modal -->
+<div class="modal fade" id="userListModal" tabindex="-1" aria-labelledby="userListModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-scrollable modal-lg">
+		<div class="modal-content">
+			<div class="modal-header bg-primary text-white">
+				<h5 class="modal-title" id="GroupuserListModalLabel">User List in Group</h5>
+				<button type="button" class="btn-close text-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<table class="table table-bordered" id="userDataTable">
+					<thead>
+						<tr>
+							<th>#</th>
+							<th>User Name</th>
+							<th>Email</th>
+							<th>Phone</th>
+							<th>Status</th>
+						</tr>
+					</thead>
+					<tbody>
+						<!-- JS will populate this -->
+					</tbody>
+				</table>
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
 			</div>
 		</div>
 	</div>
@@ -236,13 +274,13 @@
 			}
 		  });
 
-		  // Create group button click handler
-		  $('#createGroupBtn').on('click', function() {
+		// Create group button click handler
+		$('#createGroupBtn').on('click', function() {
 			$('#groupCreateForm').trigger('submit');
 		  });
 
-		  // Function to handle group creation
-		  function createGroup() {
+		// Function to handle group creation
+		function createGroup() {
 			var $btn = $('#createGroupBtn');
 			var originalText = $btn.html();
 
@@ -281,23 +319,130 @@
 			});
 		  }
 
-		  // Function to refresh groups list
-		  function refreshGroupsList() {
+		// Function to refresh groups list
+		function refreshGroupsList() {
 		   setTimeout(location.reload(), 2500);
 
 		  }
 
-		  // Function to show error messages
-		  function showError(message) {
+		// Function to show error messages
+		function showError(message) {
 			// You can implement a toast or alert for errors
 			alert(message); // Simple example - replace with better error handling
 		  }
 
 		  // Reset form when modal is closed
-		  $('#createGroupModal').on('hidden.bs.modal', function() {
+		$('#createGroupModal').on('hidden.bs.modal', function() {
 			$('#groupCreateForm')[0].reset();
 			$('#groupCreateForm').removeClass('was-validated');
 		  });
+
+		  // Open User PopupList
+		var MappinguserGroupModal = new bootstrap.Modal(document.getElementById('userListModal'));
+
+		$(".showUsersBtn").on('click', function () {
+
+			var groupId = $(this).data("id");
+
+			var $row = $('#row-' + groupId);
+
+			// Convert to editable mode
+			$row.find('.editable').each(function() {
+				var $cell = $(this);
+				var currentValue = $cell.text().trim();
+				$("#GroupuserListModalLabel").html(currentValue);
+			});
+
+			console.log("groupId :"+ groupId)
+			$("#selectedGroupId").val(groupId);
+			$.ajax({
+				url: '/Group/UserListInGroup/' + groupId,
+				type: 'GET',
+				success: function (users) {
+					// Destroy previous instance if exists
+					if ($.fn.DataTable.isDataTable('#userDataTable')) {
+						$('#userDataTable').DataTable().destroy();
+					}
+
+					// Clear old data
+					var $tbody = $("#userDataTable tbody");
+					$tbody.empty();
+
+					users.forEach(function (user, index) {
+
+						let actionButtons =
+						user.isCurrentUser ?
+
+						user.isAlreadyInGroup
+							? `<button class="btn btn-success btn-sm removeUser" data-user-id="${user.id}" disabled>Added</button>`
+							: `<button class="btn btn-success btn-sm addUser" data-user-id="${user.id}">Add</button>`
+						: user.isAlreadyInGroup
+							? `<button class="btn btn-danger btn-sm removeUser" data-user-id="${user.id}">Remove</button>`
+							: `<button class="btn btn-success btn-sm addUser" data-user-id="${user.id}">Add</button>` ;
+						let row = `<tr>
+							<td>${index + 1}</td>
+							<td class="${user.isCurrentUser ? 'fw-bold text-primary' : ''}">${user.userName}</td>
+							<td>${user.email}</td>
+							<td>${user.phoneNumber ?? '-'}</td>
+							<td>${actionButtons}</td>
+						</tr>`;
+
+						$tbody.append(row);
+					});
+
+					// Reinitialize DataTable
+					$('#userDataTable').DataTable({
+						pageLength: 5,
+						lengthChange: false,
+						searching: true,
+						ordering: true
+					});
+
+					MappinguserGroupModal.show();
+				},
+				error: function (err) {
+					console.error("Error fetching users:", err);
+				}
+			});
+		});
+
+		// Add user to group
+		$(document).on("click", ".addUser", function () {
+			let userId = $(this).data("user-id");
+			let groupId = $("#selectedGroupId").val();
+
+			$.ajax({
+				url: '/Group/CreateUserGroupMapping',
+				type: 'POST',
+				data: { userId: userId, GroupId: groupId },
+				success: function () {
+					toastr.success('User added to group.');
+					$("#showUsersBtn").trigger("click"); // reload user list
+				},
+				error: function (err) {
+					console.error("Error adding user:", err);
+				}
+			});
+		});
+
+		// Remove user from group
+		$(document).on("click", ".removeUser", function () {
+				let userId = $(this).data("user-id");
+				let groupId = $("#selectedGroupId").val();
+
+				$.ajax({
+					url: '/Group/RemoveUserGroupMapping',
+					type: 'POST',
+					data: { userId: userId, GroupId: groupId },
+					success: function () {
+						toastr.success('User removed from group.');
+						$("#showUsersBtn").trigger("click"); // reload user list
+					},
+					error: function (err) {
+						console.error("Error removing user:", err);
+					}
+				});
+			});
 
 		});
 
