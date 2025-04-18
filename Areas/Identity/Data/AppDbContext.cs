@@ -17,4 +17,5 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatRoom> ChatRoom { get; set; }
     public DbSet<GroupUserMapping> GroupUserMapping { get; set; }
+    //public DbSet<AspNetUsers> AspNetUsers { get; set; }
 }

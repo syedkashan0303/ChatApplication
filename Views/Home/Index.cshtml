@@ -73,7 +73,7 @@
 				</div>
 			</div>
 
-			<div class="col-md-10">
+			<div class="col-md-10 chatsection" style="display:none">
 				<input type="hidden" value="" id="hiddenRoomName" disabled />
 				<input type="hidden" class="form-control" value="@User.Identity?.Name" id="senderEmail" disabled />
 
@@ -228,7 +228,7 @@
 
 	$(document).on("click", ".group-item", function () {
 		var roomName = $(this).data("room");
-
+		$('.chatsection').show();
 		// Leave previous room if needed (optional)
 		if (currentRoom) {
 			connectionChat.invoke("LeaveRoom", currentRoom);
