@@ -1,50 +1,66 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using SignalRMVC;
-using SignalRMVC.Areas.Identity.Data;
+using SignalRMVC.Areas.Identity.Data; // Make sure ApplicationUser is here
+using SignalRMVC.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-var connectionString = builder.Configuration.GetConnectionString("AppDbContextConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+// ✅ Use your actual connection string name here
+var connectionString = builder.Configuration.GetConnectionString("AppDbContextConnection")
+    ?? throw new InvalidOperationException("Connection string 'AppDbContextConnection' not found.");
+
+
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddRoles<IdentityRole>()
-    .AddEntityFrameworkStores<AppDbContext>();
+// ✅ Register Identity with your custom ApplicationUser and IdentityRole
+//builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+//{
+//    options.SignIn.RequireConfirmedAccount = false; // Optional: depends on your need
+//})
+//.AddEntityFrameworkStores<AppDbContext>()
+//.AddDefaultTokenProviders();
+
+
+builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = false;
+})
+.AddRoles<IdentityRole>()
+.AddEntityFrameworkStores<AppDbContext>();
+
+
 builder.Services.AddControllersWithViews();
+builder.Services.AddRazorPages(); // <--- This line fixes the error
 
-//var connectionAzureSignalR = "Endpoint=https://dotnetmastery.service.signalr.net;AccessKey=m9Enl0s8dqQGU6l0M0SGDqjwMttKvqN84hX+acKepmU=;Version=1.0;";
 
-//builder.Services.AddSignalR().AddAzureSignalR(connectionAzureSignalR);
 builder.Services.AddSignalR();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-   //app.UseMigrationsEndPoint();
-}
-else
+// Middleware
+if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-
 app.UseRouting();
 
-app.UseAuthentication();
+app.UseAuthentication(); // ✅ Important for Identity
 app.UseAuthorization();
 
+// Routing
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
-app.MapRazorPages();
-app.MapHub<BasicChatHub>("/hubs/basicchat");
+
+app.MapRazorPages(); // ✅ For Identity UI pages
+app.MapHub<BasicChatHub>("/hubs/basicchat"); // ✅ SignalR Hub route
+
 app.Run();

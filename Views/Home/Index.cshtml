@@ -24,10 +24,10 @@
 		text-align: center !important;
 	}
 
-	.chatuser .time {
-		font-weight: normal;
-		font-size: 0.8rem;
-	}
+		.chatuser .time {
+			font-weight: normal;
+			font-size: 0.8rem;
+		}
 
 	.msg {
 		font-family: 'Noto Nastaliq Urdu';
@@ -42,14 +42,38 @@
 		padding-bottom: 25px !important;
 	}
 
-	.msg-custom .copy-btn {
-		position: absolute !important;
-		background: unset !important;
-		bottom: 3px;
+		.msg-custom .copy-btn {
+			position: absolute !important;
+			background: unset !important;
+			bottom: 3px;
+			border: unset;
+			top: unset !important;
+			color: #fff !important;
+			font-size: 14px;
+		}
+
+	.ChatRoom .card-body {
+		padding: 0 !important;
+		position: relative;
+	}
+
+		.ChatRoom .card-body textarea#chatMessage {
+			background: #eee;
+			border: 1px #c3c3c3 solid;
+			margin-top: 10px;
+		}
+
+	.card.ChatRoom {
 		border: unset;
-		top: unset !important;
-		color: #fff !important;
-		font-size: 14px;
+	}
+
+	.list-group-item {
+		background: unset;
+	}
+
+	.ChatRoom .card-body textarea#chatMessage:active, .ChatRoom .card-body textarea#chatMessage:focus {
+		outline: none;
+		box-shadow: none;
 	}
 
 </style>
@@ -73,45 +97,38 @@
 				</div>
 			</div>
 
-			<div class="col-md-10 chatsection" style="display:none">
+			<div class="col-md-10 chatsection ChatRoom" style="display:none">
 				<input type="hidden" value="" id="hiddenRoomName" disabled />
 				<input type="hidden" class="form-control" value="@User.Identity?.Name" id="senderEmail" disabled />
 
-				<div class="card shadow">
+				<div class="card">
 					<div class="card-header bg-primary text-white">
 						<strong>Chat Room</strong> <strong id="roomName"></strong>
 					</div>
 
-					<div class="card-footer" style="max-height: 300px; overflow-y: auto;">
+					<div class="card-footer" style="min-height: 420px; overflow-y: auto; max-height: 420px; background: #eee; border: 1px #c3c3c3 solid; border-radius: 0px 0px 5px 5px;">
 						<ul id="messagesList" class="list-group list-group-flush"></ul>
 					</div>
-					<div style="border: 1px solid #000;">
-					</div>
+					@* <div style="border: 1px solid #000;"> *@
+				</div>
 
-					<div class="card-body">
-						@*        <div class="mb-3 row">
-                        <label class="col-sm-3 col-form-label">Role:</label>
-                        <div class="col-sm-9">
-                            <span id="role" style="color:blue">@Model.UserRoles?.FirstOrDefault()</span>
-                        </div>
-                    </div> *@
+				<div class="card-body">
 
-						<div class="mb-3 row">
-							<div class="col-sm-12">
-								<textarea class="form-control" id="chatMessage" rows="2" placeholder="Type your message here..." style="height: 150px; border: dashed;"></textarea>
-							</div>
-						</div>
-
-						<div class="text-end">
-							<button type="button" class="btn btn-success" id="sendMessage">Send</button>
+					<div class="mb-3 row">
+						<div class="col-sm-12">
+							<textarea class="form-control" id="chatMessage" rows="2" placeholder="Type your message here..." style="height: 100px;"></textarea>
 						</div>
 					</div>
 
+					<div class="text-end">
+						<button type="button" class="btn btn-success" id="sendMessage">Send</button>
+					</div>
 				</div>
 
 			</div>
 
 		</div>
+
 	</div>
 </div>
 
@@ -119,10 +136,25 @@
 <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 
 <script>
+
+	let skipDays = 0;
+	let isLoading = false;
+	let allMessagesLoaded = false;
+
+	// Scroll-to-top detection for loading older messages
+	$(".card-footer").on("scroll", function () {
+
+		if ($(this).scrollTop() == 0 && !isLoading && !allMessagesLoaded) {
+			skipDays += 1;
+			console.log("scrollTop :"+$(this).scrollTop())
+
+			loadGroupMessages(currentRoom, skipDays, true); // load more
+		}
+	});
+
 	var connectionChat = new signalR.HubConnectionBuilder().withUrl("/hubs/basicchat").build();
+
 	document.getElementById("sendMessage").disabled = false;
-
-
 
 	$(document).on("click", ".copy-btn", function () {
 		var textToCopy = $(this).siblings(".message-text").text();
@@ -139,8 +171,6 @@
 			console.error("Failed to copy: ", err);
 		});
 	});
-
-
 
 	connectionChat.on("MessageReceived", function (user, message) {
 		renderMessage(user, message);
@@ -176,7 +206,6 @@
 			}
 		});
 	});
-
 
 	connectionChat.start().then(function () {
 		console.log("SignalR connected");
@@ -241,39 +270,159 @@
 			$("#roomName").text(" - " + roomName);
 			$("#hiddenRoomName").val(roomName);
 
-
+			$("#messagesList").empty();
 			// Load chat messages from DB via AJAX
 			loadGroupMessages(roomName);
 		});
 	});
 
-	function loadGroupMessages(roomName) {
+	// function loadGroupMessages(roomName) {
+	// 	$.ajax({
+	// 		url: `/Home/GetMessagesByRoom?roomName=${roomName}`,
+	// 		type: 'GET',
+	// 		success: function (messages) {
+	// 			// Clear chat box
+	// 			$("#messagesList").empty();
+	// 			messages.forEach(function (msg) {
+	// 				renderMessage(msg.sender, msg.message);
+	// 			});
+
+	// 			scrollToBottom();
+	// 		},
+	// 		error: function (error) {
+	// 			console.error("Error loading messages:", error);
+	// 		}
+	// 	});
+	// }
+
+
+	function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false) {
+
+		console.log(`roomName ${roomName} skipDaysParam ${skipDaysParam} `)
+
+		isLoading = true;
+
 		$.ajax({
-			url: `/Home/GetMessagesByRoom?roomName=${roomName}`,
+			url: `/Home/GetMessagesByRoom`,
 			type: 'GET',
+			data: { roomName: roomName, skipRecords: skipDaysParam },
 			success: function (messages) {
-				// Clear chat box
-				$("#messagesList").empty();
+				if (!messages || messages.length === 0) {
+					allMessagesLoaded = false;
+					isLoading = false;
+					return;
+				}
+
+				const chatList = $("#messagesList");
+				let scrollPosBefore = $(".card-footer")[0].scrollHeight;
+
 				messages.forEach(function (msg) {
-					renderMessage(msg.sender, msg.message);
+					const messageHtml = renderMessage(msg.sender, msg.message, true);
+					if (prepend) {
+						chatList.prepend(messageHtml);
+					} else {
+						chatList.append(messageHtml);
+					}
 				});
 
-				scrollToBottom();
+				if (!prepend) scrollToBottom();
+				else {
+					// Maintain position while prepending
+					let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
+					$(".card-footer").scrollTop(scrollDiff);
+				}
+
+				isLoading = false;
 			},
 			error: function (error) {
 				console.error("Error loading messages:", error);
+				isLoading = false;
 			}
 		});
 	}
 
-	function renderMessage(user, message) {
+
+
+	// function renderMessage(user, message) {
+	// 	var senderEmail = $("#senderEmail").val();
+	// 	var isOwnMessage = user === senderEmail;
+
+	// 	let now = new Date();
+	// 	let timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+	// 	// Create user info (email + time)
+	// 	var userInfo = $("<div>")
+	// 		.addClass("chatuser px-3 py-2 mb-1")
+	// 		.addClass(isOwnMessage ? "align-self-end" : "align-self-start")
+	// 		.append(
+	// 			$("<span>").text(user),
+	// 			$("<br>"),
+	// 			$("<strong>").addClass("time").text(timeStr)
+	// 		);
+
+	// 	// Create message bubble
+	// 	// var bubble = $("<div>")
+	// 	// 	.css("max-width", "70%")
+	// 	// 	.css("text-align", "right")
+	// 	// 	.css(isOwnMessage ? ("background-color", "#4C94FF !important") : ("background-color", "#ADADAD !important"))
+	// 	// 	.append($("<div>").text(message))
+	// 	// 	.addClass("rounded px-3 py-2 mb-1")
+	// 	// 	.addClass(isOwnMessage
+	// 	// 		? "text-white align-self-end msg"
+	// 	// 		: "text-dark align-self-start msg"
+	// 	// 	);
+
+
+	// 	var bubble = $("<div>")
+	// 		.addClass("msg-custom rounded px-3 py-2 mb-1 position-relative")
+	// 		.addClass(isOwnMessage
+	// 			? "text-white align-self-end msg"
+	// 			: "text-dark align-self-start msg"
+	// 		)
+	// 		.css("max-width", "70%")
+	// 		.append(
+	// 		$("<div>").addClass("message-text").text(message),
+	// 		$("<button>")
+	// 			.addClass("btn btn-sm btn-light copy-btn position-absolute top-0 end-0 m-1")
+	// 			.html('<i class="fa-solid fa-copy"></i>') // ✅ fixed quotes
+	// 			.attr("title", "Copy message")
+	// 	);
+
+
+
+	// 	// var bubble = $("<div>")
+	// 	// 	.css("max-width", "70%")
+	// 	// 	.css("text-align", "right")
+	// 	// 	.addClass("rounded px-3 py-2 mb-1 " +
+	// 	// 		(isOwnMessage ? "text-white align-self-end msg" : "text-dark align-self-start msg"))
+	// 	// 	.text(message);
+
+	// 	// Handle background color with !important separately
+	// 	bubble[0].style.setProperty(
+	// 		'background-color',
+	// 		isOwnMessage ? '#4C94FF' : '#ADADAD',
+	// 		'important'
+	// 	);
+
+	// 	// Wrap in list item
+	// 	var li = $("<li>")
+	// 		.addClass("list-group-item border-0 d-flex flex-column")
+	// 		.addClass(isOwnMessage ? "align-items-end" : "align-items-start")
+	// 		.append(userInfo)
+	// 		.append(bubble);
+
+	// 	// Append to chat
+	// 	$("#messagesList").append(li);
+	// }
+
+
+	function renderMessage(user, message, returnOnly = false) {
 		var senderEmail = $("#senderEmail").val();
 		var isOwnMessage = user === senderEmail;
 
 		let now = new Date();
 		let timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-		// Create user info (email + time)
 		var userInfo = $("<div>")
 			.addClass("chatuser px-3 py-2 mb-1")
 			.addClass(isOwnMessage ? "align-self-end" : "align-self-start")
@@ -283,60 +432,29 @@
 				$("<strong>").addClass("time").text(timeStr)
 			);
 
-		// Create message bubble
-		// var bubble = $("<div>")
-		// 	.css("max-width", "70%")
-		// 	.css("text-align", "right")
-		// 	.css(isOwnMessage ? ("background-color", "#4C94FF !important") : ("background-color", "#ADADAD !important"))
-		// 	.append($("<div>").text(message))
-		// 	.addClass("rounded px-3 py-2 mb-1")
-		// 	.addClass(isOwnMessage
-		// 		? "text-white align-self-end msg"
-		// 		: "text-dark align-self-start msg"
-		// 	);
-
-
 		var bubble = $("<div>")
 			.addClass("msg-custom rounded px-3 py-2 mb-1 position-relative")
-			.addClass(isOwnMessage
-				? "text-white align-self-end msg"
-				: "text-dark align-self-start msg"
-			)
+			.addClass(isOwnMessage ? "text-white align-self-end msg" : "text-dark align-self-start msg")
 			.css("max-width", "70%")
 			.append(
-			$("<div>").addClass("message-text").text(message),
-			$("<button>")
-				.addClass("btn btn-sm btn-light copy-btn position-absolute top-0 end-0 m-1")
-				.html('<i class="fa-solid fa-copy"></i>') // ✅ fixed quotes
-				.attr("title", "Copy message")
-		);
+				$("<div>").addClass("message-text").text(message),
+				$("<button>")
+					.addClass("btn btn-sm btn-light copy-btn position-absolute top-0 end-0 m-1")
+					.html('<i class="fa-solid fa-copy"></i>')
+					.attr("title", "Copy message")
+			);
 
+		bubble[0].style.setProperty('background-color', isOwnMessage ? '#4C94FF' : '#ADADAD', 'important');
 
-
-		// var bubble = $("<div>")
-		// 	.css("max-width", "70%")
-		// 	.css("text-align", "right")
-		// 	.addClass("rounded px-3 py-2 mb-1 " +
-		// 		(isOwnMessage ? "text-white align-self-end msg" : "text-dark align-self-start msg"))
-		// 	.text(message);
-
-		// Handle background color with !important separately
-		bubble[0].style.setProperty(
-			'background-color',
-			isOwnMessage ? '#4C94FF' : '#ADADAD',
-			'important'
-		);
-
-		// Wrap in list item
 		var li = $("<li>")
 			.addClass("list-group-item border-0 d-flex flex-column")
 			.addClass(isOwnMessage ? "align-items-end" : "align-items-start")
 			.append(userInfo)
 			.append(bubble);
 
-		// Append to chat
-		$("#messagesList").append(li);
+		return returnOnly ? li : $("#messagesList").append(li);
 	}
+
 
 	function scrollToBottom() {
 		var messagesBox = $('.card-footer');
@@ -372,6 +490,34 @@
 
 		connectionChat.invoke("SendMessageToRoom", selectedRoom, sender, message);
 		$("#chatMessage").val('');
+	});
+
+
+	$('#chatMessage').on('keydown', function(e) {
+		if (e.which === 13) { // Enter key
+			if (e.ctrlKey) { // Ctrl+Enter → Insert new line
+				// Get current cursor position
+				var start = this.selectionStart;
+				var end = this.selectionEnd;
+
+				// Insert a new line at cursor position
+				var text = $(this).val();
+				$(this).val(
+					text.substring(0, start) +
+					'\n' +
+					text.substring(end)
+				);
+
+				// Move cursor to after the new line
+				this.selectionStart = this.selectionEnd = start + 1;
+
+				return false; // Prevent default behavior
+			}
+			else { // Just Enter → Send message
+				e.preventDefault();
+				$('#sendMessage').click();
+			}
+		}
 	});
 
 	connectionChat.start().then(function () {

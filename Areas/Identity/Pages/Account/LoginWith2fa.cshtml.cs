@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
+using SignalRMVC.Models;
 
 namespace SignalRMVC.Areas.Identity.Pages.Account
 {

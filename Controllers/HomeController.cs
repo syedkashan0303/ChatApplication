@@ -13,12 +13,12 @@ namespace SignalRMVC.Controllers
     public class HomeController : Controller
     {
         private readonly AppDbContext _db;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHubContext<BasicChatHub> _basicChatHub;
-        private readonly UserManager<IdentityUser> _userManager;
 
         public HomeController(
             AppDbContext context,
-            UserManager<IdentityUser> userManager,
+            UserManager<ApplicationUser> userManager,
             IHubContext<BasicChatHub> basicChatHub)
         {
             _db = context;
@@ -120,27 +120,64 @@ namespace SignalRMVC.Controllers
 
 
 
+        //[HttpGet]
+        //public async Task<IActionResult> GetMessagesByRoom(string roomName)
+        //{
+        //    var messages = await _db.ChatMessages
+        //        .Where(m => m.GroupName == roomName && !m.IsDelete)
+        //        .OrderBy(m => m.CreatedOn)
+        //        .Join(
+        //            _db.Users,
+        //            message => message.SenderId,
+        //            user => user.Id,
+        //            (message, user) => new
+        //            {
+        //                sender = user.UserName, // Or use user.UserName or FullName if you have it
+        //                message = message.Message,
+        //                createdOn = message.CreatedOn
+        //            }
+        //        )
+        //        .ToListAsync();
+
+
+        //    return Json(messages);
+        //}
+
+
         [HttpGet]
-        public async Task<IActionResult> GetMessagesByRoom(string roomName)
+        public IActionResult GetMessagesByRoom(string roomName, int skipRecords = 0, int chunkRecords = 100)
         {
-            var messages = await _db.ChatMessages
-                .Where(m => m.GroupName == roomName && !m.IsDelete)
-                .OrderBy(m => m.CreatedOn)
-                .Join(
-                    _db.Users,
-                    message => message.SenderId,
-                    user => user.Id,
-                    (message, user) => new
-                    {
-                        sender = user.UserName, // Or use user.UserName or FullName if you have it
-                        message = message.Message,
-                        createdOn = message.CreatedOn
-                    }
-                )
-                .ToListAsync();
+            var now = DateTime.UtcNow;
+            //var toDate = now.AddDays(-skipRecords);
+            //var fromDate = toDate.AddDays(-chunkRecords);
+            
+            var fromDate = skipRecords * chunkRecords;
+
+            //var messages = _context.ChatMessages
+            //    .Where(m => m.GroupName == roomName && m.Timestamp >= fromDate && m.Timestamp < toDate)
+            //    .OrderBy(m => m.Timestamp)
+            //    .Select(m => new { sender = m.SenderEmail, message = m.Message }) // match front-end
+            //    .ToList();
+
+            var messages = _db.ChatMessages
+              .Where(m => m.GroupName == roomName && !m.IsDelete)
+              .OrderByDescending(m => m.Id).Skip(fromDate).Take(chunkRecords)
+              .Join(
+                  _db.Users,
+                  message => message.SenderId,
+                  user => user.Id,
+                  (message, user) => new
+                  {
+                      id = message.Id,
+                      sender = user.UserName, // Or use user.UserName or FullName if you have it
+                      message = message.Message,
+                      createdOn = message.CreatedOn
+                  }
+              )
+              .ToList().OrderBy(x=>x.id);
 
 
-            return Json(messages);
+            return Ok(messages);
         }
 
         [HttpGet]

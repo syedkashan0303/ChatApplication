@@ -16,10 +16,10 @@ namespace SignalRMVC.Controllers
     public class GroupController : Controller
     {
         private readonly AppDbContext _context;
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<ApplicationUser> _userManager;
 
 
-        public GroupController(AppDbContext context, UserManager<IdentityUser> userManager)
+        public GroupController(AppDbContext context, UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _userManager = userManager;
@@ -166,7 +166,10 @@ namespace SignalRMVC.Controllers
         public async Task<IActionResult> UserList()
         {
             var user = GetUserId();
-            var userList = await _context.Users
+            var userListabc = _userManager.Users;
+
+
+            var userList = await _userManager.Users.Where(x => !x.IsDeleted)
                 .Select(u => new UserViewModel
                 {
                     Id = u.Id,
@@ -226,13 +229,13 @@ namespace SignalRMVC.Controllers
             {
                 return Json(new { success = false, message = "User not found." });
             }
-
-            var result = await _userManager.DeleteAsync(user);
-
+            user.IsDeleted = true;
+            _context.Update(user);
+            _context.SaveChanges();
             return Json(new
             {
-                success = result.Succeeded,
-                message = result.Succeeded ? "User deleted" : string.Join(", ", result.Errors.Select(e => e.Description))
+                success = true,
+                message = "User deleted" 
             });
         }
 
@@ -252,7 +255,7 @@ namespace SignalRMVC.Controllers
             try
             {
                 var user = GetUserId();
-                var groupUserList = await _context.GroupUserMapping.Where(x=>x.Active && x.GroupId == id).Select(x=>x.UserId).ToListAsync();
+                var groupUserList = await _context.GroupUserMapping.Where(x => x.Active && x.GroupId == id).Select(x => x.UserId).ToListAsync();
                 var userList = await _context.Users
                     .Select(u => new UserViewModel
                     {

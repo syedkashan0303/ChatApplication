@@ -132,6 +132,9 @@
 							table.row('#user-' + userIdToDelete).remove().draw();
 							$('#deleteUserModal').modal('hide');
 							toastr.success(result.message);
+							setTimeout(function () {
+								  location.reload();
+							}, 1000);
 						} else {
 							toastr.error(result.message);
 						}

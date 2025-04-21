@@ -14,18 +14,23 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
+using SignalRMVC.Models;
+using System.Security.Claims;
 
 namespace SignalRMVC.Areas.Identity.Pages.Account
 {
     public class LoginModel : PageModel
     {
-        private readonly SignInManager<IdentityUser> _signInManager;
+        private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ILogger<LoginModel> _logger;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public LoginModel(SignInManager<IdentityUser> signInManager, ILogger<LoginModel> logger)
+
+        public LoginModel(SignInManager<ApplicationUser> signInManager, ILogger<LoginModel> logger, UserManager<ApplicationUser> userManager)
         {
             _signInManager = signInManager;
             _logger = logger;
+            _userManager = userManager;
         }
 
         /// <summary>
@@ -90,6 +95,7 @@ namespace SignalRMVC.Areas.Identity.Pages.Account
             {
                 ModelState.AddModelError(string.Empty, ErrorMessage);
             }
+            var acbc = TempData["LoginError"];
 
             returnUrl ??= Url.Content("~/");
 
@@ -114,8 +120,19 @@ namespace SignalRMVC.Areas.Identity.Pages.Account
                 var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
                 if (result.Succeeded)
                 {
-                    _logger.LogInformation("User logged in.");
-                    return LocalRedirect(returnUrl);
+                    var userId = GetUserId();
+                    var userById = _userManager.Users.Where(x => x.Id == userId && x.IsDeleted).ToList();
+                    if (userById != null && userById.Any())
+                    {
+                        await _signInManager.SignOutAsync();
+                        TempData["LoginError"] = "User account is deleted."; // Key renamed for clarity
+                        return RedirectToPage(); // Critical: Forces a GET request
+                    }
+                    else
+                    {
+                        _logger.LogInformation("User logged in.");
+                        return LocalRedirect(returnUrl);
+                    }
                 }
                 if (result.RequiresTwoFactor)
                 {
@@ -136,5 +153,13 @@ namespace SignalRMVC.Areas.Identity.Pages.Account
             // If we got this far, something failed, redisplay form
             return Page();
         }
+
+        private string GetUserId()
+        {
+            var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return userId;
+        }
+
+
     }
 }

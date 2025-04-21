@@ -1,14 +1,15 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
+using SignalRMVC.Models;
 using System.Security.Claims;
 
 namespace SignalRMVC
 {
     public class BasicChatHub : Hub
     {
-        private readonly UserManager<IdentityUser> _userManager;
-        public BasicChatHub(UserManager<IdentityUser> userManager)
+        private readonly UserManager<ApplicationUser> _userManager;
+        public BasicChatHub(UserManager<ApplicationUser> userManager)
         {
             _userManager = userManager;
         }
@@ -59,13 +60,13 @@ namespace SignalRMVC
         public async Task JoinRoom(string roomName)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, roomName);
-            await Clients.Group(roomName).SendAsync("MessageReceived", "System", $"A new user has joined room: {roomName}");
+            //await Clients.Group(roomName).SendAsync("MessageReceived", "System", $"A new user has joined room: {roomName}");
         }
 
         public async Task LeaveRoom(string roomName)
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomName);
-            await Clients.Group(roomName).SendAsync("MessageReceived", "System", $"A user has left room: {roomName}");
+            //await Clients.Group(roomName).SendAsync("MessageReceived", "System", $"A user has left room: {roomName}");
         }
 
         public async Task SendMessageToRoom(string roomName, string user, string message)

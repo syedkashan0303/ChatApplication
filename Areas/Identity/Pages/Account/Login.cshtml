@@ -1,7 +1,10 @@
 ﻿@page
 @model LoginModel
 
-@{
+<!-- Display error if exists -->
+@if (TempData["LoginError"] != null)
+{
+	<input type="hidden" id="loginErrorAlert"/>
 }
 
 <h1>@ViewData["Title"]</h1>
@@ -53,40 +56,31 @@
 	</div>
 	<div class="col-md-4">
 	</div>
-@* 	<div class="col-md-6 col-md-offset-2">
-		<section>
-			<h3>Use another service to log in.</h3>
-			<hr />
-			@{
-				if ((Model.ExternalLogins?.Count ?? 0) == 0)
-				{
-					<div>
-						<p>
-							There are no external authentication services configured. See this <a href="https://go.microsoft.com/fwlink/?LinkID=532715">
-								article
-								about setting up this ASP.NET application to support logging in via external services
-							</a>.
-						</p>
-					</div>
-				}
-				else
-				{
-					<form id="external-account" asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" method="post" class="form-horizontal">
-						<div>
-							<p>
-								@foreach (var provider in Model.ExternalLogins!)
-								{
-									<button type="submit" class="btn btn-primary" name="provider" value="@provider.Name" title="Log in using your @provider.DisplayName account">@provider.DisplayName</button>
-								}
-							</p>
-						</div>
-					</form>
-				}
-			}
-		</section>
-	</div> *@
+
 </div>
 
 @section Scripts {
+	<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+	<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+	<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+	<script src="~/lib/jquery/dist/jquery.min.js"></script>
+	<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="~/js/site.js" asp-append-version="true"></script>
+
+	<script>
+
+		$(document).ready(function() {
+			console.log("Login error:");
+			const errorMessage = '@Html.Raw(TempData["LoginError"]?.ToString())';
+			if (errorMessage) {
+				console.log("Login error:", errorMessage);
+				// Example: Show a toast notification
+				toastr.error(errorMessage);
+			}
+		});
+	</script>
 	<partial name="_ValidationScriptsPartial" />
 }
