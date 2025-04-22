@@ -245,6 +245,112 @@ namespace SignalRMVC.Controllers
             return userId;
         }
 
+        public async Task<IActionResult> AddUser()
+        {
+            var user = new UserModal();
+
+            var role = _context.Roles.ToList();
+            foreach (var item in role)
+            {
+                user.UserRoles.Add(new SelectListItem { Text = item.Name, Value = item.Id });
+            }
+
+            return View(user);
+        }
+
+        //[HttpPost]
+        //public async Task<IActionResult> AddUser(UserModal model)
+        //{
+        //    var user = GetUserId();
+        //    var userListabc = new ApplicationUser();
+
+
+
+        //    return View(model);
+        //}
+
+
+        [HttpPost]
+        public async Task<IActionResult> AddUser(UserModal model)
+        {
+            if (!ModelState.IsValid)
+            {
+                // Repopulate UserRoles if validation fails
+                model.UserRoles = await GetUserRoles(); // Implement this method to fetch roles
+                return View(model);
+            }
+
+            // Check if email already exists
+            var existingUser = await _userManager.FindByEmailAsync(model.Email);
+            if (existingUser != null)
+            {
+                ModelState.AddModelError("Email", "Email address is already in use");
+                model.UserRoles = await GetUserRoles();
+                return View(model);
+            }
+
+            // Create new ApplicationUser
+            var user = new ApplicationUser
+            {
+                UserName = model.Email,
+                NormalizedUserName = model.Email,
+                Email = model.Email,
+                EmailConfirmed = true, // Set to true if you're not implementing email confirmation
+                NormalizedEmail = model.Email,
+                PhoneNumber = "",
+                TwoFactorEnabled = false,
+                LockoutEnabled = true,
+                IsDeleted = false
+            };
+
+            // Create the user with password
+            var result = await _userManager.CreateAsync(user, model.PasswordHash);
+
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+                model.UserRoles = await GetUserRoles();
+                return View(model);
+            }
+
+            // Assign selected role to the user
+            if (!string.IsNullOrEmpty(model.RoleId))
+            {
+                var role = _context.Roles.FirstOrDefault(x=>x.Id == model.RoleId);
+                if (role != null)
+                {
+                    var roleResult = await _userManager.AddToRoleAsync(user, role.Name);
+                    if (!roleResult.Succeeded)
+                    {
+                        // Log role assignment errors if needed
+                        foreach (var error in roleResult.Errors)
+                        {
+                            ModelState.AddModelError(string.Empty, $"Role assignment failed: {error.Description}");
+                        }
+                        model.UserRoles = await GetUserRoles();
+                        return View(model);
+                    }
+                }
+            }
+
+            TempData["SuccessMessage"] = "User created successfully";
+            return RedirectToAction("Index");
+        }
+
+        // Helper method to get roles for dropdown
+        private async Task<List<SelectListItem>> GetUserRoles()
+        {
+            var roles = await _context.Roles.ToListAsync();
+            return roles.Select(r => new SelectListItem
+            {
+                Value = r.Id,
+                Text = r.Name
+            }).ToList();
+        }
+
         #endregion
 
         #region Group User Mapping
