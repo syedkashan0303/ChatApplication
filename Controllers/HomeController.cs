@@ -29,6 +29,27 @@ namespace SignalRMVC.Controllers
         public async Task<IActionResult> Index()
         {
 
+            //var claims = User.Claims.ToList();
+
+            //foreach (var claim in claims)
+            //{
+            //    Console.WriteLine($"Type: {claim.Type}, Value: {claim.Value}");
+            //}
+            //var cba = User.Claims.ToList().FirstOrDefault(x=>x.Type.Contains( "nameidentifier"));
+            //var userName = _userManager.Users.FirstOrDefault(x => x.Id == cba.Value);
+
+            ////var existingClaims = User.Claims.ToList();
+            //var existingClaims = await _userManager.GetClaimsAsync(userName);
+            //var existingClaim = existingClaims.Where(c => c.Type == "LoginName");
+            //if (existingClaim != null)
+            //{
+            //    var abc = _userManager.RemoveClaimsAsync(userName, existingClaim).Result;
+            //}
+
+            //var cb = @User.FindFirst("LoginName")?.Value;
+
+            //var claimss = User.Claims.ToList();
+
             var model = new RoleViewModel();
             var user = await _userManager.GetUserAsync(User);
             if (user is not null)
@@ -102,23 +123,23 @@ namespace SignalRMVC.Controllers
         public async Task<IActionResult> SendMessageToGroup([FromForm] string user, [FromForm] string room, [FromForm] string message)
         {
             var senderUser = await _userManager.FindByNameAsync(user);
-            var chatMessage = new ChatMessage
+            if (senderUser != null)
             {
-                SenderId = senderUser?.Id,
-                ReceiverId = null, // for group broadcast
-                Message = message,
-                GroupName = room,
-                CreatedOn = DateTime.Now
-            };
+                var chatMessage = new ChatMessage
+                {
+                    SenderId = senderUser?.Id,
+                    ReceiverId = null, // for group broadcast
+                    Message = message,
+                    GroupName = room,
+                    CreatedOn = DateTime.Now
+                };
 
-            _db.ChatMessages.Add(chatMessage);
-            await _db.SaveChangesAsync();
-            await _basicChatHub.Clients.Group(room).SendAsync("MessageReceived", senderUser.UserName, message);
-
+                _db.ChatMessages.Add(chatMessage);
+                await _db.SaveChangesAsync();
+                await _basicChatHub.Clients.Group(room).SendAsync("MessageReceived", senderUser.UserName, message);
+            }
             return Ok();
         }
-
-
 
         //[HttpGet]
         //public async Task<IActionResult> GetMessagesByRoom(string roomName)
@@ -148,17 +169,7 @@ namespace SignalRMVC.Controllers
         public IActionResult GetMessagesByRoom(string roomName, int skipRecords = 0, int chunkRecords = 100)
         {
             var now = DateTime.UtcNow;
-            //var toDate = now.AddDays(-skipRecords);
-            //var fromDate = toDate.AddDays(-chunkRecords);
-            
             var fromDate = skipRecords * chunkRecords;
-
-            //var messages = _context.ChatMessages
-            //    .Where(m => m.GroupName == roomName && m.Timestamp >= fromDate && m.Timestamp < toDate)
-            //    .OrderBy(m => m.Timestamp)
-            //    .Select(m => new { sender = m.SenderEmail, message = m.Message }) // match front-end
-            //    .ToList();
-
             var messages = _db.ChatMessages
               .Where(m => m.GroupName == roomName && !m.IsDelete)
               .OrderByDescending(m => m.Id).Skip(fromDate).Take(chunkRecords)
@@ -175,10 +186,37 @@ namespace SignalRMVC.Controllers
                   }
               )
               .ToList().OrderBy(x=>x.id);
-
-
             return Ok(messages);
         }
+
+        [HttpGet]
+        public IActionResult GetTheme()
+        {
+            var userId = GetUserId();
+
+            var user = _db.Users.FirstOrDefault(x => x.Id == userId);
+            if (user != null) 
+            {
+                return Ok(user.IsDarkTheme);
+            }
+            return Ok("false");
+        }
+
+        [HttpGet]
+        public IActionResult UpdateTheme()
+        {
+            var userId = GetUserId();
+
+            var user = _db.Users.FirstOrDefault(x => x.Id == userId);
+            if (user != null)
+            {
+                user.IsDarkTheme = user.IsDarkTheme ? false: true;
+                _db.Update(user);
+                _db.SaveChanges();
+            }
+            return Ok();
+        }
+
 
         [HttpGet]
         public async Task<IActionResult> GetRooms()

@@ -130,6 +130,17 @@ namespace SignalRMVC.Areas.Identity.Pages.Account
                     }
                     else
                     {
+                        //var userName = _userManager.Users.FirstOrDefault(x => x.Id == userId);
+
+                        ////var existingClaims = User.Claims.ToList();
+                        //var existingClaims = await _userManager.GetClaimsAsync(userName);
+                        //var existingClaim = existingClaims.Where(c => c.Type == "LoginName");
+                        //if (existingClaim != null)
+                        //{
+                        //    var abc = _userManager.RemoveClaimsAsync(userName, existingClaim).Result;
+                        //}
+                        //_userManager.AddClaimAsync(userName, new Claim("LoginName", userName.FullName));
+
                         _logger.LogInformation("User logged in.");
                         return LocalRedirect(returnUrl);
                     }

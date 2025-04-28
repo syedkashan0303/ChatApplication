@@ -1,70 +1,259 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - SignalRMVC</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/SignalRMVC.styles.css" asp-append-version="true" />
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>@ViewData["Title"] - SignalRMVC</title>
+	<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+	<link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+	<link rel="stylesheet" href="~/SignalRMVC.styles.css" asp-append-version="true" />
 
-    <link href='https://fonts.googleapis.com/css?family=Noto Nastaliq Urdu' rel='stylesheet'>
-    <link rel="stylesheet" href="/DataTables/datatables.css" />
-    <script src="/DataTables/datatables.js"></script>
+	<link href='https://fonts.googleapis.com/css?family=Noto Nastaliq Urdu' rel='stylesheet'>
+	<link rel="stylesheet" href="/DataTables/datatables.css" />
+	<script src="/DataTables/datatables.js"></script>
 
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+	<style>
+		/* Dark Theme */
+
+		.ArbabTheme {
+			background: #1a1d21;
+			color: #fff;
+		}
+
+			.ArbabTheme header nav {
+				background: #1a1d21 !important;
+			}
+
+			.ArbabTheme .navbar-brand {
+				color: #fff;
+			}
+
+			.ArbabTheme .navbar-nav .nav-link {
+				color: #fff !important;
+			}
+
+			.ArbabTheme .card {
+				background: #3e3f41 !important;
+			}
+
+				.ArbabTheme .card .card-header {
+					background: #484e88 !important;
+				}
+
+				.ArbabTheme .card li.list-group-item {
+					color: #fff;
+					border-color: #999999;
+				}
+
+					.ArbabTheme .card li.list-group-item:hover {
+						background: unset;
+					}
+
+			.ArbabTheme .card-footer {
+				background: #000 !important;
+				color: #fff !important;
+				border-color: #3e3f41 !important;
+				scrollbar-color: #3e3f41 #1b1d21;
+			}
+
+			.ArbabTheme .msg-custom {
+				color: #fff !important;
+				background: #5c585836 !important;
+			}
+
+			.ArbabTheme .ChatRoom .card-body textarea#chatMessage {
+				background: #000 !important;
+				border-color: #000 !important;
+				color: #fff !important;
+			}
+
+			.ArbabTheme button#sendMessage {
+				background: #4e4a87 !important;
+				border-color: #4e4a87 !important;
+			}
+
+				.ArbabTheme button#sendMessage:hover {
+					background: unset !important;
+				}
+
+			.ArbabTheme .card li.list-group-item .customClassContent.text-end .msg-custom {
+				background: #000 !important;
+			}
+
+			.ArbabTheme table, .ArbabTheme table th, .ArbabTheme table td {
+				color: #fff !important;
+			}
+
+			.ArbabTheme ul.pagination li.previous a, .ArbabTheme ul.pagination li.next a {
+				background: #444444 !important;
+				border-color: #444444;
+				color: #fff;
+			}
+
+			.ArbabTheme ul .page-item.active a {
+				background: #000;
+				border-color: #000;
+			}
+
+			.ArbabTheme table {
+				background: #3e3f41 !important;
+			}
+
+			.ArbabTheme div.dataTables_wrapper div.dataTables_filter input {
+				background: #444444;
+				color: #fff;
+				border-color: #444444;
+			}
+
+			.ArbabTheme div.dataTables_wrapper div.dataTables_length select {
+				background: #444;
+				color: #fff;
+				border-color: #444;
+			}
+
+			.ArbabTheme .modal-dialog-scrollable .modal-body {
+				background: #000;
+			}
+
+			.ArbabTheme .modal-footer {
+				background: #000;
+			}
+
+			.ArbabTheme .modal-content {
+				border: solid 1px #525252 !important;
+				background: #000;
+			}
+
+			.ArbabTheme ul .page-item a {
+				background: #444;
+				color: #fff;
+				border-color: #444;
+			}
+
+			.ArbabTheme .form-container {
+				background: #444;
+			}
+
+				.ArbabTheme .form-container input, .ArbabTheme .form-container select {
+					background: #000 !important;
+					border-color: #000 !important;
+					color: #eee !important;
+				}
+
+			.ArbabTheme #groupCreateForm input {
+				background: #444 !important;
+				color: #fff !important;
+			}
+
+		.ZoomBtns {
+			text-align: right;
+		}
+
+			.ZoomBtns button {
+				background: unset;
+				border: unset;
+				box-sizing: unset;
+				color: #fff;
+				margin-left: 10px;
+				padding: 0;
+			}
+
+		/* Dark Theme */
+	</style>
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">ARY Chat</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
+	<header>
+		<nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3" style=" height: 50px;">
+			<div class="container-fluid">
+				<a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">ARY Chat</a>
+				<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+						aria-expanded="false" aria-label="Toggle navigation">
+					<span class="navbar-toggler-icon"></span>
+				</button>
+				<div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+					<ul class="navbar-nav flex-grow-1">
+					
+						@if (User.IsInRole("Manager"))
+						{
+							<li class="nav-item">
+								<a class="nav-link text-dark" asp-area="" asp-controller="Group" asp-action="Index">Home</a>
+							</li>
+							<li class="nav-item">
+								<a class="nav-link text-dark" asp-area="" asp-controller="Group" asp-action="UserList">Users</a>
+							</li>
+							<li class="nav-item">
+								<a class="nav-link text-dark" asp-area="" asp-controller="Group" asp-action="AddUser">Add new user</a>
+							</li>
+						}
 
-                        @if (User.IsInRole("Manager"))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Group" asp-action="Index">Group List</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Group" asp-action="UserList">Users</a>
-                            </li> 
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Group" asp-action="AddUser">Add new user</a>
-                            </li>
-                        }
+					</ul>
+				</div>
+			</div>
+			<partial name="_LoginPartial" />
+		</nav>
+	</header>
+	<div class="container">
+		<main role="main" class="pb-3">
+			@RenderBody()
+		</main>
+	</div>
 
-                    </ul>
-                </div>
-            </div>
-            <partial name="_LoginPartial" />
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
-
-  @*   <footer class="border-top footer text-muted">
+	@* <footer class="border-top footer text-muted">
         <div class="container">
             &copy; 2024 - SignalRMVC - <a asp-area="" asp-controller="Group" asp-action="Index">Group List</a>
         </div>
     </footer> *@
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+	<script src="~/lib/jquery/dist/jquery.min.js"></script>
+	<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="~/js/site.js" asp-append-version="true"></script>
+
+	<script>
+		$(document).ready(function () {
+			   renderTheme();
+			$('#ThemeChangebtn').on('click', function () {
+				$('body').toggleClass('ArbabTheme');
+				 updateTheme();
+			});
+		});
+
+		function renderTheme()
+		{
+			$.ajax({
+				url: `/Home/GetTheme`,
+				type: 'GET',
+				success: function (messages) {
+					if (messages == true) {
+						$('body').toggleClass('ArbabTheme');
+					}
+				},
+				error: function (error) {
+					console.error("Error loading messages:", error);
+					isLoading = false;
+				}
+			});
+		}
+
+		function updateTheme() {
+			$.ajax({
+				url: '/Home/UpdateTheme',
+				type: 'GET',
+				data: {},
+				success: function () {
+					console.log('Theme updated successfully.');
+					// Optionally: reload page or apply new theme styles
+				},
+				error: function (xhr, status, error) {
+					console.error('Error updating theme:', error);
+				}
+			});
+		}
+
+	</script>
 
 
-    @await RenderSectionAsync("Scripts", required: false)
+	@await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

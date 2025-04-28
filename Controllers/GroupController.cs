@@ -160,6 +160,36 @@ namespace SignalRMVC.Controllers
                 return Json(new { success = false, message = "Error deleting chat room: " + ex.Message });
             }
         }
+
+
+        [HttpGet]
+        public async Task<IActionResult> UserChatHistory(string id)
+        {
+            var chatList = new List<ChatHistory>();
+            try
+            {
+                var user = _context.Users.FirstOrDefault(x => x.Id == id);
+                if (user != null)
+                {
+                    chatList = await _context.ChatMessages.Where(x => x.SenderId == id).OrderByDescending(x=>x.CreatedOn)
+                    .Select(u => new ChatHistory
+                    {
+                        Id = u.Id,
+                        Chat = u.Message,
+                        GroupName = u.GroupName,
+                        Date = u.CreatedOn.Value.ToString("dd-MM-yyyy")
+                    }).ToListAsync();
+
+                }
+
+                return Json(chatList);
+            }
+            catch (Exception es)
+            {
+                return Json(chatList);
+            }
+        }
+
         #endregion
 
         #region User
@@ -168,13 +198,22 @@ namespace SignalRMVC.Controllers
             var user = GetUserId();
             var userListabc = _userManager.Users;
 
+            var userRoles = from role in _context.Roles
+                            join userRole in _context.UserRoles on role.Id equals userRole.RoleId
+                            select new
+                            {
+                                Role = role,
+                                UserId = userRole.UserId,
+                                RoleName = role.Name
+                            };
 
             var userList = await _userManager.Users.Where(x => !x.IsDeleted)
                 .Select(u => new UserViewModel
                 {
                     Id = u.Id,
-                    UserName = u.UserName,
+                    UserName = u.FullName,
                     Email = u.Email,
+                    RoleName = userRoles != null && userRoles.Any() ? userRoles.FirstOrDefault(x => x.UserId == u.Id).RoleName : "",
                     IsCurrentUser = (user == u.Id ? true : false),
                     PhoneNumber = u.PhoneNumber,
                     LockoutEnd = u.LockoutEnd,
@@ -235,7 +274,7 @@ namespace SignalRMVC.Controllers
             return Json(new
             {
                 success = true,
-                message = "User deleted" 
+                message = "User deleted"
             });
         }
 
@@ -257,18 +296,6 @@ namespace SignalRMVC.Controllers
 
             return View(user);
         }
-
-        //[HttpPost]
-        //public async Task<IActionResult> AddUser(UserModal model)
-        //{
-        //    var user = GetUserId();
-        //    var userListabc = new ApplicationUser();
-
-
-
-        //    return View(model);
-        //}
-
 
         [HttpPost]
         public async Task<IActionResult> AddUser(UserModal model)
@@ -293,6 +320,7 @@ namespace SignalRMVC.Controllers
             var user = new ApplicationUser
             {
                 UserName = model.Email,
+                FullName = model.UserName,
                 NormalizedUserName = model.Email,
                 Email = model.Email,
                 EmailConfirmed = true, // Set to true if you're not implementing email confirmation
@@ -319,7 +347,7 @@ namespace SignalRMVC.Controllers
             // Assign selected role to the user
             if (!string.IsNullOrEmpty(model.RoleId))
             {
-                var role = _context.Roles.FirstOrDefault(x=>x.Id == model.RoleId);
+                var role = _context.Roles.FirstOrDefault(x => x.Id == model.RoleId);
                 if (role != null)
                 {
                     var roleResult = await _userManager.AddToRoleAsync(user, role.Name);
@@ -335,9 +363,99 @@ namespace SignalRMVC.Controllers
                     }
                 }
             }
+            var lastUser = _context.Users.FirstOrDefault(c => c.Id == user.Id);
+            if (lastUser != null)
+            {
+                lastUser.UserName = model.UserName;
+                _context.Update(lastUser);
+                _context.SaveChanges();
+            }
+
 
             TempData["SuccessMessage"] = "User created successfully";
             return RedirectToAction("Index");
+        }
+
+        // GET: EditUser/{id}
+        [HttpGet]
+        public async Task<IActionResult> EditUser(string id)
+        {
+            var user = _context.Users.FirstOrDefault(u => u.Id == id);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            var userRole = _context.UserRoles.FirstOrDefault(x => x.UserId == user.Id);
+            var model = new UserModal();
+            model.Id = user.Id;
+            model.UserName = user.FullName;
+            model.PhoneNumber = user.PhoneNumber;
+            model.Email = user.Email;
+            model.RoleId = userRole != null ? userRole.RoleId : "";
+            model.UserRoles.AddRange(GetUserRoles().Result);
+
+            return View(model);
+        }
+
+        // POST: EditUser
+        [HttpPost]
+        public IActionResult EditUser(UserModal model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = _context.Users.FirstOrDefault(u => u.Id == model.Id);
+                if (user == null)
+                {
+                    return NotFound();
+                }
+
+                user.FullName = model.UserName;
+                user.PhoneNumber = model.PhoneNumber;
+
+                if (!string.IsNullOrEmpty(model.PasswordHash))
+                {
+                    // Update password if provided
+                    if (!string.IsNullOrEmpty(model.PasswordHash))
+                    {
+
+                        var token = _userManager.GeneratePasswordResetTokenAsync(user).Result;
+                        var passwordResult = _userManager.ResetPasswordAsync(user, token, model.PasswordHash).Result;
+                        if (!passwordResult.Succeeded)
+                        {
+                            foreach (var error in passwordResult.Errors)
+                            {
+                                ModelState.AddModelError("", error.Description);
+                            }
+                            model.UserRoles = GetUserRoles().Result;
+                            return View(model);
+                        }
+                    }
+                }
+                var userRole = _context.UserRoles.FirstOrDefault(x => x.UserId == user.Id && x.RoleId != model.RoleId);
+                if (userRole != null)
+                {
+                    _context.UserRoles.Remove(userRole);
+                    var role = _context.Roles.FirstOrDefault(x => x.Id == model.RoleId);
+                    if (role != null)
+                    {
+                        var roleResult = _userManager.AddToRoleAsync(user, role.Name).Result;
+                    }
+                }
+                else
+                {
+                    var role = _context.Roles.FirstOrDefault(x => x.Id == model.RoleId);
+                    if (role != null)
+                    {
+                        var roleResult = _userManager.AddToRoleAsync(user, role.Name).Result;
+                    }
+                }
+                _context.SaveChanges();
+                return RedirectToAction("UserList");
+            }
+
+            model.UserRoles = GetUserRoles().Result;
+            return View(model);
         }
 
         // Helper method to get roles for dropdown
@@ -362,12 +480,23 @@ namespace SignalRMVC.Controllers
             {
                 var user = GetUserId();
                 var groupUserList = await _context.GroupUserMapping.Where(x => x.Active && x.GroupId == id).Select(x => x.UserId).ToListAsync();
+
+                var userRoles = from role in _context.Roles
+                                join userRole in _context.UserRoles on role.Id equals userRole.RoleId
+                                select new
+                                {
+                                    Role = role,
+                                    UserId = userRole.UserId,
+                                    RoleName = role.Name
+                                };
+
                 var userList = await _context.Users
                     .Select(u => new UserViewModel
                     {
                         Id = u.Id,
-                        UserName = u.UserName,
+                        UserName = u.FullName,
                         Email = u.Email,
+                        RoleName = userRoles != null && userRoles.Any() ? userRoles.FirstOrDefault(x => x.UserId == u.Id).RoleName : "",
                         IsCurrentUser = (user == u.Id ? true : false),
                         PhoneNumber = u.PhoneNumber,
                         IsAlreadyInGroup = (groupUserList.Contains(u.Id) ? true : false)

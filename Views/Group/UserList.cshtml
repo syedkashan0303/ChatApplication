@@ -4,6 +4,17 @@
 	ViewData["Title"] = "User Management";
 }
 
+<style>
+
+	#userDataTable {
+		table-layout: fixed;
+		width: 100%;
+	}
+
+	
+
+
+</style>
 <div class="card">
 	<div class="card-header bg-primary text-white">
 		<h3 class="card-title">User List</h3>
@@ -15,6 +26,7 @@
 					<th>Username</th>
 					<th>Email</th>
 					<th>Phone</th>
+					<th>User Role</th>
 					<th>Status</th>
 					<th>Actions</th>
 				</tr>
@@ -23,9 +35,13 @@
 				@foreach (var user in Model)
 				{
 					<tr>
-						<td>@user.UserName</td>
+						@* <td>@user.UserName</td> *@
+						<td class="editable" data-id="@user.Id" data-field="UserName">
+							@Html.DisplayFor(modelItem => user.UserName)
+						</td>
 						<td>@user.Email</td>
 						<td>@user.PhoneNumber</td>
+						<td>@user.RoleName</td>
 						<td>
 							@if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.Now)
 							{
@@ -38,7 +54,7 @@
 						</td>
 						<td>
 							<div class="btn-group" role="group">
-								<a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-warning">
+								<a asp-action="EditUser" asp-route-id="@user.Id" class="btn btn-sm btn-warning">
 									<i class="fas fa-edit"></i> Edit
 								</a>
 
@@ -65,14 +81,28 @@
 									}
 								}
 
+								<button type="button" class="btn btn-primary showUsersBtn" data-bs-toggle="modal" data-bs-target="#userListModal" id="showUsersBtn" data-id="@user.Id">
+									Show chat history
+								</button>
+
 							</div>
 						</td>
 					</tr>
 				}
+
 			</tbody>
 		</table>
 	</div>
 </div>
+
+@* Loader *@
+<div id="ajaxLoader" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+     background: rgba(255, 255, 255, 0.7); z-index: 9999; text-align: center;">
+	<div class="spinner-border text-primary" style="margin-top: 20%; width: 3rem; height: 3rem;" role="status">
+		<span class="visually-hidden">Loading...</span>
+	</div>
+</div>
+
 
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-hidden="true">
@@ -94,6 +124,34 @@
 	</div>
 </div>
 
+<div class="modal fade" id="userListModal" tabindex="-1" aria-labelledby="userListModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-scrollable modal-lg" style="max-width: 90% !important;">
+		<div class="modal-content">
+			<div class="modal-header bg-primary text-white">
+				<h5 class="modal-title" id="GroupuserListModalLabel">User List in Group</h5>
+				<button type="button" class="btn-close text-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<table class="table table-bordered" id="userDataTable">
+					<thead>
+						<tr>
+							<th>#</th>
+							<th>Group Name</th>
+							<th>Chat</th>
+							<th>Date</th>
+						</tr>
+					</thead>
+					<tbody>
+						<!-- JS will populate this -->
+					</tbody>
+				</table>
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
 
 
 @section Scripts {
@@ -167,6 +225,85 @@
 					}
 				});
 			});
+
+
+		var MappinguserGroupModal = new bootstrap.Modal(document.getElementById('userListModal'));
+
+		$(".showUsersBtn").on('click', function () {
+
+
+			$("#ajaxLoader").show(); // Show loader before request
+
+			if ($.fn.DataTable.isDataTable('#userDataTable')) {
+					$('#userDataTable').DataTable().destroy();
+					var $tbody = $("#userDataTable tbody");
+					$tbody.empty()
+			}
+
+			var groupId = $(this).data("id");
+
+			var $row = $(this).closest("tr");
+
+			// Convert to editable mode
+			$row.find('.editable').each(function () {
+				var $cell = $(this);
+				var currentValue = $cell.text().trim();
+				$("#GroupuserListModalLabel").html(currentValue);
+			});
+
+			$("#selectedGroupId").val(groupId);
+			$.ajax({
+				url: '/Group/UserChatHistory/' + groupId,
+				type: 'GET',
+				success: function (users) {
+
+					// Destroy previous instance if exists
+					if ($.fn.DataTable.isDataTable('#userDataTable')) {
+						$('#userDataTable').DataTable().destroy();
+					}
+					var $tbody = $("#userDataTable tbody");
+					$tbody.empty();
+
+					users.forEach(function (user, index) {
+
+						let row = `<tr>
+							<td>${index + 1}</td>
+							<td>${user.groupName}</td>
+							<td class="${user.chat ? 'fw-bold text-primary' : ''}">${user.chat}</td>
+							<td>${user.date ?? '-'}</td>
+						</tr>`;
+
+						$tbody.append(row);
+					});
+
+					// Reinitialize DataTable
+					$('#userDataTable').DataTable({
+						pageLength: 10,
+						lengthChange: false,
+						searching: true,
+						ordering: true,
+						autoWidth: false, // Disable auto width
+						columns: [
+							{ title: "#", width: "3%" },
+							{ title: "Group Name", width: "10%" },
+							{ title: "Chat", width: "80%" },
+							{ title: "Date", width: "7%" }
+						]
+					});
+
+					MappinguserGroupModal.show();
+					$("#ajaxLoader").fadeOut(); // Hide loader after request
+
+				},
+				error: function (err) {
+					$("#ajaxLoader").fadeOut(); // Hide loader after request
+
+					console.error("Error fetching users:", err);
+				}
+			});
+		});
+
+
 		});
 	</script>
 }

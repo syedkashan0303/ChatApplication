@@ -11,6 +11,7 @@
 		background-color: #f9f9f9;
 		max-height: 300px;
 		overflow-y: auto;
+		background: #000000 !important;
 	}
 
 	.container, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl {
@@ -31,8 +32,8 @@
 
 	.msg {
 		font-family: 'Noto Nastaliq Urdu';
-		font-size: 13px;
-		line-height: 36px
+		font-size: 10px;
+		line-height: 30px
 	}
 
 	.msg-custom {
@@ -40,17 +41,25 @@
 		text-align: right;
 		position: relative;
 		padding-bottom: 25px !important;
+		background: #000000 !important
 	}
 
-		.msg-custom .copy-btn {
-			position: absolute !important;
-			background: unset !important;
-			bottom: 3px;
-			border: unset;
-			top: unset !important;
-			color: #fff !important;
-			font-size: 14px;
-		}
+	.list-group-item {
+		padding: 0.0rem 1rem;
+	}
+
+	.mt-4 {
+		margin-top: -0.7rem !important;
+	}
+	.msg-custom .copy-btn {
+		position: absolute !important;
+		background: unset !important;
+		bottom: 3px;
+		border: unset;
+		top: unset !important;
+		color: #fff !important;
+		font-size: 14px;
+	}
 
 	.ChatRoom .card-body {
 		padding: 0 !important;
@@ -61,6 +70,8 @@
 			background: #eee;
 			border: 1px #c3c3c3 solid;
 			margin-top: 10px;
+			padding-right: 50px;
+			margin-left: 16px;
 		}
 
 	.card.ChatRoom {
@@ -76,6 +87,30 @@
 		box-shadow: none;
 	}
 
+	.d-flex.customClassContent {
+		justify-content: space-between;
+		width: 100%;
+	}
+
+	.message-text {
+		font-size: 12px;
+		transition: font-size 0.3s ease; /* Smooth font-size change */
+	}
+
+	.TextareaBox {
+		position: relative;
+	}
+
+		.TextareaBox i {
+			position: absolute;
+			top: 10px;
+			right: 30px;
+			margin: auto;
+		}
+
+			.TextareaBox i:last-child {
+				right: 5px;
+			}
 </style>
 
 <div class="container mt-4">
@@ -83,13 +118,16 @@
 
 		<div class="col-md-12 row">
 
-			<div class="col-md-2">
-				<div class="card shadow">
+			<div class="col-md-2" style="padding-right : 3px;">
+				<div class="card shadow" style="height: 93%;">
 					<div class="card-header bg-primary text-white">
-						<strong>Group List</strong>
+						<strong>Home</strong>
 					</div>
 
 					<div class="card-body p-2">
+						<!-- Search Bar -->
+						<input type="text" id="searchBar" class="form-control mb-2" placeholder="Search Groups" onkeyup="filterGroups()">
+
 						<ul id="groupList" class="list-group">
 							<!-- Rooms will be appended here dynamically -->
 						</ul>
@@ -97,35 +135,50 @@
 				</div>
 			</div>
 
-			<div class="col-md-10 chatsection ChatRoom" style="display:none">
+
+			<div class="col-md-10 chatsection ChatRoom" style="display:none ; padding-left : 0px;">
 				<input type="hidden" value="" id="hiddenRoomName" disabled />
 				<input type="hidden" class="form-control" value="@User.Identity?.Name" id="senderEmail" disabled />
 
 				<div class="card">
 					<div class="card-header bg-primary text-white">
-						<strong>Chat Room</strong> <strong id="roomName"></strong>
+						<div class="chatheader row">
+
+							<div class="col-md-6">
+								<strong>Chat Room</strong> <strong id="roomName"></strong>
+							</div>
+							<div class="col-md-6">
+								<div class="ZoomBtns">
+									<button onclick="fontZoomIn()"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+									<button onclick="fontZoomOut()"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+								</div>
+							</div>
+						</div>
 					</div>
 
-					<div class="card-footer" style="min-height: 420px; overflow-y: auto; max-height: 420px; background: #eee; border: 1px #c3c3c3 solid; border-radius: 0px 0px 5px 5px;">
+					<div class="card-footer" style="min-height: 465px; overflow-y: auto; max-height: 650px; background: #eee; border: 1px #c3c3c3 solid; border-radius: 0px 0px 5px 5px;">
 						<ul id="messagesList" class="list-group list-group-flush"></ul>
 					</div>
 					@* <div style="border: 1px solid #000;"> *@
 				</div>
 
-				<div class="card-body">
+				<div class="card-body row">
 
-					<div class="mb-3 row">
-						<div class="col-sm-12">
-							<textarea class="form-control" id="chatMessage" rows="2" placeholder="Type your message here..." style="height: 100px;"></textarea>
+					<div class="col-md-11">
+						<div class="col-sm-12 TextareaBox">
+							<textarea class="form-control" id="chatMessage" rows="2" placeholder="Type your message here..." style="height: 38px;"></textarea>
+							<i class="fa-solid fa-align-right" id="alignRight"></i>
+							<i class="fa-solid fa-align-left" id="alignLeft"></i>
 						</div>
 					</div>
 
-					<div class="text-end">
+					<div class="col-md-1" style="display: flex;flex-direction: column-reverse;">
 						<button type="button" class="btn btn-success" id="sendMessage">Send</button>
 					</div>
 				</div>
 
 			</div>
+
 
 		</div>
 
@@ -136,10 +189,25 @@
 <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 
 <script>
+	$(document).ready(function() {
+		$('#alignRight').click(function() {
+			$('#chatMessage').css('direction', 'rtl');
+		});
+
+		$('#alignLeft').click(function() {
+			$('#chatMessage').css('direction', 'ltr');
+		});
+	});
+</script>
+
+<script>
 
 	let skipDays = 0;
 	let isLoading = false;
 	let allMessagesLoaded = false;
+	var selectedRoom = "";
+	let currentRoom = null;
+	let fontSize = 12;
 
 	// Scroll-to-top detection for loading older messages
 	$(".card-footer").on("scroll", function () {
@@ -184,7 +252,7 @@
 
 		var sender = $("#senderEmail").val();
 		var room = $("#hiddenRoomName").val().trim();
-		var message = $.trim($("#chatMessage").val());
+		var message = $("#chatMessage").val();
 
 		if (!message) return;
 
@@ -225,13 +293,49 @@
 		$("#sendMessage").prop("disabled", false);
 	});
 
-	var selectedRoom = "";
-	let currentRoom = null;
-
 	// Load rooms on page load
 	$(document).ready(function () {
 		loadRooms();
+		renderMessage();
 	});
+
+	// function loadRooms() {
+	// 	$.ajax({
+	// 		url: '/Home/GetRooms', // Make sure this route is correct
+	// 		type: 'GET',
+	// 		success: function (rooms) {
+	// 			var groupList = $("#groupList");
+	// 			groupList.empty();
+
+	// 			$.each(rooms, function (index, room) {
+	// 				groupList.append(`
+	// 					<li class="list-group-item list-group-item-action group-item" data-room="${room}">
+	// 						${room}
+	// 					</li>
+	// 				`);
+	// 			});
+	// 		},
+	// 		error: function (err) {
+	// 			console.error("Failed to load rooms", err);
+	// 		}
+	// 	});
+	// }
+
+	function filterGroups() {
+		var searchTerm = $('#searchBar').val().toLowerCase(); // Get the search term
+		var groupItems = $('#groupList .group-item'); // Get all group items
+
+		groupItems.each(function () {
+			var groupName = $(this).text().toLowerCase(); // Get the text of the group item
+			if (groupName.indexOf(searchTerm) === -1) {
+				// Hide groups that don't match the search term
+				$(this).hide();
+			} else {
+				// Show matching groups
+				$(this).show();
+			}
+		});
+	}
 
 	function loadRooms() {
 		$.ajax({
@@ -248,12 +352,16 @@
 						</li>
 					`);
 				});
+
+				// Reapply the filter when rooms are loaded
+				filterGroups();
 			},
 			error: function (err) {
 				console.error("Failed to load rooms", err);
 			}
 		});
 	}
+
 
 	$(document).on("click", ".group-item", function () {
 		var roomName = $(this).data("room");
@@ -276,25 +384,29 @@
 		});
 	});
 
-	// function loadGroupMessages(roomName) {
-	// 	$.ajax({
-	// 		url: `/Home/GetMessagesByRoom?roomName=${roomName}`,
-	// 		type: 'GET',
-	// 		success: function (messages) {
-	// 			// Clear chat box
-	// 			$("#messagesList").empty();
-	// 			messages.forEach(function (msg) {
-	// 				renderMessage(msg.sender, msg.message);
-	// 			});
+	function fontZoomIn() {
+	  if (fontSize < 20) { // max limit
+			fontSize += 2;
+			customFontSize(fontSize);
+	  }
+	}
 
-	// 			scrollToBottom();
-	// 		},
-	// 		error: function (error) {
-	// 			console.error("Error loading messages:", error);
-	// 		}
-	// 	});
-	// }
+	function fontZoomOut() {
+	  if (fontSize > 6) { // min limit
+			fontSize -= 2;
+			customFontSize(fontSize);
+	  }
+	}
 
+	function customFontSize(fontSize) {
+
+		$(".message-text").css("font-size", `${fontSize}px`);
+		if(fontSize <=12)
+		{
+			 $(".fw-semibold ").css("font-size", `${fontSize}px`);
+			 $(".text-muted").css("font-size", `${fontSize}px`);
+		}
+	}
 
 	function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false) {
 
@@ -327,7 +439,6 @@
 
 				if (!prepend) scrollToBottom();
 				else {
-					// Maintain position while prepending
 					let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
 					$(".card-footer").scrollTop(scrollDiff);
 				}
@@ -341,16 +452,13 @@
 		});
 	}
 
-
-
-	// function renderMessage(user, message) {
+	// function renderMessage(user, message, returnOnly = false) {
 	// 	var senderEmail = $("#senderEmail").val();
 	// 	var isOwnMessage = user === senderEmail;
 
 	// 	let now = new Date();
 	// 	let timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-	// 	// Create user info (email + time)
 	// 	var userInfo = $("<div>")
 	// 		.addClass("chatuser px-3 py-2 mb-1")
 	// 		.addClass(isOwnMessage ? "align-self-end" : "align-self-start")
@@ -360,61 +468,29 @@
 	// 			$("<strong>").addClass("time").text(timeStr)
 	// 		);
 
-	// 	// Create message bubble
-	// 	// var bubble = $("<div>")
-	// 	// 	.css("max-width", "70%")
-	// 	// 	.css("text-align", "right")
-	// 	// 	.css(isOwnMessage ? ("background-color", "#4C94FF !important") : ("background-color", "#ADADAD !important"))
-	// 	// 	.append($("<div>").text(message))
-	// 	// 	.addClass("rounded px-3 py-2 mb-1")
-	// 	// 	.addClass(isOwnMessage
-	// 	// 		? "text-white align-self-end msg"
-	// 	// 		: "text-dark align-self-start msg"
-	// 	// 	);
-
-
 	// 	var bubble = $("<div>")
 	// 		.addClass("msg-custom rounded px-3 py-2 mb-1 position-relative")
-	// 		.addClass(isOwnMessage
-	// 			? "text-white align-self-end msg"
-	// 			: "text-dark align-self-start msg"
-	// 		)
+	// 		.addClass(isOwnMessage ? "text-white align-self-end msg" : "text-dark align-self-start msg")
 	// 		.css("max-width", "70%")
 	// 		.append(
-	// 		$("<div>").addClass("message-text").text(message),
-	// 		$("<button>")
-	// 			.addClass("btn btn-sm btn-light copy-btn position-absolute top-0 end-0 m-1")
-	// 			.html('<i class="fa-solid fa-copy"></i>') // ✅ fixed quotes
-	// 			.attr("title", "Copy message")
-	// 	);
+	// 			// $("<div>").addClass("message-text").text(message),
+	// 			$("<div>").addClass("message-text").html(message.replace(/\n/g, "<br>")),
+	// 			$("<button>")
+	// 				.addClass("btn btn-sm btn-light copy-btn position-absolute top-0 end-0 m-1")
+	// 				.html('<i class="fa-solid fa-copy"></i>')
+	// 				.attr("title", "Copy message")
+	// 		);
 
+	// 	bubble[0].style.setProperty('background-color', isOwnMessage ? '#4C94FF' : '#ADADAD', 'important');
 
-
-	// 	// var bubble = $("<div>")
-	// 	// 	.css("max-width", "70%")
-	// 	// 	.css("text-align", "right")
-	// 	// 	.addClass("rounded px-3 py-2 mb-1 " +
-	// 	// 		(isOwnMessage ? "text-white align-self-end msg" : "text-dark align-self-start msg"))
-	// 	// 	.text(message);
-
-	// 	// Handle background color with !important separately
-	// 	bubble[0].style.setProperty(
-	// 		'background-color',
-	// 		isOwnMessage ? '#4C94FF' : '#ADADAD',
-	// 		'important'
-	// 	);
-
-	// 	// Wrap in list item
 	// 	var li = $("<li>")
 	// 		.addClass("list-group-item border-0 d-flex flex-column")
 	// 		.addClass(isOwnMessage ? "align-items-end" : "align-items-start")
 	// 		.append(userInfo)
 	// 		.append(bubble);
 
-	// 	// Append to chat
-	// 	$("#messagesList").append(li);
+	// 	return returnOnly ? li : $("#messagesList").append(li);
 	// }
-
 
 	function renderMessage(user, message, returnOnly = false) {
 		var senderEmail = $("#senderEmail").val();
@@ -423,38 +499,48 @@
 		let now = new Date();
 		let timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+		// User info (on the side but lower)
 		var userInfo = $("<div>")
-			.addClass("chatuser px-3 py-2 mb-1")
-			.addClass(isOwnMessage ? "align-self-end" : "align-self-start")
+			.addClass("d-flex flex-column justify-content-end align-items-start ms-2") // space & vertical bottom
+			.css("min-width", "100px")
 			.append(
-				$("<span>").text(user),
-				$("<br>"),
-				$("<strong>").addClass("time").text(timeStr)
+				$("<span>").addClass("fw-semibold").text(user),
+				$("<small>").addClass("text-muted").text(timeStr)
 			);
 
+		// Chat bubble
 		var bubble = $("<div>")
-			.addClass("msg-custom rounded px-3 py-2 mb-1 position-relative")
-			.addClass(isOwnMessage ? "text-white align-self-end msg" : "text-dark align-self-start msg")
-			.css("max-width", "70%")
+			.addClass("msg-custom rounded px-3 py-2 position-relative")
+			.addClass(isOwnMessage ? "text-white msg" : "text-dark msg")
+			.css({
+				"max-width": "85%",
+				"background-color": isOwnMessage ? "#4C94FF" : "#ADADAD"
+			})
 			.append(
-				$("<div>").addClass("message-text").text(message),
+				$("<div>").addClass("message-text").html(message.replace(/\n/g, "<br>")),
 				$("<button>")
 					.addClass("btn btn-sm btn-light copy-btn position-absolute top-0 end-0 m-1")
 					.html('<i class="fa-solid fa-copy"></i>')
 					.attr("title", "Copy message")
 			);
 
-		bubble[0].style.setProperty('background-color', isOwnMessage ? '#4C94FF' : '#ADADAD', 'important');
+		// Flex row: bubble + user info
+		var contentWrapper = $("<div>")
+			.addClass("d-flex customClassContent")
+			.addClass(isOwnMessage ? "flex-row-reverse text-end" : "flex-row")
+			.append(bubble)
+			.append(userInfo);
 
+
+
+		// Main <li>
 		var li = $("<li>")
-			.addClass("list-group-item border-0 d-flex flex-column")
-			.addClass(isOwnMessage ? "align-items-end" : "align-items-start")
-			.append(userInfo)
-			.append(bubble);
+			.addClass("list-group-item border-0 d-flex")
+			.addClass(isOwnMessage ? "justify-content-end" : "justify-content-start")
+			.append(contentWrapper);
 
 		return returnOnly ? li : $("#messagesList").append(li);
 	}
-
 
 	function scrollToBottom() {
 		var messagesBox = $('.card-footer');
@@ -485,13 +571,12 @@
 		event.preventDefault();
 
 		var sender = $("#senderEmail").val();
-		var message = $("#chatMessage").val().trim();
+		var message = $("#chatMessage").val();
 		if (!message || !selectedRoom) return;
 
 		connectionChat.invoke("SendMessageToRoom", selectedRoom, sender, message);
 		$("#chatMessage").val('');
 	});
-
 
 	$('#chatMessage').on('keydown', function(e) {
 		if (e.which === 13) { // Enter key

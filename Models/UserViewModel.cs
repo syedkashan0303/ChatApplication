@@ -12,5 +12,15 @@
         public DateTimeOffset? LockoutEnd { get; set; }
         public bool LockoutEnabled { get; set; }
         public int AccessFailedCount { get; set; }
+        public string RoleName { get; set; }
     }
+
+    public class ChatHistory
+    {
+        public int Id { get; set; }
+        public string GroupName { get; set; }
+        public string Chat { get; set; }
+        public string Date { get; set; }
+    }
+
 }
