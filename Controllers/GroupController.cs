@@ -300,6 +300,8 @@ namespace SignalRMVC.Controllers
         [HttpPost]
         public async Task<IActionResult> AddUser(UserModal model)
         {
+            ModelState.Remove("Id");
+
             if (!ModelState.IsValid)
             {
                 // Repopulate UserRoles if validation fails
@@ -412,6 +414,7 @@ namespace SignalRMVC.Controllers
 
                 user.FullName = model.UserName;
                 user.PhoneNumber = model.PhoneNumber;
+                user.PasswordHash = model.PasswordHash;
 
                 if (!string.IsNullOrEmpty(model.PasswordHash))
                 {
@@ -420,7 +423,7 @@ namespace SignalRMVC.Controllers
                     {
 
                         var token = _userManager.GeneratePasswordResetTokenAsync(user).Result;
-                        var passwordResult = _userManager.ResetPasswordAsync(user, token, model.PasswordHash).Result;
+                        var passwordResult = _userManager.ResetPasswordAsync(user, token, user.PasswordHash).Result;
                         if (!passwordResult.Succeeded)
                         {
                             foreach (var error in passwordResult.Errors)

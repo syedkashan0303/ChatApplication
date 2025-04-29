@@ -10,7 +10,7 @@
 @if (SignInManager.IsSignedIn(User))
 {
     <li class="nav-item">
-            <a id="manage" class="nav-link text-dark" title="Manage">Hello @UserManager.GetUserName(User)!</a>
+            <a id="manage" class="nav-link text-dark" title="Manage">@UserManager.GetUserName(User)!</a>
           @*   <a id="manage" class="nav-link text-dark" title="Manage">
                 Hello @User.FindFirst("LoginName")?.Value
             </a> *@

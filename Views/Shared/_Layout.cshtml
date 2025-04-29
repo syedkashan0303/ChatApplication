@@ -16,6 +16,9 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 	<style>
+		.UserListWrap {
+			height: unset !important;
+		}
 		/* Dark Theme */
 
 		.ArbabTheme {
@@ -23,8 +26,17 @@
 			color: #fff;
 		}
 
+			.ArbabTheme .ChatRoom .card {
+				background: #000000;
+			}
+
+			.ArbabTheme .UserListWrap {
+				background: #1b1d21 !important;
+				border-color: #eeeeee3b;
+			}
+
 			.ArbabTheme header nav {
-				background: #1a1d21 !important;
+				background: #1D1F1F !important;
 			}
 
 			.ArbabTheme .navbar-brand {
@@ -35,12 +47,26 @@
 				color: #fff !important;
 			}
 
-			.ArbabTheme .card {
-				background: #3e3f41 !important;
+			.ArbabTheme .SideBar {
+				background: #161717 !important;
+				height: 83vh;
 			}
 
+			.ArbabTheme .letter-avatar {
+				color: #161717 !important;
+			}
+
+		.card {
+			height: 83vh;
+		}
+
+		.ArbabTheme .navbar-brand:hover {
+			color: #ffffff !important;
+		}
+
+
 				.ArbabTheme .card .card-header {
-					background: #484e88 !important;
+					background: #10233f !important;
 				}
 
 				.ArbabTheme .card li.list-group-item {
@@ -79,9 +105,10 @@
 					background: unset !important;
 				}
 
-			.ArbabTheme .card li.list-group-item .customClassContent.text-end .msg-custom {
-				background: #000 !important;
-			}
+		.ArbabTheme .card li.list-group-item .customClassContent.text-end .msg-custom {
+			background: #042440 !important;
+			color: #fff !important;
+		}
 
 			.ArbabTheme table, .ArbabTheme table th, .ArbabTheme table td {
 				color: #fff !important;
@@ -162,13 +189,72 @@
 			}
 
 		/* Dark Theme */
+
+		.UserIcon {
+			display: block;
+			height: 30px;
+			width: 30px;
+			text-align: center;
+			border-radius: 50px;
+			line-height: 28px;
+			font-size: 16px;
+			font-weight: bold;
+			background: #333c4e;
+			color: #fff;
+		}
+
+		.UserName {
+			position: absolute;
+			top: -15px;
+			right: 30px;
+			background: #333c4e;
+			color: #fff;
+			margin: auto;
+			text-align: center;
+			font-size: 12px;
+			padding: 5px;
+			border-radius: 5px;
+			display: none;
+		}
+
+		.UserIcon:hover + .UserName {
+			display: block;
+		}
+
+		.customClassContent.text-end .d-flex.ms-2 {
+			align-items: flex-start !important;
+		}
+
+			.customClassContent.text-end .d-flex.ms-2 .UserName {
+				left: 30px;
+				right: unset;
+			}
+
+		.ArbabTheme .UserIcon {
+			background: #eee;
+			color: #000;
+		}
+
+		.ArbabTheme .UserName {
+			background: #fff;
+			color: #000;
+		}
 	</style>
 </head>
 <body>
 	<header>
-		<nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3" style=" height: 50px;">
+		<nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow" style="margin: 0;">
 			<div class="container-fluid">
-				<a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">ARY Chat</a>
+				@* <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">ARY</a>
+				<img src="~/Images/arynewslogo.png" style="width: 100%;" alt="Italian Trulli"> *@
+
+				<a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">
+					<img src="~/Images/AryLogo.png" alt="ARY Logo" style="height: 40px;" />
+				</a>
+
+
+			
+
 				<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
 						aria-expanded="false" aria-label="Toggle navigation">
 					<span class="navbar-toggler-icon"></span>
@@ -179,7 +265,7 @@
 						@if (User.IsInRole("Manager"))
 						{
 							<li class="nav-item">
-								<a class="nav-link text-dark" asp-area="" asp-controller="Group" asp-action="Index">Home</a>
+								<a class="nav-link text-dark" asp-area="" asp-controller="Group" asp-action="Index">Groups</a>
 							</li>
 							<li class="nav-item">
 								<a class="nav-link text-dark" asp-area="" asp-controller="Group" asp-action="UserList">Users</a>
@@ -195,7 +281,7 @@
 			<partial name="_LoginPartial" />
 		</nav>
 	</header>
-	<div class="container">
+	<div class="container" style="padding: 0;">
 		<main role="main" class="pb-3">
 			@RenderBody()
 		</main>
