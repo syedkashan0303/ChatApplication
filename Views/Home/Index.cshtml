@@ -205,7 +205,7 @@
 		margin-bottom: 5px !important;
 	}
 
-	.SideBar .group-item:hover {
+	.SideBar .group-item:hover, .SideBar .group-item.active {
 		background: #fff !important;
 		color: #303d4f !important;
 	}
@@ -242,7 +242,13 @@
 			<div class="col-md-2" style="padding: 0;">
 				<div class="SideBar card shadow-lg border-0 h-100 rounded-4">
 					<div class="card-header bg-gradient bg-primary text-white rounded-top-4">
-						<strong><i class="bi bi-house-door-fill me-1"></i>Home</strong>
+						@* <strong><i class="bi bi-house-door-fill me-1"></i>Home</strong> *@
+						@* <a class="nav-link text-dark navFonts" asp-area="" asp-controller="Home" asp-action="Index"><strong><i class="bi bi-house-door-fill me-1"></i>Home</strong></a> *@
+
+						<a asp-area="" asp-controller="Home" asp-action="Index">
+							<strong><i class="bi bi-house-door-fill me-1"></i>Home</strong>
+						</a>
+
 					</div>
 
 					<div class="card-body p-3 d-flex flex-column">
@@ -272,7 +278,7 @@
 						<div class="chatheader row">
 
 							<div class="col-md-6">
-								<strong>Chat Room</strong> <strong id="roomName"></strong>
+								<strong>Room</strong> <strong id="roomName"></strong>
 							</div>
 							<div class="col-md-6">
 								<div class="ZoomBtns">
@@ -283,7 +289,7 @@
 						</div>
 					</div>
 
-					<div class="card-footer" style="overflow-y: auto; background: #E6EAEA; border: 1px #c3c3c3 solid; border-radius: 0px 0px 5px 5px;">
+					<div class="card-footer" style="overflow-y: auto; background: #E6EAEA; border: 1px #c3c3c3 solid; border-radius: 0px 0px 5px 5px; height: 100%;">
 						<ul id="messagesList" class="list-group list-group-flush"></ul>
 					</div>
 					@* <div style="border: 1px solid #000;"> *@
@@ -330,6 +336,9 @@
 		$('#alignLeft').click(function() {
 			$('#chatMessage').css('direction', 'ltr');
 		});
+		loadRooms();
+		renderMessage();
+
 	});
 
 	let skipDays = 0;
@@ -423,12 +432,6 @@
 		$("#sendMessage").prop("disabled", false);
 	});
 
-	// Load rooms on page load
-	$(document).ready(function () {
-		loadRooms();
-		renderMessage();
-	});
-
 	function filterGroups() {
 		var searchTerm = $('#searchBar').val().toLowerCase(); // Get the search term
 		var groupItems = $('#groupList .group-item'); // Get all group items
@@ -444,6 +447,7 @@
 			}
 		});
 	}
+
 	function loadRooms() {
 		$.ajax({
 			url: '/Home/GetRooms',
@@ -475,6 +479,10 @@
 
 	$(document).on("click", ".group-item", function () {
 		var roomName = $(this).data("room");
+
+		$(".group-item").removeClass("active");  // remove from all
+		$(this).addClass("active");
+
 		$('.chatsection').show();
 		$('.arylogo').hide();
 
@@ -564,61 +572,12 @@
 		});
 	}
 
-	// function renderMessage(user, message, returnOnly = false) {
-	// 	var senderEmail = $("#senderEmail").val();
-	// 	var isOwnMessage = user === senderEmail;
-
-	// 	let now = new Date();
-	// 	let timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-	// 	var userInfo = $("<div>")
-	// 		.addClass("chatuser px-3 py-2 mb-1")
-	// 		.addClass(isOwnMessage ? "align-self-end" : "align-self-start")
-	// 		.append(
-	// 			$("<span>").text(user),
-	// 			$("<br>"),
-	// 			$("<strong>").addClass("time").text(timeStr)
-	// 		);
-
-	// 	var bubble = $("<div>")
-	// 		.addClass("msg-custom rounded px-3 py-2 mb-1 position-relative")
-	// 		.addClass(isOwnMessage ? "text-white align-self-end msg" : "text-dark align-self-start msg")
-	// 		.css("max-width", "70%")
-	// 		.append(
-	// 			// $("<div>").addClass("message-text").text(message),
-	// 			$("<div>").addClass("message-text").html(message.replace(/\n/g, "<br>")),
-	// 			$("<button>")
-	// 				.addClass("btn btn-sm btn-light copy-btn position-absolute top-0 end-0 m-1")
-	// 				.html('<i class="fa-solid fa-copy"></i>')
-	// 				.attr("title", "Copy message")
-	// 		);
-
-	// 	bubble[0].style.setProperty('background-color', isOwnMessage ? '#4C94FF' : '#ADADAD', 'important');
-
-	// 	var li = $("<li>")
-	// 		.addClass("list-group-item border-0 d-flex flex-column")
-	// 		.addClass(isOwnMessage ? "align-items-end" : "align-items-start")
-	// 		.append(userInfo)
-	// 		.append(bubble);
-
-	// 	return returnOnly ? li : $("#messagesList").append(li);
-	// }
-
 	function renderMessage(user, message, returnOnly = false) {
 		var senderEmail = $("#senderEmail").val();
 		var isOwnMessage = user === senderEmail;
 
 		let now = new Date();
 		let timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-		// User info (on the side but lower)
-		// var userInfo = $("<div>")
-		// 	.addClass("d-flex flex-column justify-content-end align-items-start ms-2") // space & vertical bottom
-		// 	.css("min-width", "100px")
-		// 	.append(
-		// 		$("<span>").addClass("fw-semibold").text(user),
-		// 		$("<small>").addClass("text-muted").text(timeStr)
-		// 	);
 
 		var userName = capitalizeFirstLetter(user);
 		var userInfo = $("<div>")

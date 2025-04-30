@@ -53,8 +53,15 @@
 			}
 
 			.ArbabTheme .letter-avatar {
-				color: #161717 !important;
+				color: #ffffff !important;
+				background: #4d1a57 !important;
 			}
+
+		.msg-custom .copy-btn:focus, .msg-custom .copy-btn:active {
+			outline: none;
+			box-shadow: none;
+			border: none;
+		}
 
 		.card {
 			height: 83vh;
@@ -65,9 +72,9 @@
 		}
 
 
-				.ArbabTheme .card .card-header {
-					background: #10233f !important;
-				}
+		.ArbabTheme .card .card-header {
+			background: #b00023 !important;
+		}
 
 				.ArbabTheme .card li.list-group-item {
 					color: #fff;
@@ -85,10 +92,10 @@
 				scrollbar-color: #3e3f41 #1b1d21;
 			}
 
-			.ArbabTheme .msg-custom {
-				color: #fff !important;
-				background: #5c585836 !important;
-			}
+		.ArbabTheme .msg-custom {
+			color: #fff !important;
+			background: #334486 !important;
+		}
 
 			.ArbabTheme .ChatRoom .card-body textarea#chatMessage {
 				background: #000 !important;
@@ -106,7 +113,7 @@
 				}
 
 		.ArbabTheme .card li.list-group-item .customClassContent.text-end .msg-custom {
-			background: #042440 !important;
+			background: #8d3c9f8c !important;
 			color: #fff !important;
 		}
 
@@ -188,7 +195,42 @@
 				padding: 0;
 			}
 
+		.ArbabTheme .d-flex.justify-content-start .UserIcon {
+			background: #3e3f85 !important;
+		}
+
+		.ArbabTheme .SideBar .group-item:hover, .ArbabTheme .SideBar .group-item.active {
+			background: #4d1a57 !important;
+			color: #fff !important;
+		}
+
+		.ArbabTheme .modal-dialog-scrollable .modal-content .modal-header {
+			background: #b00023 !important;
+		}
+
 		/* Dark Theme */
+
+		.UserListWrap .card-header {
+			background: #2C3E50 !important;
+		}
+
+		.modal-dialog-scrollable .modal-content .modal-header {
+			background: #2C3E50 !important;
+		}
+
+			.modal-dialog-scrollable .modal-header .btn-close {
+				color: #fff !important;
+			}
+
+		.page-item.active .page-link {
+			background-color: #2C3E50 !important;
+			border-color: #2C3E50 !important;
+		}
+
+		.SideBar .card-header a, .SideBar .card-header a:hover {
+				text-decoration: unset;
+				color: #fff;
+			}
 
 		.UserIcon {
 			display: block;
@@ -231,13 +273,18 @@
 			}
 
 		.ArbabTheme .UserIcon {
-			background: #eee;
-			color: #000;
+			background: #4d1a57 !important;
+			color: #fff;
 		}
 
 		.ArbabTheme .UserName {
 			background: #fff;
 			color: #000;
+		}
+		.navFonts
+		{
+			font-family: math;
+			font-variant: petite-caps;
 		}
 	</style>
 </head>
@@ -265,13 +312,13 @@
 						@if (User.IsInRole("Manager"))
 						{
 							<li class="nav-item">
-								<a class="nav-link text-dark" asp-area="" asp-controller="Group" asp-action="Index">Groups</a>
+								<a class="nav-link text-dark navFonts" asp-area="" asp-controller="Group" asp-action="Index">Groups</a>
 							</li>
 							<li class="nav-item">
-								<a class="nav-link text-dark" asp-area="" asp-controller="Group" asp-action="UserList">Users</a>
+								<a class="nav-link text-dark navFonts" asp-area="" asp-controller="Group" asp-action="UserList">Users</a>
 							</li>
 							<li class="nav-item">
-								<a class="nav-link text-dark" asp-area="" asp-controller="Group" asp-action="AddUser">Add new user</a>
+								<a class="nav-link text-dark navFonts" asp-area="" asp-controller="Group" asp-action="AddUser">Add new user</a>
 							</li>
 						}
 

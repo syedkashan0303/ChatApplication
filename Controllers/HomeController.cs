@@ -141,30 +141,6 @@ namespace SignalRMVC.Controllers
             return Ok();
         }
 
-        //[HttpGet]
-        //public async Task<IActionResult> GetMessagesByRoom(string roomName)
-        //{
-        //    var messages = await _db.ChatMessages
-        //        .Where(m => m.GroupName == roomName && !m.IsDelete)
-        //        .OrderBy(m => m.CreatedOn)
-        //        .Join(
-        //            _db.Users,
-        //            message => message.SenderId,
-        //            user => user.Id,
-        //            (message, user) => new
-        //            {
-        //                sender = user.UserName, // Or use user.UserName or FullName if you have it
-        //                message = message.Message,
-        //                createdOn = message.CreatedOn
-        //            }
-        //        )
-        //        .ToListAsync();
-
-
-        //    return Json(messages);
-        //}
-
-
         [HttpGet]
         public IActionResult GetMessagesByRoom(string roomName, int skipRecords = 0, int chunkRecords = 100)
         {
@@ -216,7 +192,6 @@ namespace SignalRMVC.Controllers
             }
             return Ok();
         }
-
 
         [HttpGet]
         public async Task<IActionResult> GetRooms()

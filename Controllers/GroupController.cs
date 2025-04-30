@@ -161,7 +161,6 @@ namespace SignalRMVC.Controllers
             }
         }
 
-
         [HttpGet]
         public async Task<IActionResult> UserChatHistory(string id)
         {
@@ -365,17 +364,8 @@ namespace SignalRMVC.Controllers
                     }
                 }
             }
-            var lastUser = _context.Users.FirstOrDefault(c => c.Id == user.Id);
-            if (lastUser != null)
-            {
-                lastUser.UserName = model.UserName;
-                _context.Update(lastUser);
-                _context.SaveChanges();
-            }
-
-
             TempData["SuccessMessage"] = "User created successfully";
-            return RedirectToAction("Index");
+            return RedirectToAction("UserList");
         }
 
         // GET: EditUser/{id}

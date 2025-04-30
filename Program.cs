@@ -16,15 +16,6 @@ var connectionString = builder.Configuration.GetConnectionString("AppDbContextCo
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// ✅ Register Identity with your custom ApplicationUser and IdentityRole
-//builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
-//{
-//    options.SignIn.RequireConfirmedAccount = false; // Optional: depends on your need
-//})
-//.AddEntityFrameworkStores<AppDbContext>()
-//.AddDefaultTokenProviders();
-
-
 builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 {
     options.SignIn.RequireConfirmedAccount = false;
@@ -38,6 +29,19 @@ builder.Services.AddRazorPages(); // <--- This line fixes the error
 
 
 builder.Services.AddSignalR();
+
+//builder.Services.ConfigureApplicationCookie(options =>
+//{
+//    options.Cookie.Name = "Identity.Cookie";
+//    options.Cookie.HttpOnly = true;
+//    options.ExpireTimeSpan = TimeSpan.FromSeconds(60); // Optional session timeout
+//    options.SlidingExpiration = false;
+
+//    // 🟢 This makes it a session cookie
+//    options.Cookie.MaxAge = null;
+//});
+
+
 
 var app = builder.Build();
 
