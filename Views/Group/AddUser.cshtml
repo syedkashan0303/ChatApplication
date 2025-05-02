@@ -55,14 +55,17 @@
                 <div class="mb-3">
                     <label asp-for="UserName" class="form-label required-field">Full Name</label>
                     <input type="text" class="form-control" asp-for="UserName" required>
-                    <span asp-validation-for="UserName" class="text-danger"></span>
+                    @Html.ValidationMessageFor(model => model.UserName, "", new { @class = "text-danger" })
+                    @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+
                 </div>
 
                 <!-- Email Field -->
                 <div class="mb-3">
                     <label asp-for="Email" class="form-label required-field">Email Address</label>
                     <input type="email" class="form-control" asp-for="Email" required>
-                    <span asp-validation-for="Email" class="text-danger"></span>
+                    @Html.ValidationMessageFor(model => model.Email, "", new { @class = "text-danger" })
+                    @Html.ValidationSummary(true, "", new { @class = "text-danger" })
                 </div>
 
                 <!-- Role Dropdown -->
@@ -98,6 +101,14 @@
                         <i class="fas fa-save me-1"></i> Create User
                     </button>
                 </div>
+
+
+                <div class="form-group">
+                    @Html.LabelFor(model => model.Email)
+               
+                </div>
+
+
             </form>
         </div>
     </div>
