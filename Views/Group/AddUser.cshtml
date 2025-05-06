@@ -58,6 +58,13 @@
                     @Html.ValidationMessageFor(model => model.UserName, "", new { @class = "text-danger" })
                     @Html.ValidationSummary(true, "", new { @class = "text-danger" })
 
+                </div>     
+                <!-- Name Field -->
+                <div class="mb-3">
+                    <label asp-for="NormalizedUserName" class="form-label required-field">User Name</label>
+                    <input type="text" class="form-control" asp-for="NormalizedUserName" required>
+                    @Html.ValidationMessageFor(model => model.NormalizedUserName, "", new { @class = "text-danger" })
+                    @Html.ValidationSummary(true, "", new { @class = "text-danger" })
                 </div>
 
                 <!-- Email Field -->
@@ -101,13 +108,6 @@
                         <i class="fas fa-save me-1"></i> Create User
                     </button>
                 </div>
-
-
-                <div class="form-group">
-                    @Html.LabelFor(model => model.Email)
-               
-                </div>
-
 
             </form>
         </div>

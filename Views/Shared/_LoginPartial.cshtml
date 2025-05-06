@@ -1,7 +1,14 @@
 ﻿@using Microsoft.AspNetCore.Identity
+@using SignalRMVC.CustomClasses
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
+@inject UserInfoService UserInfoService
+
+@{
+    var fullName = await UserInfoService.GetFullNameAsync();
+}
+
 
 <ul class="navbar-nav" style="align-items: center;">
     <li class="nav-item ThemeToggle">
@@ -10,10 +17,7 @@
 @if (SignInManager.IsSignedIn(User))
 {
     <li class="nav-item">
-            <a id="manage" class="nav-link text-dark" title="Manage">@UserManager.GetUserName(User)!</a>
-          @*   <a id="manage" class="nav-link text-dark" title="Manage">
-                Hello @User.FindFirst("LoginName")?.Value
-            </a> *@
+            <a id="manage" class="nav-link text-dark" title="Manage" style="text-transform: capitalize;">@fullName!</a>
     </li>
     <li class="nav-item">
             <form id="logoutForm" class="form-inline navFonts" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">

@@ -4,6 +4,7 @@
     {
         public string Id { get; set; }
         public string UserName { get; set; }
+        public string LoginName { get; set; }
         public string Email { get; set; }
         public bool IsCurrentUser { get; set; }
         public bool IsAlreadyInGroup { get; set; }

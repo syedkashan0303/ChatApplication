@@ -18,7 +18,6 @@ namespace SignalRMVC.Controllers
         private readonly AppDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
 
-
         public GroupController(AppDbContext context, UserManager<ApplicationUser> userManager)
         {
             _context = context;
@@ -212,6 +211,7 @@ namespace SignalRMVC.Controllers
                     Id = u.Id,
                     UserName = u.FullName,
                     Email = u.Email,
+                    LoginName = u.UserName,
                     RoleName = userRoles != null && userRoles.Any() ? userRoles.FirstOrDefault(x => x.UserId == u.Id).RoleName : "",
                     IsCurrentUser = (user == u.Id ? true : false),
                     PhoneNumber = u.PhoneNumber,
@@ -317,11 +317,19 @@ namespace SignalRMVC.Controllers
                 return View(model);
             }
 
+            var existingUserName = await _userManager.FindByNameAsync(model.NormalizedUserName);
+            if (existingUserName != null)
+            {
+                ModelState.AddModelError("NormalizedUserName", "User Name is already Exists");
+                model.UserRoles = await GetUserRoles();
+                return View(model);
+            }
+
             // Create new ApplicationUser
             var user = new ApplicationUser
             {
-                UserName = model.Email,
                 FullName = model.UserName,
+                UserName = model.NormalizedUserName,
                 NormalizedUserName = model.Email,
                 Email = model.Email,
                 EmailConfirmed = true, // Set to true if you're not implementing email confirmation

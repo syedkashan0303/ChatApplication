@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SignalRMVC;
 using SignalRMVC.Areas.Identity.Data; // Make sure ApplicationUser is here
+using SignalRMVC.CustomClasses;
 using SignalRMVC.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,10 +24,20 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 .AddRoles<IdentityRole>()
 .AddEntityFrameworkStores<AppDbContext>();
 
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    options.Password.RequireDigit = false;
+    options.Password.RequiredLength = 8;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireLowercase = false;
+    options.Password.RequiredUniqueChars = 0;
+});
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages(); // <--- This line fixes the error
-
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<UserInfoService>();
 
 builder.Services.AddSignalR();
 
