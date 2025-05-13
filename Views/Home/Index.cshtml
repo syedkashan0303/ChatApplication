@@ -1,6 +1,7 @@
 ﻿@model RoleViewModel
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 
 
@@ -26,14 +27,13 @@
 		text-align: center !important;
 	}
 
-	.chatuser .time {
-		font-weight: normal;
-		font-size: 0.8rem;
-	}
+		.chatuser .time {
+			font-weight: normal;
+			font-size: 0.8rem;
+		}
 
 	.msg {
-		font-family: 'Noto Nastaliq Urdu';
-		font-size: 10px;
+		font-family: 'Alvi Nastaleeq';
 		line-height: 30px
 	}
 
@@ -69,13 +69,13 @@
 		position: relative;
 	}
 
-	.ChatRoom .card-body textarea#chatMessage {
-		background: #eee;
-		border: 1px #c3c3c3 solid;
-		margin-top: 10px;
-		padding-right: 65px;
-		margin-left: 16px;
-	}
+		.ChatRoom .card-body textarea#chatMessage {
+			background: #eee;
+			border: 1px #c3c3c3 solid;
+			margin-top: 10px;
+			padding-right: 65px;
+			margin-left: 16px;
+		}
 
 	.card.ChatRoom {
 		border: unset;
@@ -96,7 +96,6 @@
 	}
 
 	.message-text {
-		font-size: 12px;
 		transition: font-size 0.3s ease; /* Smooth font-size change */
 	}
 
@@ -104,19 +103,19 @@
 		position: relative;
 	}
 
-	.TextareaBox i {
-		position: absolute;
-		top: 10px;
-		right: 30px;
-		margin: auto;
-	}
+		.TextareaBox i {
+			position: absolute;
+			top: 10px;
+			right: 30px;
+			margin: auto;
+		}
 
-	.TextareaBox i:last-child {
-		right: 5px;
-	}
+			.TextareaBox i:last-child {
+				right: 5px;
+			}
 
 	.justify-content-center {
-		height: 83vh;
+		height: 80vh;
 	}
 
 
@@ -181,13 +180,14 @@
 	.SideBar {
 		background: #2C3E50;
 		color: #fff;
-		border-radius:0 !important;
+		border-radius: 0 !important;
 	}
 
 		.SideBar .card-header {
 			border: unset !important;
 			background: #303d4f !important;
 			border-bottom: solid 1px #ffffff26 !important;
+			height: 48px;
 		}
 
 	.ChatRoom .card-header {
@@ -230,6 +230,34 @@
 
 	.SideBar input#searchBar:focus, .SideBar #searchBar:active {
 		outline: none;
+	}
+
+	.msg-custom .edit-btn {
+		position: absolute !important;
+		background: unset !important;
+		bottom: 6px;
+		border: unset;
+		top: unset !important;
+		color: #fff !important;
+		font-size: 14px;
+		right: 30px;
+	}
+
+	.msg-custom .delete-btn {
+		position: absolute !important;
+		background: unset !important;
+		bottom: 6px;
+		border: unset;
+		top: unset !important;
+		color: #fff !important;
+		font-size: 14px;
+		right: 50px;
+	}
+
+	.msg-custom .delete-btn, .msg-custom .delete-btn:active , .msg-custom .edit-btn:focus, .msg-custom .edit-btn:active {
+		outline: none !important;
+		box-shadow: none !important;
+		border: unset !important;
 	}
 
 </style>
@@ -277,18 +305,23 @@
 				<div class="card">
 					<div class="card-header bg-primary text-white">
 						<div class="chatheader row">
-
 							<div class="col-md-6">
 								<strong>Room</strong> <strong id="roomName"></strong>
 							</div>
-							<div class="col-md-6">
-								<div class="ZoomBtns">
-									<button onclick="fontZoomIn()"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
-									<button onclick="fontZoomOut()"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
-								</div>
+							<div class="col-md-6 text-end">
+								<select id="fontSizeDropdown" class="form-select form-select-sm w-auto d-inline-block">
+									<option value="9">50%</option>
+									<option value="14">75%</option>
+									<option value="18" selected>100%</option>
+									<option value="22">125%</option>
+									<option value="27">150%</option>
+									<option value="34">200%</option>
+								</select>
 							</div>
 						</div>
 					</div>
+
+
 
 					<div class="card-footer" style="overflow-y: auto; background: #E6EAEA; border: 1px #c3c3c3 solid; border-radius: 0px 0px 5px 5px; height: 100%;">
 						<ul id="messagesList" class="list-group list-group-flush"></ul>
@@ -300,7 +333,7 @@
 
 					<div class="col-md-11">
 						<div class="col-sm-12 TextareaBox">
-							<textarea class="form-control" id="chatMessage" rows="2" placeholder="Type your message here..." style="height: 38px;"></textarea>
+							<textarea class="form-control" id="chatMessage" rows="2" placeholder="Type your message here..." style="height: 50px;"></textarea>
 							<i class="fa-solid fa-align-right" id="alignRight"></i>
 							<i class="fa-solid fa-align-left" id="alignLeft"></i>
 						</div>
@@ -322,10 +355,22 @@
 	</div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.js"></script>
+@* <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.js"></script> *@
 <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
 
 <script>
+	var connectionChat = new signalR.HubConnectionBuilder().withUrl("/hubs/basicchat").build();
+
+	let skipDays = 0;
+	let isLoading = false;
+	let allMessagesLoaded = false;
+	var selectedRoom = "";
+	let currentRoom = null;
+	let fontSize = 18;
+
 	$(document).ready(function() {
 
 		$('#chatMessage').css('direction', 'rtl');
@@ -340,15 +385,48 @@
 		loadRooms();
 		renderMessage();
 
+		setTimeout(() => {
+			customFontSize(18);
+		}, 500);
+
+		// #region Signal R methods Start
+
+			connectionChat.on("MessageEdited", function (messageId, newContent) {
+				console.log("MessageEdited", messageId, newContent);
+				const $msg = $("#message-" + messageId);
+				if ($msg.length) {
+					$msg.find(".message-text").html(newContent + " <i>(edited)</i>");
+					$msg.find(".edit-btn").attr("data-content", newContent);
+					}
+			});
+
+			connectionChat.on("MessageReceived", function (messageId ,user, message) {
+
+				console.table("MessageReceived",messageId ,user , message);
+				renderMessage(user, message, messageId);
+				// Auto-scroll to bottom of chat window
+				$(".card-footer").scrollTop($(".card-footer")[0].scrollHeight);
+			});
+
+			connectionChat.on("MessageDeleted", function (messageId) {
+				console.log("MessageDeleted received for ID:", messageId);
+
+				const $messageBubble = $("#message-" + messageId);
+
+				if ($messageBubble.length) {
+					// Remove the entire <li> row that contains this message
+					$messageBubble.closest("li").remove();
+				}
+			});
+		// #region Signal R methods End
+
+
+		connectionChat.on("Error", function (message) {
+			console.error("SignalR Error from server:", message);
+			alert(message); // Optional
+		});
+
 	});
-
-	let skipDays = 0;
-	let isLoading = false;
-	let allMessagesLoaded = false;
-	var selectedRoom = "";
-	let currentRoom = null;
-	let fontSize = 12;
-
 	// Scroll-to-top detection for loading older messages
 	$(".card-footer").on("scroll", function () {
 
@@ -359,8 +437,6 @@
 			loadGroupMessages(currentRoom, skipDays, true); // load more
 		}
 	});
-
-	var connectionChat = new signalR.HubConnectionBuilder().withUrl("/hubs/basicchat").build();
 
 	document.getElementById("sendMessage").disabled = false;
 
@@ -377,41 +453,6 @@
 			}, 1500);
 		}).catch(err => {
 			console.error("Failed to copy: ", err);
-		});
-	});
-
-	connectionChat.on("MessageReceived", function (user, message) {
-		renderMessage(user, message);
-
-		// Auto-scroll to bottom of chat window
-		$(".card-footer").scrollTop($(".card-footer")[0].scrollHeight);
-	});
-
-	$("#sendMessage").on("click", function (event) {
-		event.preventDefault();
-
-		var sender = $("#senderEmail").val();
-		var room = $("#hiddenRoomName").val().trim();
-		var message = $("#chatMessage").val();
-
-		if (!message) return;
-
-		var url = room.length > 0 ? '/SendMessageToGroup' : '/SendMessageToAll';
-		var data = room.length > 0
-			? { user: sender, room: room, message: message }
-			: { user: sender, message: message };
-
-		$.ajax({
-			url: url,
-			type: 'POST',
-			data: data,
-			success: function (response) {
-				console.log(response);
-				$("#chatMessage").val('');
-			},
-			error: function (error) {
-				console.error('Error:', error);
-			}
 		});
 	});
 
@@ -505,28 +546,16 @@
 		});
 	});
 
-	function fontZoomIn() {
-	  if (fontSize < 20) { // max limit
-			fontSize += 2;
-			customFontSize(fontSize);
-	  }
-	}
+	$("#fontSizeDropdown").on("change", function () {
+		console.log("fontSize : "+fontSize);
+	  fontSize = parseInt($(this).val());
+	  customFontSize(fontSize);
+	});
 
-	function fontZoomOut() {
-	  if (fontSize > 6) { // min limit
-			fontSize -= 2;
-			customFontSize(fontSize);
-	  }
-	}
+	function customFontSize(size) {
+		console.log("customFontSize : "+fontSize);
 
-	function customFontSize(fontSize) {
-
-		$(".message-text").css("font-size", `${fontSize}px`);
-		if(fontSize <=12)
-		{
-			 $(".fw-semibold ").css("font-size", `${fontSize}px`);
-			 $(".text-muted").css("font-size", `${fontSize}px`);
-		}
+	  $(".message-text").css("font-size", size + "px");
 	}
 
 	function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false) {
@@ -550,7 +579,7 @@
 				let scrollPosBefore = $(".card-footer")[0].scrollHeight;
 
 				messages.forEach(function (msg) {
-					const messageHtml = renderMessage(msg.sender, msg.message, true);
+					const messageHtml = renderMessage(msg.sender, msg.message, msg.id , true);
 					if (prepend) {
 						chatList.prepend(messageHtml);
 					} else {
@@ -573,7 +602,8 @@
 		});
 	}
 
-	function renderMessage(user, message, returnOnly = false) {
+	function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false) {
+
 		var senderEmail = $("#senderEmail").val();
 		var isOwnMessage = user === senderEmail;
 
@@ -594,9 +624,18 @@
 			.append(
 				$("<span>").addClass("fw-semibold UserIcon").text(userName[0]),
 				$("<span>").addClass("fw-semibold UserName").text(userName),
+				$("<small>").addClass("text-muted").text(userName),
 				$("<small>").addClass("text-muted").text(timeStr)
 			);
 
+		// Show edited/deleted text
+		let messageText = isDeleted
+			? "<i>This message was deleted.</i>"
+			: $("<span>").html((message || "").replace(/\n/g, "<br>")).text();
+
+		if (isEdited && !isDeleted) {
+			messageText += " <i>(edited)</i>";
+		}
 
 		// Chat bubble
 		var bubble = $("<div>")
@@ -604,15 +643,34 @@
 			.addClass(isOwnMessage ? "text-white msg" : "text-dark msg")
 			.css({
 				"max-width": "85%",
+				"min-width": "40%",
 				"background-color": isOwnMessage ? "#f5f5f5" : "#303d4f"
 			})
+			.attr("id", `message-${messageId}`)
 			.append(
-				$("<div>").addClass("message-text").html(message.replace(/\n/g, "<br>")),
+				$("<div>").addClass("message-text content").html(messageText),
 				$("<button>")
 					.addClass("btn btn-sm btn-light copy-btn position-absolute top-0 end-0 m-1")
-					.html('<i class="fa-solid fa-copy"></i>')
-					.attr("title", "Copy message")
+					.html('<i class="fa-solid fa-copy" aria-hidden="true"></i>')
 			);
+
+		// Add edit/delete buttons if it's your message and not deleted
+		if (isOwnMessage) {
+			bubble.append(
+				$("<div>").addClass("mt-2 d-flex gap-2 justify-content-end")
+					.append(
+						$("<button>")
+							.addClass("btn btn-sm btn-outline-secondary edit-btn")
+							.html('<i class="fa-solid fa-pen-to-square"></i>')
+							.attr("data-id", messageId)
+							.attr("data-content", message),
+						$("<button>")
+							.addClass("btn btn-sm btn-outline-danger delete-btn")
+							.html('<i class="fa-solid fa-trash"></i>')
+							.attr("data-id", messageId)
+					)
+			);
+		}
 
 		// Flex row: bubble + user info
 		var contentWrapper = $("<div>")
@@ -620,8 +678,6 @@
 			.addClass(isOwnMessage ? "flex-row-reverse text-end" : "flex-row")
 			.append(bubble)
 			.append(userInfo);
-
-
 
 		// Main <li>
 		var li = $("<li>")
@@ -632,13 +688,60 @@
 		return returnOnly ? li : $("#messagesList").append(li);
 	}
 
+	$(document).on("click", ".edit-btn", function () {
+		var messageId = $(this).data("id");
+		var currentContent = $(this).attr("data-content"); // <- use attr here to get latest
+
+		var newContent = prompt("Edit your message:", currentContent);
+		if (newContent && newContent !== currentContent) {
+			// connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom);
+			console.table("Before Controller",messageId ,currentContent , currentRoom);
+			connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom)
+				.catch(function (err) {
+					console.table("In exception",messageId ,currentContent , currentRoom);
+					console.error("Invoke failed:", err.toString());
+					alert("Error editing message: " + err.message);
+			});
+
+			// Optionally update UI immediately for the sender
+			const $msg = $("#message-" + messageId);
+			$msg.find(".message-text").html(newContent + " <i>(edited)</i>");
+			$msg.find(".edit-btn").attr("data-content", newContent);
+		}
+	});
+
+	$(document).on("click", ".delete-btn", function () {
+		var messageId = $(this).data("id");
+		if (confirm("Are you sure you want to delete this message?")) {
+
+			connectionChat.invoke("DeleteMessage", parseInt(messageId), currentRoom)
+				.catch(function (err) {
+					console.error("Delete failed:", err.toString());
+			});
+
+			const $messageBubble = $("#message-" + messageId);
+
+			if ($messageBubble.length) {
+				// Remove the entire <li> row that contains this message
+				$messageBubble.closest("li").remove();
+			}
+		}
+	});
+
 	function scrollToBottom() {
 		var messagesBox = $('.card-footer');
 		messagesBox.scrollTop(messagesBox.prop("scrollHeight"));
 	}
 
 	function capitalizeFirstLetter(string) {
-	  return string.charAt(0).toUpperCase() + string.slice(1);
+		if(string != null && string != "" )
+		{
+			return string.charAt(0).toUpperCase() + string.slice(1);
+		}
+		else
+		{
+			return ".";
+		}
 	}
 
 	$("#createRoom").on("click", function (e) {
@@ -666,11 +769,50 @@
 
 		var sender = $("#senderEmail").val();
 		var message = $("#chatMessage").val();
-		if (!message || !selectedRoom) return;
+		var room = $("#hiddenRoomName").val().trim();
+		console.log(`sender ${sender} message ${message} room ${room}`);
+		
+		if (!message || !room) return;
 
-		connectionChat.invoke("SendMessageToRoom", selectedRoom, sender, message);
+		console.log(`sender ${sender} message ${message} room ${room}`);
+
+		connectionChat.invoke("SendMessageToRoom", room, sender, message);
+
+		setTimeout(() => {
+			customFontSize(fontSize);
+		}, 500);
+
 		$("#chatMessage").val('');
 	});
+
+	// $("#sendMessage").on("click", function (event) {
+	// 	event.preventDefault();
+
+	// 	var sender = $("#senderEmail").val();
+	// 	var room = $("#hiddenRoomName").val().trim();
+	// 	var message = $("#chatMessage").val();
+
+	// 	if (!message) return;
+
+	// 	var url = room.length > 0 ? '/SendMessageToGroup' : '/SendMessageToAll';
+	// 	var data = room.length > 0
+	// 		? { user: sender, room: room, message: message }
+	// 		: { user: sender, message: message };
+
+	// 	$.ajax({
+	// 		url: url,
+	// 		type: 'POST',
+	// 		data: data,
+	// 		success: function (response) {
+	// 			console.log(response);
+	// 			$("#chatMessage").val('');
+	// 		},
+	// 		error: function (error) {
+	// 			console.error('Error:', error);
+	// 		}
+	// 	});
+	// });
+
 
 	$('#chatMessage').on('keydown', function(e) {
 		if (e.which === 13) { // Enter key

@@ -5,14 +5,13 @@ using SignalRMVC;
 using SignalRMVC.Areas.Identity.Data; // Make sure ApplicationUser is here
 using SignalRMVC.CustomClasses;
 using SignalRMVC.Models;
+using System.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ✅ Use your actual connection string name here
 var connectionString = builder.Configuration.GetConnectionString("AppDbContextConnection")
     ?? throw new InvalidOperationException("Connection string 'AppDbContextConnection' not found.");
-
-
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));

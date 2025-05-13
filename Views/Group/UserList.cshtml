@@ -83,7 +83,7 @@
 									}
 								}
 
-								<button type="button" class="btn btn-primary showUsersBtn" data-bs-toggle="modal" data-bs-target="#userListModal" id="showUsersBtn" data-id="@user.Id">
+								<button type="button" class="btn btn-primary showUsersBtn" data-bs-toggle="modal" data-bs-target="#userListModal" style="font-size: smaller;" id="showUsersBtn" data-id="@user.Id">
 									Show chat history
 								</button>
 
@@ -232,10 +232,7 @@
 		var MappinguserGroupModal = new bootstrap.Modal(document.getElementById('userListModal'));
 
 		$(".showUsersBtn").on('click', function () {
-
-
 			$("#ajaxLoader").show(); // Show loader before request
-
 			if ($.fn.DataTable.isDataTable('#userDataTable')) {
 					$('#userDataTable').DataTable().destroy();
 					var $tbody = $("#userDataTable tbody");
@@ -245,6 +242,7 @@
 			var groupId = $(this).data("id");
 
 			var $row = $(this).closest("tr");
+			console.log("groupId "+ groupId);
 
 			// Convert to editable mode
 			$row.find('.editable').each(function () {

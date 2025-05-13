@@ -165,6 +165,28 @@ namespace SignalRMVC.Controllers
             return Ok(messages);
         }
 
+        [HttpPost]
+        public async Task<IActionResult> EditMessage(int id, string newContent)
+        {
+            if (string.IsNullOrWhiteSpace(newContent))
+                return BadRequest("Message cannot be empty.");
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var message = await _db.ChatMessages.FindAsync(id);
+
+            if (message == null)
+                return NotFound("Message not found.");
+
+            if (message.SenderId != userId)
+                return Forbid("You can only edit your own messages.");
+
+            message.Message = newContent;
+            await _db.SaveChangesAsync();
+
+            return Ok();
+        }
+
+
         [HttpGet]
         public IActionResult GetTheme()
         {
@@ -202,6 +224,7 @@ namespace SignalRMVC.Controllers
             var rooms = await _db.ChatRoom.Where(x=>!x.isDelete && groupUserList.Contains(x.Id)).Select(r => r.Name).ToListAsync();
             return Json(rooms);
         }
+
         private string GetUserId()
         {
             var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

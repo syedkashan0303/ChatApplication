@@ -9,7 +9,7 @@
 	<link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 	<link rel="stylesheet" href="~/SignalRMVC.styles.css" asp-append-version="true" />
 	<link rel="shortcut icon" href="~/Images/AryLogo.png" type="image/x-icon">
-	<link href='https://fonts.googleapis.com/css?family=Noto Nastaliq Urdu' rel='stylesheet'>
+	@* <link href='https://fonts.googleapis.com/css?family=Noto Nastaliq Urdu' rel='stylesheet'> *@
 	<link rel="stylesheet" href="/DataTables/datatables.css" />
 	<script src="/DataTables/datatables.js"></script>
 
@@ -66,7 +66,7 @@
 		}
 
 		.card {
-			height: 83vh;
+			height: 80vh;
 		}
 
 		.ArbabTheme .navbar-brand:hover {
@@ -290,7 +290,7 @@
 		}
 
 		.CopyRight {
-			position: absolute;
+			position: fixed;
 			bottom: 0;
 			left: 0;
 			padding: 5px;
@@ -300,6 +300,19 @@
 
 		.ArbabTheme .CopyRight {
 			background: #161717;
+		}
+
+		@@font-face {
+			font-family: 'Alvi Nastaleeq';
+			src: url('/fonts/alvi_Nastaleeq.ttf') format('truetype');
+			font-weight: normal;
+			font-style: normal;
+		}
+
+		.urdu-text {
+			font-family: 'Alvi Nastaleeq', serif;
+			font-size: 24px;
+			direction: rtl;
 		}
 	</style>
 </head>
