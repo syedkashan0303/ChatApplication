@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using SignalRMVC.Areas.Identity.Data;
+using SignalRMVC.CustomClasses;
 using SignalRMVC.Models;
 
 namespace SignalRMVC.Controllers
@@ -26,11 +27,13 @@ namespace SignalRMVC.Controllers
 
         #region Group
         // GET: Group
+        [AdminOnly]
         public async Task<IActionResult> Index()
         {
             return View(await _context.ChatRoom.Where(x => !x.isDelete).ToListAsync());
         }
 
+        [AdminOnly]
         [HttpGet]
         public async Task<JsonResult> Details(int id)
         {
@@ -80,6 +83,7 @@ namespace SignalRMVC.Controllers
             }
         }
 
+        [AdminOnly]
         public async Task<IActionResult> CreateGroup([FromBody] ChatRoom model)
         {
             try
@@ -160,6 +164,7 @@ namespace SignalRMVC.Controllers
             }
         }
 
+        [AdminOnly]
         [HttpGet]
         public async Task<IActionResult> UserChatHistory(string id)
         {
@@ -191,6 +196,8 @@ namespace SignalRMVC.Controllers
         #endregion
 
         #region User
+
+        [AdminOnly]
         public async Task<IActionResult> UserList()
         {
             var user = GetUserId();
@@ -283,6 +290,7 @@ namespace SignalRMVC.Controllers
             return userId;
         }
 
+        [AdminOnly]
         public async Task<IActionResult> AddUser()
         {
             var user = new UserModal();
@@ -377,6 +385,7 @@ namespace SignalRMVC.Controllers
         }
 
         // GET: EditUser/{id}
+        [AdminOnly]
         [HttpGet]
         public async Task<IActionResult> EditUser(string id)
         {
@@ -474,6 +483,7 @@ namespace SignalRMVC.Controllers
 
         #region Group User Mapping
 
+        [AdminOnly]
         [HttpGet]
         public async Task<IActionResult> UserListInGroup(int id)
         {
