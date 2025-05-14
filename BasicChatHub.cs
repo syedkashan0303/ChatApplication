@@ -105,7 +105,8 @@ namespace SignalRMVC
                 msgLogs.EditedBy = userId;
                 msgLogs.EditedOn = DateTime.Now;
                 msgLogs.GroupName = roomName;
-                _context.EditedMessagesLog.Add(msgLogs);
+                _context.EditedtMessagesLogs.Add(msgLogs);
+                await _context.SaveChangesAsync();
 
                 message.Message = newContent;
                 await _context.SaveChangesAsync();

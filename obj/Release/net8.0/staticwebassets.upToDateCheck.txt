@@ -1,5 +1,6 @@
 wwwroot\css\site.css
 wwwroot\favicon.ico
+wwwroot\fonts\alvi_Nastaleeq.ttf
 wwwroot\Images\AryLogo.png
 wwwroot\Images\arynewslogo.png
 wwwroot\js\site.js

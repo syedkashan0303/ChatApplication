@@ -2633,6 +2633,88 @@
       ]
     },
     {
+      "Route": "fonts/alvi_Nastaleeq.r9xtppddmh.ttf",
+      "AssetFile": "fonts/alvi_Nastaleeq.ttf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "9559112"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/x-font-ttf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"rxo3g5WaXyAOSDnaDP7LOTpqRqhURDz6zmhnmhe/Z50=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Mon, 12 May 2025 10:12:44 GMT"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "r9xtppddmh"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-rxo3g5WaXyAOSDnaDP7LOTpqRqhURDz6zmhnmhe/Z50="
+        },
+        {
+          "Name": "label",
+          "Value": "fonts/alvi_Nastaleeq.ttf"
+        }
+      ]
+    },
+    {
+      "Route": "fonts/alvi_Nastaleeq.ttf",
+      "AssetFile": "fonts/alvi_Nastaleeq.ttf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "9559112"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/x-font-ttf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"rxo3g5WaXyAOSDnaDP7LOTpqRqhURDz6zmhnmhe/Z50=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Mon, 12 May 2025 10:12:44 GMT"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-rxo3g5WaXyAOSDnaDP7LOTpqRqhURDz6zmhnmhe/Z50="
+        }
+      ]
+    },
+    {
       "Route": "js/site.js",
       "AssetFile": "js/site.js",
       "Selectors": [],

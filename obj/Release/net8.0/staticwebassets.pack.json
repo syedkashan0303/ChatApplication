@@ -21,6 +21,10 @@
       "PackagePath": "staticwebassets\\favicon.ico"
     },
     {
+      "Id": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\wwwroot\\fonts\\alvi_Nastaleeq.ttf",
+      "PackagePath": "staticwebassets\\fonts\\alvi_Nastaleeq.ttf"
+    },
+    {
       "Id": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\wwwroot\\js\\site.js",
       "PackagePath": "staticwebassets\\js\\site.js"
     },

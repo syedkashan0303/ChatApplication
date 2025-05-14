@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "yfjyzCYPwf7CPzaTlCxTO32BrjDzcRYuS1j7VWAmVLE=",
+  "Hash": "L7tcwkpoPgZlNo22J3pBEyW7AFWuonTnL5VD5MJ77mA=",
   "Source": "SignalRMVC",
   "BasePath": "_content/SignalRMVC",
   "Mode": "Default",
@@ -1359,6 +1359,27 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\favicon.ico"
+    },
+    {
+      "Identity": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\wwwroot\\fonts\\alvi_Nastaleeq.ttf",
+      "SourceId": "SignalRMVC",
+      "SourceType": "Discovered",
+      "ContentRoot": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\wwwroot\\",
+      "BasePath": "_content/SignalRMVC",
+      "RelativePath": "fonts/alvi_Nastaleeq#[.{fingerprint}]?.ttf",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "r9xtppddmh",
+      "Integrity": "rxo3g5WaXyAOSDnaDP7LOTpqRqhURDz6zmhnmhe/Z50=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\fonts\\alvi_Nastaleeq.ttf"
     },
     {
       "Identity": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\wwwroot\\Images\\AryLogo.png",
@@ -2783,6 +2804,88 @@
         {
           "Name": "integrity",
           "Value": "sha256-Jtxf9L+5ITKRc1gIRl4VbUpGkRNfOBXjYTdhJD4facM="
+        }
+      ]
+    },
+    {
+      "Route": "fonts/alvi_Nastaleeq.r9xtppddmh.ttf",
+      "AssetFile": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\wwwroot\\fonts\\alvi_Nastaleeq.ttf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "9559112"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/x-font-ttf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"rxo3g5WaXyAOSDnaDP7LOTpqRqhURDz6zmhnmhe/Z50=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Mon, 12 May 2025 10:12:44 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "r9xtppddmh"
+        },
+        {
+          "Name": "label",
+          "Value": "fonts/alvi_Nastaleeq.ttf"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-rxo3g5WaXyAOSDnaDP7LOTpqRqhURDz6zmhnmhe/Z50="
+        }
+      ]
+    },
+    {
+      "Route": "fonts/alvi_Nastaleeq.ttf",
+      "AssetFile": "D:\\PROJECTS\\Live_WorkingProjects\\ChatApplication\\wwwroot\\fonts\\alvi_Nastaleeq.ttf",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "9559112"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "application/x-font-ttf"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"rxo3g5WaXyAOSDnaDP7LOTpqRqhURDz6zmhnmhe/Z50=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Mon, 12 May 2025 10:12:44 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-rxo3g5WaXyAOSDnaDP7LOTpqRqhURDz6zmhnmhe/Z50="
         }
       ]
     },

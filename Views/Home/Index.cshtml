@@ -60,7 +60,7 @@
 		bottom: 3px;
 		border: unset;
 		top: unset !important;
-		color: #fff !important;
+		color: #303d4f !important;
 		font-size: 14px;
 	}
 
@@ -238,7 +238,7 @@
 		bottom: 6px;
 		border: unset;
 		top: unset !important;
-		color: #fff !important;
+		color: #303d4f !important;
 		font-size: 14px;
 		right: 30px;
 	}
@@ -249,7 +249,7 @@
 		bottom: 6px;
 		border: unset;
 		top: unset !important;
-		color: #fff !important;
+		color: #303d4f !important;
 		font-size: 14px;
 		right: 50px;
 	}
@@ -258,6 +258,10 @@
 		outline: none !important;
 		box-shadow: none !important;
 		border: unset !important;
+	}
+
+	.ArbabTheme .msg-custom .copy-btn, .ArbabTheme .msg-custom .edit-btn, .ArbabTheme .msg-custom .delete-btn {
+		color: #fff !important;
 	}
 
 </style>
@@ -310,12 +314,12 @@
 							</div>
 							<div class="col-md-6 text-end">
 								<select id="fontSizeDropdown" class="form-select form-select-sm w-auto d-inline-block">
-									<option value="9">50%</option>
-									<option value="14">75%</option>
-									<option value="18" selected>100%</option>
-									<option value="22">125%</option>
-									<option value="27">150%</option>
-									<option value="34">200%</option>
+									<option value="9">9</option>
+									<option value="14">14</option>
+									<option value="18" selected>18</option>
+									<option value="22">22</option>
+									<option value="27">27</option>
+									<option value="34">34</option>
 								</select>
 							</div>
 						</div>
@@ -418,13 +422,13 @@
 					$messageBubble.closest("li").remove();
 				}
 			});
+
+
+			connectionChat.on("Error", function (message) {
+				console.error("SignalR Error from server:", message);
+				alert(message); // Optional
+			});
 		// #region Signal R methods End
-
-
-		connectionChat.on("Error", function (message) {
-			console.error("SignalR Error from server:", message);
-			alert(message); // Optional
-		});
 
 	});
 	// Scroll-to-top detection for loading older messages
@@ -440,21 +444,67 @@
 
 	document.getElementById("sendMessage").disabled = false;
 
-	$(document).on("click", ".copy-btn", function () {
-		var textToCopy = $(this).siblings(".message-text").text();
-		var $btn = $(this);
-		var $icon = $btn.find("i");
+	// $(document).on("click", ".copy-btn", function () {
+	// 	var textToCopy = $(this).siblings(".message-text").text();
+	// 	var $btn = $(this);
+	// 	var $icon = $btn.find("i");
 
+	// 	navigator.clipboard.writeText(textToCopy).then(() => {
+	// 		$icon.removeClass("fa-copy").addClass("fa-check");
+
+	// 		setTimeout(() => {
+	// 			$icon.removeClass("fa-check").addClass("fa-copy");
+	// 		}, 1500);
+	// 	}).catch(err => {
+	// 		console.error("Failed to copy: ", err);
+	// 	});
+	// });
+
+	$(document).on("click", ".copy-btn", function () {
+	var htmlContent = $(this).siblings(".message-text").html();
+	var textToCopy = htmlContent.replace(/<br\s*\/?>/gi, "\n");
+	var $btn = $(this);
+	var $icon = $btn.find("i");
+
+	// Modern clipboard API
+	if (navigator.clipboard && window.isSecureContext) {
 		navigator.clipboard.writeText(textToCopy).then(() => {
 			$icon.removeClass("fa-copy").addClass("fa-check");
-
 			setTimeout(() => {
 				$icon.removeClass("fa-check").addClass("fa-copy");
 			}, 1500);
 		}).catch(err => {
-			console.error("Failed to copy: ", err);
+			console.error("Clipboard error:", err);
+			fallbackCopy(textToCopy);
 		});
-	});
+	} 
+	else {
+		// Fallback for insecure context or older browsers
+		fallbackCopy(textToCopy);
+	}
+
+	function fallbackCopy(text) {
+		let textArea = $("<textarea>");
+		textArea.val(text).css({ position: "fixed", top: 0, left: 0, opacity: 0 });
+		$("body").append(textArea);
+		textArea[0].focus();
+		textArea[0].select();
+
+		try {
+			let successful = document.execCommand('copy');
+			if (successful) {
+				$icon.removeClass("fa-copy").addClass("fa-check");
+				setTimeout(() => {
+					$icon.removeClass("fa-check").addClass("fa-copy");
+				}, 1500);
+			}
+		} catch (err) {
+			console.error("Fallback copy failed:", err);
+		}
+		textArea.remove();
+	}
+});
+
 
 	connectionChat.start().then(function () {
 		console.log("SignalR connected");
@@ -629,10 +679,8 @@
 			);
 
 		// Show edited/deleted text
-		let messageText = isDeleted
-			? "<i>This message was deleted.</i>"
-			: $("<span>").html((message || "").replace(/\n/g, "<br>")).text();
-
+		let messageText = (message || "").replace(/\\n/g, "<br>");
+		console.log("messageText :" +messageText)
 		if (isEdited && !isDeleted) {
 			messageText += " <i>(edited)</i>";
 		}
@@ -771,8 +819,10 @@
 		var message = $("#chatMessage").val();
 		var room = $("#hiddenRoomName").val().trim();
 		console.log(`sender ${sender} message ${message} room ${room}`);
-		
+
 		if (!message || !room) return;
+
+		message = ( $("#chatMessage").val().replace(/\n/g, "\\n"));
 
 		console.log(`sender ${sender} message ${message} room ${room}`);
 
