@@ -404,10 +404,10 @@
 					}
 			});
 
-			connectionChat.on("MessageReceived", function (messageId ,user, message) {
+			connectionChat.on("MessageReceived", function (messageId ,user, message, messageTime) {
 
-				console.table("MessageReceived",messageId ,user , message);
-				renderMessage(user, message, messageId);
+				console.table("MessageReceived",messageId ,user , message , messageTime);
+				renderMessage(user, message, messageId,false, false, false, messageTime);
 				// Auto-scroll to bottom of chat window
 				$(".card-footer").scrollTop($(".card-footer")[0].scrollHeight);
 			});
@@ -629,7 +629,7 @@
 				let scrollPosBefore = $(".card-footer")[0].scrollHeight;
 
 				messages.forEach(function (msg) {
-					const messageHtml = renderMessage(msg.sender, msg.message, msg.id , true);
+					const messageHtml = renderMessage(msg.sender, msg.message, msg.id , false, false, false, msg.messageTime);
 					if (prepend) {
 						chatList.prepend(messageHtml);
 					} else {
@@ -652,13 +652,14 @@
 		});
 	}
 
-	function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false) {
+	function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false ,messagetime) {
 
 		var senderEmail = $("#senderEmail").val();
 		var isOwnMessage = user === senderEmail;
 
 		let now = new Date();
-		let timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		// let timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		let timeStr = messagetime;
 
 		var userName = capitalizeFirstLetter(user);
 		var userInfo = $("<div>")

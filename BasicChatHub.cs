@@ -183,6 +183,7 @@ namespace SignalRMVC
         public async Task SendMessageToRoom(string roomName, string user, string message)
         {
             var messageId = 0;
+            var messageTime = "";
             var senderUser = await _userManager.FindByNameAsync(user);
             if (senderUser != null)
             {
@@ -198,8 +199,9 @@ namespace SignalRMVC
                 _context.ChatMessages.Add(chatMessage);
                 await _context.SaveChangesAsync();
                 messageId = chatMessage.Id;
+                messageTime = chatMessage.CreatedOn.Value.ToString("hh:mm tt");
             }
-            await Clients.Group(roomName).SendAsync("MessageReceived", messageId, user, message);
+            await Clients.Group(roomName).SendAsync("MessageReceived", messageId, user, message, messageTime);
         }
         #endregion
 

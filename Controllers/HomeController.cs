@@ -158,10 +158,11 @@ namespace SignalRMVC.Controllers
                       id = message.Id,
                       sender = user.UserName, // Or use user.UserName or FullName if you have it
                       message = message.Message,
-                      createdOn = message.CreatedOn
+                      createdOn = message.CreatedOn,
+                      messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("hh:mm tt") : DateTime.Now.ToString("hh : mm tt")
                   }
               )
-              .ToList().OrderBy(x=>x.id);
+              .ToList().OrderBy(x => x.id);
             return Ok(messages);
         }
 
@@ -193,7 +194,7 @@ namespace SignalRMVC.Controllers
             var userId = GetUserId();
 
             var user = _db.Users.FirstOrDefault(x => x.Id == userId);
-            if (user != null) 
+            if (user != null)
             {
                 return Ok(user.IsDarkTheme);
             }
@@ -208,7 +209,7 @@ namespace SignalRMVC.Controllers
             var user = _db.Users.FirstOrDefault(x => x.Id == userId);
             if (user != null)
             {
-                user.IsDarkTheme = user.IsDarkTheme ? false: true;
+                user.IsDarkTheme = user.IsDarkTheme ? false : true;
                 _db.Update(user);
                 _db.SaveChanges();
             }
@@ -221,7 +222,7 @@ namespace SignalRMVC.Controllers
             var user = GetUserId();
             var groupUserList = await _db.GroupUserMapping.Where(x => x.Active && x.UserId == user).Select(x => x.GroupId).ToListAsync();
 
-            var rooms = await _db.ChatRoom.Where(x=>!x.isDelete && groupUserList.Contains(x.Id)).Select(r => r.Name).ToListAsync();
+            var rooms = await _db.ChatRoom.Where(x => !x.isDelete && groupUserList.Contains(x.Id)).Select(r => r.Name).ToListAsync();
             return Json(rooms);
         }
 
@@ -237,7 +238,7 @@ namespace SignalRMVC.Controllers
             var roles = await _userManager.GetRolesAsync(user);
             return roles;
         }
- 
+
 
     }
 }
