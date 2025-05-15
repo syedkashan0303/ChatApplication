@@ -314,6 +314,31 @@
 			font-size: 24px;
 			direction: rtl;
 		}
+
+		.fs-9 .message-text {
+			font-size: 9px;
+		}
+
+		.fs-14 .message-text {
+			font-size: 14px;
+		}
+
+		.fs-18 .message-text {
+			font-size: 18px;
+		}
+
+		.fs-22 .message-text {
+			font-size: 22px;
+		}
+
+		.fs-27 .message-text {
+			font-size: 27px;
+		}
+
+		.fs-34 .message-text {
+			font-size: 34px;
+		}
+
 	</style>
 </head>
 <body>
@@ -378,6 +403,18 @@
 			$('#ThemeChangebtn').on('click', function () {
 				$('body').toggleClass('ArbabTheme');
 				 updateTheme();
+			});
+
+			$('#fontSizeDropdown').on('change', function () {
+				var selectedFontSize = $(this).val();
+
+				// Remove any existing fs-* class from body
+				$('body').removeClass(function (index, className) {
+					return (className.match(/(^|\s)fs-\d+/g) || []).join(' ');
+				});
+
+				// Add the new fs-* class
+				$('body').addClass('fs-' + selectedFontSize);
 			});
 		});
 
