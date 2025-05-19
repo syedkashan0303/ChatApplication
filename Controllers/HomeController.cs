@@ -216,15 +216,41 @@ namespace SignalRMVC.Controllers
             return Ok();
         }
 
+        //[HttpGet]
+        //public async Task<IActionResult> GetRooms()
+        //{
+        //    var user = GetUserId();
+        //    var groupUserList = await _db.GroupUserMapping.Where(x => x.Active && x.UserId == user).Select(x => x.GroupId).ToListAsync();
+
+        //    var rooms = await _db.ChatRoom.Where(x => !x.isDelete && groupUserList.Contains(x.Id)).Select(r => r.Name).ToListAsync();
+        //    return Json(rooms);
+        //}
+
+
         [HttpGet]
         public async Task<IActionResult> GetRooms()
         {
-            var user = GetUserId();
-            var groupUserList = await _db.GroupUserMapping.Where(x => x.Active && x.UserId == user).Select(x => x.GroupId).ToListAsync();
+            var userId = GetUserId();
 
-            var rooms = await _db.ChatRoom.Where(x => !x.isDelete && groupUserList.Contains(x.Id)).Select(r => r.Name).ToListAsync();
+            // Get Group IDs for current user
+            var groupUserList = await _db.GroupUserMapping
+                .Where(x => x.Active && x.UserId == userId)
+                .Select(x => x.GroupId)
+                .ToListAsync();
+
+            // Fetch group names and also generate encoded ID-safe names
+            var rooms = await _db.ChatRoom
+                .Where(x => !x.isDelete && groupUserList.Contains(x.Id))
+                .Select(r => new
+                {
+                    Name = r.Name,
+                    SafeId = r.Id // or use your own sanitizer if needed
+                })
+                .ToListAsync();
+
             return Json(rooms);
         }
+
 
         private string GetUserId()
         {

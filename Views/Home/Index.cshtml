@@ -35,8 +35,8 @@
 	.msg {
 		font-family: 'Alvi Nastaleeq';
 		line-height: 30px
-	}	
-	
+	}
+
 	.chatMessage, .editMessageText {
 		font-family: 'Alvi Nastaleeq';
 	}
@@ -268,6 +268,14 @@
 		color: #fff !important;
 	}
 
+	.badge {
+		background-color: red;
+		color: white;
+		border-radius: 50%;
+		padding: 2px 6px;
+		font-size: 12px;
+		margin-left: 5px;
+	}
 </style>
 
 
@@ -365,7 +373,7 @@
 
 <!-- Edit Message Modal -->
 <div class="modal fade" id="editMessageModal" tabindex="-1" aria-labelledby="editMessageModalLabel" aria-hidden="true">
-	<div class="modal-dialog" >
+	<div class="modal-dialog">
 		<div class="modal-content">
 			<div class="modal-header">
 				<h5 class="modal-title" id="editMessageModalLabel">Edit Message</h5>
@@ -449,10 +457,58 @@
 					}
 				});
 
+
 				connectionChat.on("Error", function (message) {
 					console.error("SignalR Error from server:", message);
 					alert(message); // Optional
 				});
+
+
+
+			// Start SignalR connection once DOM is ready
+			connectionChat.start().then(function () {
+				console.log("✅ SignalR connected");
+
+				connectionChat.on("ReceiveUnreadCount", function (roomId, roomName, count) {
+					const badge = document.getElementById(`unread-count-${roomId}`);
+					if (badge) {
+						badge.textContent = count > 0 ? count : '';
+						badge.style.display = count > 0 ? 'inline-block' : 'none';
+					}
+				});
+
+				// Load unread message counts
+				connectionChat.invoke("GetUnreadMessageCounts")
+					.then(data => {
+						data.forEach(room => {
+							const badge = document.getElementById(`unread-count-${room.roomId}`);
+							if (badge) {
+								badge.textContent = room.count > 0 ? room.count : '';
+								badge.style.display = room.count > 0 ? 'inline-block' : 'none';
+							}
+						});
+					})
+					.catch(err => {
+						console.error("❌ Error loading unread counts:", err);
+					});
+
+				// Auto-join the first room if available
+				const firstRoom = $("#groupList .group-item").first().data("room");
+				if (firstRoom) {
+					connectionChat.invoke("JoinRoom", firstRoom).then(() => {
+						currentRoom = firstRoom;
+						$("#roomName").text(" - " + firstRoom);
+						$("#hiddenRoomName").val(firstRoom);
+						$("#messagesList").empty();
+						loadGroupMessages(firstRoom);
+					});
+				} else {
+					console.warn("⚠️ No room to join on load.");
+				}
+			}).catch(function (err) {
+				console.error("❌ SignalR connection failed:", err);
+			});
+
 			// #region Signal R methods End
 
 		});
@@ -467,27 +523,11 @@
 			}
 		});
 
-		document.getElementById("sendMessage").disabled = false;
-
-		// $(document).on("click", ".copy-btn", function () {
-		// 	var textToCopy = $(this).siblings(".message-text").text();
-		// 	var $btn = $(this);
-		// 	var $icon = $btn.find("i");
-
-		// 	navigator.clipboard.writeText(textToCopy).then(() => {
-		// 		$icon.removeClass("fa-copy").addClass("fa-check");
-
-		// 		setTimeout(() => {
-		// 			$icon.removeClass("fa-check").addClass("fa-copy");
-		// 		}, 1500);
-		// 	}).catch(err => {
-		// 		console.error("Failed to copy: ", err);
-		// 	});
-		// });
-
 		$(document).on("click", ".copy-btn", function () {
 		var htmlContent = $(this).siblings(".message-text").html();
 		var textToCopy = htmlContent.replace(/<br\s*\/?>/gi, "\n");
+			textToCopy = textToCopy.replace(/<i>\(edited\)<\/i>/gi, "");
+
 		var $btn = $(this);
 		var $icon = $btn.find("i");
 
@@ -530,23 +570,38 @@
 		}
 	});
 
-		connectionChat.start().then(function () {
-			console.log("SignalR connected");
+	// connectionChat.start().then(function() {
+	// 	console.log("SignalR connected");
+	// 	$("#sendMessage").prop("disabled", false);
 
-			// Try to get the first room from the list or prompt user to select
-			var firstRoom = $("#groupList .group-item").first().data("room");
 
-			if (firstRoom) {
-				connectionChat.invoke("JoinRoom", firstRoom);
-				console.log("Joined room: " + firstRoom);
-			}
-			else
-			{
-				console.warn("No room to join yet.");
-			}
+	// 	connectionChat.on("ReceiveUnreadCount", function (roomId, roomName, count) {
+	// 		const badge = document.getElementById(`unread-count-${roomId}`);
+	// 		if (badge) {
+	// 			badge.textContent = count > 0 ? count : '';
+	// 			badge.style.display = count > 0 ? 'inline-block' : 'none';
+	// 		}
+	// 	});
 
-			$("#sendMessage").prop("disabled", false);
-		});
+
+	// 	var firstRoom = $("#groupList .group-item").first().data("room");
+	// 	if (firstRoom) {
+	// 		connectionChat.invoke("JoinRoom", firstRoom).then(() => {
+	// 			currentRoom = firstRoom;
+	// 			$("#roomName").text(" - " + firstRoom);
+	// 			$("#hiddenRoomName").val(firstRoom);
+	// 			$("#messagesList").empty();
+	// 			loadGroupMessages(firstRoom);
+	// 		});
+	// 	}
+	// 	else
+	// 	{
+	// 		console.warn("No room to join yet.");
+	// 	}
+	// }).catch(function(err) {
+	// 	console.error("SignalR connection failed:", err);
+	// });
+
 
 		function filterGroups() {
 			var searchTerm = $('#searchBar').val().toLowerCase(); // Get the search term
@@ -573,18 +628,17 @@
 					groupList.empty();
 
 					$.each(rooms, function (index, room) {
-						let firstLetter = room.charAt(0).toUpperCase();
-
+						let firstLetter = room.name.charAt(0).toUpperCase();
 						groupList.append(`
-							<li class="group-item" data-room="${room}">
+							<li class="group-item" data-room="${room.name}"  data-id="${room.safeId}">
 								<div class="letter-avatar d-flex align-items-center justify-content-center me-2">
 									${firstLetter}
 								</div>
-								<span>${room}</span>
+								<span>${room.name}</span>
+								<span id="unread-count-${room.safeId}" class="badge bg-danger ms-2" style="display: none;"></span>
 							</li>
 						`);
 					});
-
 					filterGroups();
 				},
 				error: function (err) {
@@ -594,7 +648,9 @@
 		}
 
 		$(document).on("click", ".group-item", function () {
+			debugger;
 			var roomName = $(this).data("room");
+			var roomId = $(this).data("id"); // ✅ get the room ID
 
 			$(".group-item").removeClass("active");  // remove from all
 			$(this).addClass("active");
@@ -617,32 +673,34 @@
 				$("#messagesList").empty();
 				// Load chat messages from DB via AJAX
 				loadGroupMessages(roomName);
+
+
+				connectionChat.invoke("MarkMessagesAsRead", roomId)
+				.then(() => {
+					console.log("a gy is m")
+					console.log(`groupname ${roomName} id = ${roomId}`)
+					$(`#unread-count-${roomId}`).hide();
+				});
 			});
 		});
 
 		$("#fontSizeDropdown").on("change", function () {
-			console.log("fontSize : "+fontSize);
-		  fontSize = parseInt($(this).val());
-		  customFontSize(fontSize);
+			fontSize = parseInt($(this).val());
+			customFontSize(fontSize);
 		});
 
 		function customFontSize(size) {
-			console.log("customFontSize : "+fontSize);
 
-		  $(".message-text").css("font-size", size + "px");
+			$(".message-text").css("font-size", size + "px");
 		}
 
 		function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false) {
-
-			console.log(`roomName ${roomName} skipDaysParam ${skipDaysParam} `)
-
 			isLoading = true;
-
 			$.ajax({
 				url: `/Home/GetMessagesByRoom`,
 				type: 'GET',
 				data: { roomName: roomName, skipRecords: skipDaysParam },
-				success: function (messages) {
+				success: function(messages) {
 					if (!messages || messages.length === 0) {
 						allMessagesLoaded = false;
 						isLoading = false;
@@ -680,11 +738,7 @@
 
 			var senderEmail = $("#senderEmail").val();
 			var isOwnMessage = user === senderEmail;
-
-			let now = new Date();
-			// let timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 			let timeStr = messagetime;
-
 			var userName = capitalizeFirstLetter(user);
 			var userInfo = $("<div>")
 				.addClass("d-flex ms-2")
@@ -705,7 +759,6 @@
 
 			// Show edited/deleted text
 			let messageText = (message || "").replace(/\\n/g, "<br>");
-			console.log("messageText :" +messageText)
 			if (isEdited && !isDeleted) {
 				messageText += " <i>(edited)</i>";
 			}
@@ -761,97 +814,49 @@
 			return returnOnly ? li : $("#messagesList").append(li);
 		}
 
-		// $(document).on("click", ".edit-btn", function () {
-		// 	var messageId = $(this).data("id");
-		// 	var currentContent = $(this).attr("data-content"); // <- use attr here to get latest
+		$(document).on("click", ".edit-btn", function () {
+			var messageId = $(this).data("id");
+			$("#editMessageId").val(messageId);
+			// var currentContent = $(this).attr("data-content");
 
-		// 	var newContent = prompt("Edit your message:", currentContent);
-		// 	if (newContent && newContent !== currentContent) {
-		// 		// connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom);
-		// 		console.table("Before Controller",messageId ,currentContent , currentRoom);
-		// 		connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom)
-		// 			.catch(function (err) {
-		// 				console.table("In exception",messageId ,currentContent , currentRoom);
-		// 				console.error("Invoke failed:", err.toString());
-		// 				alert("Error editing message: " + err.message);
-		// 		});
+			var currentContent = $(this).attr("data-content");
+			// Convert <br> back to newline characters for editing
+			var editableText = currentContent.replace(/<br\s*\/?>/gi, "\n").replace(/\\n/g, "\n");
+			$("#editMessageText").val(editableText);
 
-		// 		// Optionally update UI immediately for the sender
-		// 		const $msg = $("#message-" + messageId);
-		// 		$msg.find(".message-text").html(newContent + " <i>(edited)</i>");
-		// 		$msg.find(".edit-btn").attr("data-content", newContent);
-		// 	}
-		// });
-
-
-	$(document).on("click", ".edit-btn", function () {
-		var messageId = $(this).data("id");
-		$("#editMessageId").val(messageId);
-		// var currentContent = $(this).attr("data-content");
-
-		// // Set values in the modal
-		// $("#editMessageText").val(currentContent);
-
-		var currentContent = $(this).attr("data-content");
-		// Convert <br> back to newline characters for editing
-		var editableText = currentContent.replace(/<br\s*\/?>/gi, "\n").replace(/\\n/g, "\n");  
-		$("#editMessageText").val(editableText);
-
-		// Show the modal
-		$("#editMessageModal").modal("show");
-	});
-
-	// When Save is clicked
-	// $("#saveEditMessage").on("click", function () {
-	// 	debugger;
-	// 	var messageId = $("#editMessageId").val();
-	// 	var newContent = $("#editMessageText").val();
-	// 	var $msg = $("#message-" + messageId);
-	// 	newContent = ( $("#editMessageText").val().replace(/\n/g, "\\n"));
-
-	// 	var oldContent = $msg.find(".edit-btn").attr("data-content");
-
-	// 	if (newContent && newContent !== oldContent) {
-	// 		connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom)
-	// 			.catch(function (err) {
-	// 				console.error("Invoke failed:", err.toString());
-	// 				toastr.error("Error editing message: " + err.message);
-	// 			});
-
-	// 	// Format message with line breaks for HTML display
-	// 		const formattedContent = $("#editMessageText").val().replace(/\n/g, "\\n");
-	// 		$msg.find(".message-text").html(formattedContent + ' <i>(edited)</i>');
-	// 		$msg.find(".edit-btn").attr("data-content", newContent);
-	// 	}
-
-	// 	// Close the modal
-	// 	$("#editMessageModal").modal("hide");
-	// });
+			// Show the modal
+			$("#editMessageModal").modal("show");
+		});
 
 		$("#saveEditMessage").on("click", function () {
-		var messageId = $("#editMessageId").val();
-		var newContent = $("#editMessageText").val(); // keep raw text here
-		var $msg = $("#message-" + messageId);
-		newContent = ( $("#editMessageText").val().replace(/\n/g, "\\n"));
-		var oldContent = $msg.find(".edit-btn").attr("data-content");
+			var messageId = $("#editMessageId").val();
+			var newContent = $("#editMessageText").val(); // keep raw text here
+			var $msg = $("#message-" + messageId);
+			newContent = ( $("#editMessageText").val().replace(/\n/g, "\\n"));
+			var oldContent = $msg.find(".edit-btn").attr("data-content");
 
-		if (newContent && newContent !== oldContent) {
-			// Send raw text with actual newlines to SignalR
-			connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom)
-				.catch(function (err) {
-					console.error("Invoke failed:", err.toString());
-					toastr.error("Error editing message: " + err.message);
-				});
+			if (newContent && newContent !== oldContent) {
+				// Send raw text with actual newlines to SignalR
+				connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom)
+					.catch(function (err) {
+							console.error("Invoke faile:");
+							console.error("Name:", err.name);
+							console.error("Message:", err.message);
+							console.error("Stack:", err.stack);
+							console.error("Code:", err.code);
+							console.error("Status:", err.status || err.statusCode);
+							console.error("Cause:", err.cause);
+							console.error("Full Error Object:", err.toString());
+					});
 
-			// Show newlines properly in UI (convert \n to <br>)
-			const formattedContent = newContent.replace(/\\n/g, "<br>");
-			$msg.find(".message-text").html(formattedContent + ' <i>(edited)</i>');
-			$msg.find(".edit-btn").attr("data-content", newContent);
-		}
+				// Show newlines properly in UI (convert \n to <br>)
+				const formattedContent = newContent.replace(/\\n/g, "<br>");
+				$msg.find(".message-text").html(formattedContent + ' <i>(edited)</i>');
+				$msg.find(".edit-btn").attr("data-content", newContent);
+			}
 
-		$("#editMessageModal").modal("hide");
-	});
-
+			$("#editMessageModal").modal("hide");
+		});
 
 		$(document).on("click", ".delete-btn", function () {
 			var messageId = $(this).data("id");
@@ -921,7 +926,8 @@
 
 			console.log(`sender ${sender} message ${message} room ${room}`);
 
-			connectionChat.invoke("SendMessageToRoom", room, sender, message);
+			 connectionChat.invoke("SendMessageToRoom", room, sender, message);
+			//connectionChat.invoke("SendMessageToRoom", room,  message);
 
 			setTimeout(() => {
 				customFontSize(fontSize);
@@ -929,35 +935,6 @@
 
 			$("#chatMessage").val('');
 		});
-
-		// $("#sendMessage").on("click", function (event) {
-		// 	event.preventDefault();
-
-		// 	var sender = $("#senderEmail").val();
-		// 	var room = $("#hiddenRoomName").val().trim();
-		// 	var message = $("#chatMessage").val();
-
-		// 	if (!message) return;
-
-		// 	var url = room.length > 0 ? '/SendMessageToGroup' : '/SendMessageToAll';
-		// 	var data = room.length > 0
-		// 		? { user: sender, room: room, message: message }
-		// 		: { user: sender, message: message };
-
-		// 	$.ajax({
-		// 		url: url,
-		// 		type: 'POST',
-		// 		data: data,
-		// 		success: function (response) {
-		// 			console.log(response);
-		// 			$("#chatMessage").val('');
-		// 		},
-		// 		error: function (error) {
-		// 			console.error('Error:', error);
-		// 		}
-		// 	});
-		// });
-
 
 		$('#chatMessage').on('keydown', function(e) {
 			if (e.which === 13) { // Enter key
@@ -985,9 +962,4 @@
 				}
 			}
 		});
-
-		connectionChat.start().then(function () {
-			$("#sendMessage").prop("disabled", false);
-		});
-
 </script>

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SignalRMVC;
@@ -32,6 +33,10 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequireLowercase = false;
     options.Password.RequiredUniqueChars = 0;
 });
+
+//builder.Services.AddSignalR();
+//builder.Services.AddSingleton<IUserIdProvider, NameUserIdProvider>();
+
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages(); // <--- This line fixes the error
