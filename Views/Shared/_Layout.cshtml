@@ -9,13 +9,18 @@
 	<link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 	<link rel="stylesheet" href="~/SignalRMVC.styles.css" asp-append-version="true" />
 	<link rel="shortcut icon" href="~/Images/AryLogo.png" type="image/x-icon">
-	@* <link href='https://fonts.googleapis.com/css?family=Noto Nastaliq Urdu' rel='stylesheet'> *@
-	<link rel="stylesheet" href="/DataTables/datatables.css" />
-	<script src="/DataTables/datatables.js"></script>
+	<link rel="stylesheet" href="~/css/dataTables.bootstrap5.min.css" />
 
-	<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+	<!-- Load jQuery first -->
+	<script src="~/js/jquery-3.6.4.min.js></script>
+
+	<script src="~/js/jquery.dataTables.min.js"></script>
+
+	<link href="~/css/toastr.min.css" rel="stylesheet" />
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+	@* <link rel="stylesheet" href="/css/FontAwesome/all.min.css" /> *@
+	<script src="~/js/toastr.min.js"></script>
 	<style>
 		.UserListWrap {
 			height: unset !important;
@@ -345,15 +350,9 @@
 	<header>
 		<nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow" style="margin: 0;">
 			<div class="container-fluid">
-				@* <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">ARY</a>
-				<img src="~/Images/arynewslogo.png" style="width: 100%;" alt="Italian Trulli"> *@
-
 				<a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">
 					<img src="~/Images/AryLogo.png" alt="ARY Logo" style="height: 40px;" />
 				</a>
-
-
-
 
 				<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
 						aria-expanded="false" aria-label="Toggle navigation">
@@ -388,11 +387,6 @@
 		<p class="CopyRight" style="margin:0;"> &reg; Powered by ARY TECH </p>
 	</div>
 
-	@* <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2024 - SignalRMVC - <a asp-area="" asp-controller="Group" asp-action="Index">Group List</a>
-        </div>
-    </footer> *@
 	<script src="~/lib/jquery/dist/jquery.min.js"></script>
 	<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 	<script src="~/js/site.js" asp-append-version="true"></script>
@@ -451,7 +445,6 @@
 		}
 
 	</script>
-
 
 	@await RenderSectionAsync("Scripts", required: false)
 </body>

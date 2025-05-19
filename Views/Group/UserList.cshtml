@@ -12,7 +12,12 @@
 	}
 
 	
-
+	.btn-group, .btn-group-vertical {
+		position: relative;
+		display: inline-flex;
+		vertical-align: middle;
+		flex-wrap: wrap;
+	}
 
 </style>
 <div class="card UserListWrap">
@@ -157,12 +162,14 @@
 
 
 @section Scripts {
-	<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-	<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-	<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-	<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+	<link rel="stylesheet" href="~/css/dataTables.bootstrap5.min.css" />
+	@* <link rel="stylesheet" href="~/css/FontAwesome/all.min.css" /> *@
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+	<script src="~/js/jquery.dataTables.min.js"></script>
+	<script src="~/js/dataTables.bootstrap5.min.js"></script>
+	<link href="~/css/toastr.min.css" rel="stylesheet" />
+	<script src="~/js/toastr.min.js"></script>
 
 	<script>
 		$(document).ready(function() {
@@ -231,7 +238,7 @@
 
 		var MappinguserGroupModal = new bootstrap.Modal(document.getElementById('userListModal'));
 
-		$(".showUsersBtn").on('click', function () {
+		$(document).on('click', '.showUsersBtn', function () {
 			$("#ajaxLoader").show(); // Show loader before request
 			if ($.fn.DataTable.isDataTable('#userDataTable')) {
 					$('#userDataTable').DataTable().destroy();
@@ -303,7 +310,6 @@
 			});
 		});
 
-
-		});
-	</script>
+	});
+</script>
 }

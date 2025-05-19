@@ -254,23 +254,6 @@ namespace SignalRMVC
             await BroadcastUnreadCount(roomName);
         }
 
-
-        //public async Task MarkMessagesAsRead(int roomId)
-        //{
-        //    var userId = GetUserId();
-        //    var unreadMessages = await _context.ChatMessageReadStatuses
-        //        .Where(s => s.UserId == userId && s.ChatMessage.Id == roomId && !s.IsRead)
-        //        .Include(s => s.ChatMessage)
-        //        .ToListAsync();
-
-        //    foreach (var status in unreadMessages)
-        //    {
-        //        status.IsRead = true;
-        //        status.ReadOn = DateTime.Now;
-        //    }
-        //    await _context.SaveChangesAsync();
-        //}
-
         public async Task MarkMessagesAsRead(int roomId)
         {
             var userId = GetUserId();
@@ -285,69 +268,17 @@ namespace SignalRMVC
 
             var unreadMessages = await _context.ChatMessageReadStatuses
                 .Where(s => s.UserId == userId
-                            && s.ChatMessage.GroupName == roomName
-                            && !s.IsRead)
+                            && s.ChatMessage.GroupName == roomName)
                 .ToListAsync();
 
             foreach (var status in unreadMessages)
             {
-                status.IsRead = true;
-                status.ReadOn = DateTime.Now;
+                //status.IsRead = true;
+                //status.ReadOn = DateTime.Now;
+                _context.Remove(status);
             }
             await _context.SaveChangesAsync();
         }
-
-
-        //public async Task<Dictionary<string, int>> GetUnreadMessageCounts()
-        //{
-        //    var userId = GetUserId();
-        //    var counts = await _context.ChatMessageReadStatuses
-        //        .Where(s => s.UserId == userId && !s.IsRead)
-        //        .GroupBy(s => new { s.ChatMessage.Id, s.ChatMessage.GroupName })
-        //        .Select(g => new { RoomId = g, RoomName = g.Key, Count = g.Count() })
-        //        .ToDictionaryAsync(g => g.RoomName, g => g.Count);
-
-        //    return counts;
-        //}
-
-        //public async Task<List<object>> GetUnreadMessageCounts()
-        //{
-        //    var userId = GetUserId();
-
-        //    var unreadCounts = await _context.ChatMessageReadStatuses
-        //        .Where(s => s.UserId == userId && !s.IsRead)
-        //        .GroupBy(s => new { s.ChatMessage.Id, s.ChatMessage.GroupName })
-        //        .Select(g => new
-        //        {
-        //            RoomId = g.Key.Id,
-        //            RoomName = g.Key.GroupName,
-        //            Count = g.Count()
-        //        })
-        //        .ToListAsync();
-
-        //    return unreadCounts.Cast<object>().ToList(); // Optional: Cast to object for clarity
-        //}
-
-        //public async Task<List<object>> GetUnreadMessageCounts()
-        //{
-        //    var userId = GetUserId();
-
-        //    // Join unread statuses with ChatRoom to get GroupId by GroupName
-        //    var unreadCounts = await (from status in _context.ChatMessageReadStatuses
-        //                              join chatMsg in _context.ChatMessages on status.ChatMessageId equals chatMsg.Id
-        //                              join chatRoom in _context.ChatRoom on chatMsg.GroupName equals chatRoom.Name
-        //                              where status.UserId == userId && !status.IsRead
-        //                              group status by new { chatRoom.Id, chatMsg.GroupName } into g
-        //                              select new
-        //                              {
-        //                                  RoomId = g.Key.Id,
-        //                                  RoomName = g.Key.GroupName,
-        //                                  Count = g.Count()
-        //                              })
-        //                              .ToListAsync();
-
-        //    return unreadCounts.Cast<object>().ToList();
-        //}
 
         public async Task GetUnreadMessageCounts()
         {

@@ -11,7 +11,7 @@
         public ApplicationUser User { get; set; }
 
         public bool IsRead { get; set; } = false;
-        public DateTime? ReadOn { get; set; }
+        public DateTime CreatedOn { get; set; }
     }
 
 }

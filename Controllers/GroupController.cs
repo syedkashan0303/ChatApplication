@@ -239,12 +239,14 @@ namespace SignalRMVC.Controllers
                 return Json(new { success = false, message = "User not found." });
             }
 
-            var result = await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.Now.AddYears(10));
-
+            user.LockoutEnabled = false;
+            user.LockoutEnd = DateTimeOffset.Now.AddYears(10);
+            //var result = await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.Now.AddYears(10));
+            _context.SaveChanges();
             return Json(new
             {
-                success = result.Succeeded,
-                message = result.Succeeded ? "User locked" : string.Join(", ", result.Errors.Select(e => e.Description))
+                success = true,
+                message =  "User locked"
             });
         }
 

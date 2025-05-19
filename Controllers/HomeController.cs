@@ -1,55 +1,35 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using SignalRMVC.Areas.Identity.Data;
-using SignalRMVC.Models;
-using System.Security.Claims;
-
 namespace SignalRMVC.Controllers
 {
+    using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Identity;
+    using Microsoft.AspNetCore.Mvc;
+    using Microsoft.AspNetCore.SignalR;
+    using Microsoft.EntityFrameworkCore;
+    using SignalRMVC.Areas.Identity.Data;
+    using SignalRMVC.Models;
+    using System.Security.Claims;
 
     public class HomeController : Controller
     {
         private readonly AppDbContext _db;
+
         private readonly UserManager<ApplicationUser> _userManager;
+
         private readonly IHubContext<BasicChatHub> _basicChatHub;
 
         public HomeController(
-            AppDbContext context,
-            UserManager<ApplicationUser> userManager,
-            IHubContext<BasicChatHub> basicChatHub)
+        AppDbContext context,
+        UserManager<ApplicationUser> userManager,
+        IHubContext<BasicChatHub> basicChatHub)
         {
             _db = context;
             _userManager = userManager;
             _basicChatHub = basicChatHub;
         }
+
         [Authorize]
         public async Task<IActionResult> Index()
         {
-
-            //var claims = User.Claims.ToList();
-
-            //foreach (var claim in claims)
-            //{
-            //    Console.WriteLine($"Type: {claim.Type}, Value: {claim.Value}");
-            //}
-            //var cba = User.Claims.ToList().FirstOrDefault(x=>x.Type.Contains( "nameidentifier"));
-            //var userName = _userManager.Users.FirstOrDefault(x => x.Id == cba.Value);
-
-            ////var existingClaims = User.Claims.ToList();
-            //var existingClaims = await _userManager.GetClaimsAsync(userName);
-            //var existingClaim = existingClaims.Where(c => c.Type == "LoginName");
-            //if (existingClaim != null)
-            //{
-            //    var abc = _userManager.RemoveClaimsAsync(userName, existingClaim).Result;
-            //}
-
-            //var cb = @User.FindFirst("LoginName")?.Value;
-
-            //var claimss = User.Claims.ToList();
-
             var model = new RoleViewModel();
             var user = await _userManager.GetUserAsync(User);
             if (user is not null)
@@ -62,7 +42,6 @@ namespace SignalRMVC.Controllers
             }
 
             return View(model);
-
         }
 
         [HttpGet("SendMessageToAll")]
@@ -111,7 +90,6 @@ namespace SignalRMVC.Controllers
                     _db.ChatMessages.Add(chatMessage);
                     await _db.SaveChangesAsync();
                 }
-
 
                 await _basicChatHub.Clients.User(userId).SendAsync("MessageReceived", sender, message);
             }
@@ -187,7 +165,6 @@ namespace SignalRMVC.Controllers
             return Ok();
         }
 
-
         [HttpGet]
         public IActionResult GetTheme()
         {
@@ -216,17 +193,6 @@ namespace SignalRMVC.Controllers
             return Ok();
         }
 
-        //[HttpGet]
-        //public async Task<IActionResult> GetRooms()
-        //{
-        //    var user = GetUserId();
-        //    var groupUserList = await _db.GroupUserMapping.Where(x => x.Active && x.UserId == user).Select(x => x.GroupId).ToListAsync();
-
-        //    var rooms = await _db.ChatRoom.Where(x => !x.isDelete && groupUserList.Contains(x.Id)).Select(r => r.Name).ToListAsync();
-        //    return Json(rooms);
-        //}
-
-
         [HttpGet]
         public async Task<IActionResult> GetRooms()
         {
@@ -251,7 +217,6 @@ namespace SignalRMVC.Controllers
             return Json(rooms);
         }
 
-
         private string GetUserId()
         {
             var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -264,7 +229,5 @@ namespace SignalRMVC.Controllers
             var roles = await _userManager.GetRolesAsync(user);
             return roles;
         }
-
-
     }
 }
