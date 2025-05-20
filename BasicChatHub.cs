@@ -199,59 +199,56 @@ namespace SignalRMVC
         public async Task SendMessageToRoom(string roomName, string user, string message)
         {
             var userId = GetUserId(); // Your method to get current user ID
-            var messageId = 0;
-            var messageTime = "";
-            // Save message to DB
-            //var chatMessage = new ChatMessage
-            //{
-            //    GroupName = roomName,
-            //    Message = message,
-            //    SenderId = userId,
-            //    ReceiverId = null,
-            //    CreatedOn = DateTime.Now
-            //};
-
-            var chatMessage = new ChatMessage
+            try
             {
-                SenderId = userId,
-                ReceiverId = null,
-                Message = message,
-                GroupName = roomName,
-                CreatedOn = DateTime.Now
-            };
+                var messageId = 0;
+                var messageTime = "";
 
-
-            _context.ChatMessages.Add(chatMessage);
-            await _context.SaveChangesAsync();
-            messageId = chatMessage.Id;
-            messageTime = chatMessage.CreatedOn.Value.ToString("ddd hh:mm tt");
-            // Create unread status entries for other users in group
-            var room = await _context.ChatRoom.FirstOrDefaultAsync(r => r.Name == roomName);
-            if (room != null)
-            {
-                var groupUsers = await _context.GroupUserMapping
-                    .Where(g => g.GroupId == room.Id && g.UserId != userId)
-                    .Select(g => g.UserId)
-                    .ToListAsync();
-
-                foreach (var recipientId in groupUsers)
+                var chatMessage = new ChatMessage
                 {
-                    _context.ChatMessageReadStatuses.Add(new ChatMessageReadStatus
+                    SenderId = userId,
+                    ReceiverId = null,
+                    Message = message,
+                    GroupName = roomName,
+                    CreatedOn = DateTime.Now
+                };
+
+                _context.ChatMessages.Add(chatMessage);
+                await _context.SaveChangesAsync();
+                messageId = chatMessage.Id;
+                messageTime = chatMessage.CreatedOn.Value.ToString("ddd hh:mm tt");
+                // Create unread status entries for other users in group
+                var room = await _context.ChatRoom.FirstOrDefaultAsync(r => r.Name == roomName);
+                if (room != null)
+                {
+                    var groupUsers = await _context.GroupUserMapping
+                        .Where(g => g.GroupId == room.Id && g.UserId != userId)
+                        .Select(g => g.UserId)
+                        .ToListAsync();
+
+                    foreach (var recipientId in groupUsers)
                     {
-                        ChatMessageId = chatMessage.Id,
-                        UserId = recipientId,
-                        IsRead = false
-                    });
+                        _context.ChatMessageReadStatuses.Add(new ChatMessageReadStatus
+                        {
+                            ChatMessageId = chatMessage.Id,
+                            UserId = recipientId,
+                            IsRead = false,
+                            CreatedOn = DateTime.UtcNow
+                        });
+                    }
+                    await _context.SaveChangesAsync();
                 }
 
-                await _context.SaveChangesAsync();
+                // Broadcast the message to the room
+                await Clients.Group(roomName).SendAsync("MessageReceived", messageId, user, message, messageTime);
+
+                // Broadcast updated unread count
+                await BroadcastUnreadCount(roomName);
             }
-
-            // Broadcast the message to the room
-            await Clients.Group(roomName).SendAsync("MessageReceived", messageId, user, message, messageTime);
-
-            // Broadcast updated unread count
-            await BroadcastUnreadCount(roomName);
+            catch (Exception ex)
+            {
+                await LogAsync(userId, "EditMessage ", ex.Message + " InnerException " + (ex.InnerException?.Message ?? string.Empty));
+            }
         }
 
         public async Task MarkMessagesAsRead(int roomId)
@@ -303,7 +300,6 @@ namespace SignalRMVC
             }
         }
 
-
         public async Task BroadcastUnreadCount(string roomName)
         {
             var room = await _context.ChatRoom.FirstOrDefaultAsync(r => r.Name == roomName);
@@ -325,24 +321,6 @@ namespace SignalRMVC
                     .SendAsync("ReceiveUnreadCount", room.Id, roomName, userUnread.Count);
             }
         }
-
-
-        //public async Task BroadcastUnreadCount(string roomName)
-        //{
-        //    var userId = GetUserId();
-
-        //    // Get unread count
-        //    var unreadCount = await _context.ChatMessageReadStatuses
-        //        .Where(s => s.UserId == userId && !s.IsRead && s.ChatMessage.GroupName == roomName)
-        //        .CountAsync();
-
-        //    var room = await _context.ChatRoom.FirstOrDefaultAsync(r => r.Name == roomName);
-        //    if (room == null) return;
-
-        //    // Send to the user (not Clients.All)
-        //    await Clients.User(userId).SendAsync("ReceiveUnreadCount", room.Id, roomName, unreadCount);
-        //}
-
 
         #endregion
 
