@@ -43,6 +43,9 @@ builder.Services.AddRazorPages(); // <--- This line fixes the error
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<UserInfoService>();
 
+builder.Services.AddSingleton<DatabaseJobService>();
+builder.Services.AddHostedService<ScheduledTaskService>();
+
 builder.Services.AddSignalR();
 
 //builder.Services.ConfigureApplicationCookie(options =>

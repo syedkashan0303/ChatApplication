@@ -61,3 +61,7 @@
 /obj/Release/net8.0/PubTmp/Out/appsettings.json
 /obj/Release/net8.0/PubTmp/Out/SignalRMVC.exe
 /obj/Release/net8.0/PubTmp/Out/SignalRMVC.pdb
+/.vs/ProjectEvaluation/signalrmvc.metadata.v9.bin
+/.vs/ProjectEvaluation/signalrmvc.projects.v9.bin
+/.vs/ProjectEvaluation/signalrmvc.strings.v9.bin
+/.vs/SignalRMVC/v17/.futdcache.v2

@@ -1,16 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using SignalRMVC.Areas.Identity.Data;
 using SignalRMVC.CustomClasses;
 using SignalRMVC.Models;
+using System.Security.Claims;
 
 namespace SignalRMVC.Controllers
 {
@@ -174,7 +169,7 @@ namespace SignalRMVC.Controllers
                 var user = _context.Users.FirstOrDefault(x => x.Id == id);
                 if (user != null)
                 {
-                    chatList = await _context.ChatMessages.Where(x => x.SenderId == id).OrderByDescending(x=>x.CreatedOn)
+                    chatList = await _context.ChatMessages.Where(x => x.SenderId == id).OrderByDescending(x => x.CreatedOn)
                     .Select(u => new ChatHistory
                     {
                         Id = u.Id,
@@ -246,7 +241,7 @@ namespace SignalRMVC.Controllers
             return Json(new
             {
                 success = true,
-                message =  "User locked"
+                message = "User locked"
             });
         }
 
