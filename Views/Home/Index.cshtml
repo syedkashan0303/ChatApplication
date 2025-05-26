@@ -448,7 +448,15 @@
 
 					if ($messageBubble.length) {
 						// Remove the entire <li> row that contains this message
-						$messageBubble.closest("li").remove();
+						// $messageBubble.closest("li").remove();
+						$messageBubble.find(".fa-trash").remove();
+						$messageBubble.find(".edit-btn").remove();
+						$messageBubble.find(".copy-btn").remove();
+						$messageBubble.find(".message-text").html('Message deleted');
+						$messageBubble.css({
+							"opacity": ".7",
+							"cursor": "not-allowed"
+						});
 					}
 				});
 
@@ -727,40 +735,49 @@
 				messageText += " <i>(edited)</i>";
 			}
 
-			// Chat bubble
 			var bubble = $("<div>")
-				.addClass("msg-custom rounded px-3 py-2 position-relative")
-				.addClass(isOwnMessage ? "text-white msg" : "text-dark msg")
-				.css({
-					"max-width": "85%",
-					"min-width": "40%",
-					"background-color": isOwnMessage ? "#f5f5f5" : "#303d4f"
-				})
-				.attr("id", `message-${messageId}`)
-				.append(
-					$("<div>").addClass("message-text content").html(messageText),
+			.addClass("msg-custom rounded px-3 py-2 position-relative")
+			.addClass(isOwnMessage ? "text-white msg" : "text-dark msg")
+			.css({
+				"max-width": "85%",
+				"min-width": "40%",
+				"background-color": isOwnMessage ? "#f5f5f5" : "#303d4f"
+			})
+			.attr("id", `message-${messageId}`)
+			.append($("<div>").addClass("message-text content").html(messageText));
+
+			// Only apply "deleted" styles if message is deleted
+			if (messageText === "Message deleted") {
+				bubble.css({
+					"opacity": ".7",
+					"cursor": "not-allowed"
+				});
+			} else {
+				// Append copy button
+				bubble.append(
 					$("<button>")
 						.addClass("btn btn-sm btn-light copy-btn position-absolute top-0 end-0 m-1")
 						.html('<i class="fa-solid fa-copy" aria-hidden="true"></i>')
 				);
-
-			// Add edit/delete buttons if it's your message and not deleted
-			if (isOwnMessage) {
-				bubble.append(
-					$("<div>").addClass("mt-2 d-flex gap-2 justify-content-end")
-						.append(
-							$("<button>")
-								.addClass("btn btn-sm btn-outline-secondary edit-btn")
-								.html('<i class="fa-solid fa-pen-to-square"></i>')
-								.attr("data-id", messageId)
-								.attr("data-content", message),
-							$("<button>")
-								.addClass("btn btn-sm btn-outline-danger delete-btn")
-								.html('<i class="fa-solid fa-trash"></i>')
-								.attr("data-id", messageId)
-						)
-				);
 			}
+
+		// Add edit/delete buttons if it's your message and not deleted
+		if (isOwnMessage && messageText !== "Message deleted") {
+			bubble.append(
+				$("<div>").addClass("mt-2 d-flex gap-2 justify-content-end")
+					.append(
+						$("<button>")
+							.addClass("btn btn-sm btn-outline-secondary edit-btn")
+							.html('<i class="fa-solid fa-pen-to-square"></i>')
+							.attr("data-id", messageId)
+							.attr("data-content", message),
+						$("<button>")
+							.addClass("btn btn-sm btn-outline-danger delete-btn")
+							.html('<i class="fa-solid fa-trash"></i>')
+							.attr("data-id", messageId)
+					)
+			);
+		}
 
 			// Flex row: bubble + user info
 			var contentWrapper = $("<div>")
@@ -835,7 +852,7 @@
 
 				if ($messageBubble.length) {
 					// Remove the entire <li> row that contains this message
-					$messageBubble.closest("li").remove();
+					// $messageBubble.closest("li").remove();
 				}
 			}
 		});

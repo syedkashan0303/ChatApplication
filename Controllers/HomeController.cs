@@ -125,7 +125,7 @@ namespace SignalRMVC.Controllers
             var now = DateTime.UtcNow;
             var fromDate = skipRecords * chunkRecords;
             var messages = _db.ChatMessages
-              .Where(m => m.GroupName == roomName && !m.IsDelete)
+              .Where(m => m.GroupName == roomName /*&& !m.IsDelete*/)
               .OrderByDescending(m => m.Id).Skip(fromDate).Take(chunkRecords)
               .Join(
                   _db.Users,
@@ -135,7 +135,7 @@ namespace SignalRMVC.Controllers
                   {
                       id = message.Id,
                       sender = user.UserName, // Or use user.UserName or FullName if you have it
-                      message = message.Message,
+                      message = message.IsDelete ? "Message deleted" : message.Message,
                       createdOn = message.CreatedOn,
                       messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("hh:mm tt") : DateTime.Now.ToString("hh : mm tt")
                   }
