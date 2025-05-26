@@ -63,7 +63,7 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(@"D:\ChatAppKeys"))
-    .SetApplicationName("ChatApp");
+    .SetApplicationName("arynewschat");
 
 
 builder.Host.UseSerilog(); // Plug Serilog into ASP.NET Core
