@@ -455,7 +455,8 @@
 						$messageBubble.find(".message-text").html('Message deleted');
 						$messageBubble.css({
 							"opacity": ".7",
-							"cursor": "not-allowed"
+							"cursor": "not-allowed",
+							"font-style": "italic"
 						});
 					}
 				});
@@ -621,9 +622,11 @@
 		}
 
 		$(document).on("click", ".group-item", function () {
+
 			var roomName = $(this).data("room");
 			var roomId = $(this).data("id"); // ✅ get the room ID
 
+			console.log("roomId :"+$(`#unread-count-${roomId}`).text())
 			$(".group-item").removeClass("active");  // remove from all
 			$(this).addClass("active");
 
@@ -644,7 +647,7 @@
 
 				$("#messagesList").empty();
 				// Load chat messages from DB via AJAX
-				loadGroupMessages(roomName);
+				loadGroupMessages(roomName, 0, true,roomId);
 
 
 				connectionChat.invoke("MarkMessagesAsRead", roomId)
@@ -666,45 +669,102 @@
 			$(".message-text").css("font-size", size + "px");
 		}
 
-		function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false) {
-			isLoading = true;
-			$.ajax({
-				url: `/Home/GetMessagesByRoom`,
-				type: 'GET',
-				data: { roomName: roomName, skipRecords: skipDaysParam },
-				success: function(messages) {
-					if (!messages || messages.length === 0) {
-						allMessagesLoaded = false;
-						isLoading = false;
-						return;
-					}
+		// function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false) {
+		// 	isLoading = true;
+		// 	$.ajax({
+		// 		url: `/Home/GetMessagesByRoom`,
+		// 		type: 'GET',
+		// 		data: { roomName: roomName, skipRecords: skipDaysParam },
+		// 		success: function(messages) {
+		// 			if (!messages || messages.length === 0) {
+		// 				allMessagesLoaded = false;
+		// 				isLoading = false;
+		// 				return;
+		// 			}
 
-					const chatList = $("#messagesList");
-					let scrollPosBefore = $(".card-footer")[0].scrollHeight;
+		// 			const chatList = $("#messagesList");
+		// 			let scrollPosBefore = $(".card-footer")[0].scrollHeight;
 
-					messages.forEach(function (msg) {
-						const messageHtml = renderMessage(msg.sender, msg.message, msg.id , false, false, false, msg.messageTime);
-						if (prepend) {
-							chatList.prepend(messageHtml);
-						} else {
-							chatList.append(messageHtml);
-						}
-					});
+		// 			messages.forEach(function (msg) {
+		// 				const messageHtml = renderMessage(msg.sender, msg.message, msg.id , false, false, false, msg.messageTime);
+		// 				if (prepend) {
+		// 					chatList.prepend(messageHtml);
+		// 				} else {
+		// 					chatList.append(messageHtml);
+		// 				}
+		// 			});
 
-					if (!prepend) scrollToBottom();
-					else {
-						let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
-						$(".card-footer").scrollTop(scrollDiff);
-					}
+		// 			if (!prepend) scrollToBottom();
+		// 			else {
+		// 				let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
+		// 				$(".card-footer").scrollTop(scrollDiff);
+		// 			}
 
+		// 			isLoading = false;
+		// 		},
+		// 		error: function (error) {
+		// 			console.error("Error loading messages:", error);
+		// 			isLoading = false;
+		// 		}
+		// 	});
+		// }
+
+		function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false , roomId = 0) {
+		isLoading = true;
+		var unreadCount = parseInt($(`#unread-count-${roomId}`).html() || "0");
+		console.log("unreadCount : " +unreadCount)
+		$.ajax({
+			url: `/Home/GetMessagesByRoom`,
+			type: 'GET',
+			data: { roomName: roomName, skipRecords: skipDaysParam },
+			success: function(messages) {
+				if (!messages || messages.length === 0) {
+					allMessagesLoaded = false;
 					isLoading = false;
-				},
-				error: function (error) {
-					console.error("Error loading messages:", error);
-					isLoading = false;
+					return;
 				}
-			});
-		}
+
+				const chatList = $("#messagesList");
+				let scrollPosBefore = $(".card-footer")[0].scrollHeight;
+
+				messages.forEach(function (msg, index) {
+					// If this is the first unread message, add a marker
+					if (index == messages.length - unreadCount && unreadCount > 0) {
+						chatList.append(`<div id="unread-marker" class="text-center text-muted my-2" style="font-size: large;font-family: emoji;"><hr><small><h3>New Messages</h3></small><hr></div>`);
+					}
+
+					const messageHtml = renderMessage(msg.sender, msg.message, msg.id, false, false, false, msg.messageTime);
+
+					if (prepend) {
+						chatList.prepend(messageHtml);
+					} else {
+						chatList.append(messageHtml);
+					}
+				});
+
+				if (!prepend) {
+					// Scroll to the unread marker if exists
+					const marker = document.getElementById("unread-marker");
+					if (marker) {
+						marker.scrollIntoView({ behavior: "smooth", block: "start" });
+					} else {
+						scrollToBottom();
+					}
+				} else {
+					let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
+					$(".card-footer").scrollTop(scrollDiff);
+				}
+
+				isLoading = false;
+			},
+			error: function (error) {
+				console.error("Error loading messages:", error);
+				isLoading = false;
+			}
+		});
+	}
+
+
 
 		function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false ,messagetime) {
 
@@ -750,7 +810,8 @@
 			if (messageText === "Message deleted") {
 				bubble.css({
 					"opacity": ".7",
-					"cursor": "not-allowed"
+					"cursor": "not-allowed",
+					"font-style": "italic"
 				});
 			} else {
 				// Append copy button
