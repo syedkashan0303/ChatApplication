@@ -1,12 +1,13 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using SignalRMVC;
 using SignalRMVC.Areas.Identity.Data; // Make sure ApplicationUser is here
 using SignalRMVC.CustomClasses;
 using SignalRMVC.Models;
-using System.Configuration;
+using Serilog;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,10 +35,6 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequiredUniqueChars = 0;
 });
 
-//builder.Services.AddSignalR();
-//builder.Services.AddSingleton<IUserIdProvider, NameUserIdProvider>();
-
-
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages(); // <--- This line fixes the error
 builder.Services.AddHttpContextAccessor();
@@ -48,27 +45,63 @@ builder.Services.AddHostedService<ScheduledTaskService>();
 
 builder.Services.AddSignalR();
 
-//builder.Services.ConfigureApplicationCookie(options =>
-//{
-//    options.Cookie.Name = "Identity.Cookie";
-//    options.Cookie.HttpOnly = true;
-//    options.ExpireTimeSpan = TimeSpan.FromSeconds(60); // Optional session timeout
-//    options.SlidingExpiration = false;
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Debug() // capture everything
+    .WriteTo.File(
+        @"D:\ChatAppLogs\ChatApp-.log",
+        rollingInterval: RollingInterval.Day,
+        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"
+    )
+    .WriteTo.File(
+        @"D:\ChatAppLogs\ChatApp-Errors-.log",
+        restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Error,
+        rollingInterval: RollingInterval.Day,
+        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"
+    )
+    .Enrich.FromLogContext()
+    .CreateLogger();
 
-//    // 🟢 This makes it a session cookie
-//    options.Cookie.MaxAge = null;
-//});
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(@"D:\ChatAppKeys"))
+    .SetApplicationName("ChatApp");
 
 
+builder.Host.UseSerilog(); // Plug Serilog into ASP.NET Core
 
 var app = builder.Build();
 
 // Middleware
-if (!app.Environment.IsDevelopment())
+//if (!app.Environment.IsDevelopment())
+//{
+//    app.UseExceptionHandler("/Home/Error");
+//    app.UseHsts();
+//}
+
+app.UseExceptionHandler(errorApp =>
 {
-    app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
-}
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+
+        var exceptionHandlerPathFeature = context.Features.Get<IExceptionHandlerPathFeature>();
+        var exception = exceptionHandlerPathFeature?.Error;
+
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+
+        if (exception is AntiforgeryValidationException antiEx)
+        {
+            logger.LogError(antiEx, "Antiforgery token validation failed on path: {Path}", context.Request.Path);
+            context.Response.StatusCode = 400;
+            await context.Response.WriteAsync("Invalid or expired CSRF token.");
+            return;
+        }
+
+        logger.LogError(exception, "Unhandled exception occurred on path: {Path}", context.Request.Path);
+        await context.Response.WriteAsync("An unexpected error occurred.");
+    });
+});
+
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
