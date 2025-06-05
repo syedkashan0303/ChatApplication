@@ -42,16 +42,13 @@ builder.Services.AddScoped<UserInfoService>();
 
 builder.Services.AddSingleton<DatabaseJobService>();
 builder.Services.AddHostedService<ScheduledTaskService>();
+builder.Services.AddHttpClient(); // ✅ Register IHttpClientFactory
+//builder.Services.AddHostedService<AppWatchdogService>();
 
 builder.Services.AddSignalR();
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug() // capture everything
-    .WriteTo.File(
-        @"D:\ChatAppLogs\ChatApp-.log",
-        rollingInterval: RollingInterval.Day,
-        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"
-    )
     .WriteTo.File(
         @"D:\ChatAppLogs\ChatApp-Errors-.log",
         restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Error,
@@ -70,12 +67,6 @@ builder.Host.UseSerilog(); // Plug Serilog into ASP.NET Core
 
 var app = builder.Build();
 
-// Middleware
-//if (!app.Environment.IsDevelopment())
-//{
-//    app.UseExceptionHandler("/Home/Error");
-//    app.UseHsts();
-//}
 
 app.UseExceptionHandler(errorApp =>
 {
@@ -102,9 +93,11 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
-
+app.UseMiddleware<GlobalExceptionMiddleware>(); // 👈 Add this first
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+//app.UseMiddleware<ResponseTimeMiddleware>();
+
 app.UseRouting();
 
 app.UseAuthentication(); // ✅ Important for Identity

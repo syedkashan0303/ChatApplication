@@ -395,7 +395,20 @@
 
 <script>
 		var connectionChat = new signalR.HubConnectionBuilder().withUrl("/hubs/basicchat").build();
+		connectionChat.on("RedirectToLogin", () => {
+			setTimeout(() => {
+				//  fetch('/Identity/Account/Logout', {
+				// 	method: 'POST',
+				// 	credentials: 'include'
+				// }).then(() => {
+				// 	// Redirect to login page
+				// 	window.location.href = '/Identity/Account/Login';
+				// });
 
+
+					window.location.href = "/Home/Index"; // or any other route
+			}, 3000);
+		});
 		let skipDays = 0;
 		let isLoading = false;
 		let allMessagesLoaded = false;
@@ -424,7 +437,6 @@
 			// #region Signal R methods Start
 
 				connectionChat.on("MessageEdited", function (messageId, newContent) {
-					console.log("MessageEdited", messageId, newContent);
 					newContent = ( newContent.replace(/\\n/g, "<br>"));
 					const $msg = $("#message-" + messageId);
 					if ($msg.length) {
@@ -442,7 +454,6 @@
 				});
 
 				connectionChat.on("MessageDeleted", function (messageId) {
-					console.log("MessageDeleted received for ID:", messageId);
 
 					const $messageBubble = $("#message-" + messageId);
 
@@ -640,7 +651,6 @@
 
 			// Join new room
 			connectionChat.invoke("JoinRoom", roomName).then(() => {
-				console.log("Joined room:", roomName);
 				currentRoom = roomName;
 				$("#roomName").text(" - " + roomName);
 				$("#hiddenRoomName").val(roomName);
@@ -652,8 +662,6 @@
 
 				connectionChat.invoke("MarkMessagesAsRead", roomId)
 				.then(() => {
-					console.log("a gy is m")
-					console.log(`groupname ${roomName} id = ${roomId}`)
 					$(`#unread-count-${roomId}`).hide();
 				});
 			});
@@ -712,7 +720,6 @@
 		function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false , roomId = 0) {
 		isLoading = true;
 		var unreadCount = parseInt($(`#unread-count-${roomId}`).html() || "0");
-		console.log("unreadCount : " +unreadCount)
 		$.ajax({
 			url: `/Home/GetMessagesByRoom`,
 			type: 'GET',
@@ -734,7 +741,6 @@
 					}
 
 					const messageHtml = renderMessage(msg.sender, msg.message, msg.id, false, false, false, msg.messageTime);
-
 					if (prepend) {
 						chatList.prepend(messageHtml);
 					} else {
@@ -742,18 +748,21 @@
 					}
 				});
 
-				if (!prepend) {
+					// const marker = document.getElementById("unread-marker");
+
+					// if (marker) {
+					// 	marker.scrollIntoView({ behavior: "smooth", block: "center" });
+					// }
+
 					// Scroll to the unread marker if exists
 					const marker = document.getElementById("unread-marker");
 					if (marker) {
 						marker.scrollIntoView({ behavior: "smooth", block: "start" });
 					} else {
-						scrollToBottom();
+						let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
+						$(".card-footer").scrollTop(scrollDiff);
 					}
-				} else {
-					let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
-					$(".card-footer").scrollTop(scrollDiff);
-				}
+				
 
 				isLoading = false;
 			},
@@ -960,13 +969,10 @@
 			var sender = $("#senderEmail").val();
 			var message = $("#chatMessage").val();
 			var room = $("#hiddenRoomName").val().trim();
-			console.log(`sender ${sender} message ${message} room ${room}`);
 
 			if (!message || !room) return;
 
 			message = ( $("#chatMessage").val().replace(/\n/g, "\\n"));
-
-			console.log(`sender ${sender} message ${message} room ${room}`);
 
 			 connectionChat.invoke("SendMessageToRoom", room, sender, message);
 			//connectionChat.invoke("SendMessageToRoom", room,  message);

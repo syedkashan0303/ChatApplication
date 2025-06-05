@@ -6,6 +6,7 @@ namespace SignalRMVC.Controllers
     using Microsoft.AspNetCore.SignalR;
     using Microsoft.EntityFrameworkCore;
     using SignalRMVC.Areas.Identity.Data;
+    using SignalRMVC.CustomClasses;
     using SignalRMVC.Models;
     using System.Security.Claims;
 
@@ -229,5 +230,20 @@ namespace SignalRMVC.Controllers
             var roles = await _userManager.GetRolesAsync(user);
             return roles;
         }
+
+        [HttpGet("/Home/ping")]
+        public IActionResult Ping()
+        {
+            var idleTime = DateTime.UtcNow - AppHealthTracker.LastActivityTime;
+
+            if (idleTime > TimeSpan.FromMinutes(1))
+            {
+                return StatusCode(500, "App is idle or frozen");
+            }
+
+            return Ok("Healthy" + idleTime);
+        }
+
+
     }
 }

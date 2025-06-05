@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SignalRMVC.Areas.Identity.Data;
+using SignalRMVC.CustomClasses;
 using SignalRMVC.Models;
 using System.Security.Claims;
 
@@ -24,11 +25,25 @@ namespace SignalRMVC
         }
         public override async Task OnConnectedAsync()
         {
-            var httpContext = Context.GetHttpContext();
-            var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var roles = await GetUserRoles(userId);
-            // Now you can use the userId as needed
-            await base.OnConnectedAsync();
+            try
+            {
+                AppHealthTracker.UpdateActivity();
+
+                var httpContext = Context.GetHttpContext();
+                var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var roles = await GetUserRoles(userId);
+                // Now you can use the userId as needed
+                await base.OnConnectedAsync();
+            }
+            catch (Exception es)
+            {
+
+            }
+        }
+        
+        public async Task ForceLogout()
+        {
+            await Clients.All.SendAsync("RedirectToLogin");
         }
 
         public string GetUserId()
@@ -52,6 +67,8 @@ namespace SignalRMVC
             var userId = GetUserId();
             try
             {
+                AppHealthTracker.UpdateActivity();
+
                 //using var scope = _scopeFactory.CreateScope();
                 //var _context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 var message = await _context.ChatMessages.FindAsync(messageId);
@@ -95,6 +112,8 @@ namespace SignalRMVC
             var userId = "";
             try
             {
+                AppHealthTracker.UpdateActivity();
+
                 userId = GetUserId();
 
                 using var scope = _scopeFactory.CreateScope();
@@ -201,6 +220,8 @@ namespace SignalRMVC
             var userId = GetUserId(); // Your method to get current user ID
             try
             {
+                AppHealthTracker.UpdateActivity();
+
                 var messageId = 0;
                 var messageTime = "";
 
@@ -253,6 +274,8 @@ namespace SignalRMVC
 
         public async Task MarkMessagesAsRead(int roomId)
         {
+            AppHealthTracker.UpdateActivity();
+
             var userId = GetUserId();
 
             var roomName = await _context.ChatRoom
@@ -337,5 +360,7 @@ namespace SignalRMVC
             await _context.SaveChangesAsync();
         }
 
+
+   
     }
 }

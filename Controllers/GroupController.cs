@@ -254,12 +254,22 @@ namespace SignalRMVC.Controllers
                 return Json(new { success = false, message = "User not found." });
             }
 
-            var result = await _userManager.SetLockoutEndDateAsync(user, null);
+            //var result = await _userManager.SetLockoutEndDateAsync(user, null);
 
+            //return Json(new
+            //{
+            //    success = result.Succeeded,
+            //    message = result.Succeeded ? "User unlocked" : string.Join(", ", result.Errors.Select(e => e.Description))
+            //});
+
+            user.LockoutEnabled = false;
+            user.LockoutEnd = null;
+            //var result = await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.Now.AddYears(10));
+            _context.SaveChanges();
             return Json(new
             {
-                success = result.Succeeded,
-                message = result.Succeeded ? "User unlocked" : string.Join(", ", result.Errors.Select(e => e.Description))
+                success = true,
+                message = "User locked"
             });
         }
 
@@ -290,6 +300,8 @@ namespace SignalRMVC.Controllers
         [AdminOnly]
         public async Task<IActionResult> AddUser()
         {
+
+            //await DelayResponse();
             var user = new UserModal();
 
             var role = _context.Roles.ToList();
@@ -609,6 +621,16 @@ namespace SignalRMVC.Controllers
         }
 
         #endregion
+
+
+        public async Task<string> DelayResponse()
+        {
+            // Do NOT update last activity – simulate app hang or long task
+            await Task.Delay(TimeSpan.FromMinutes(1)); // 2 minutes delay
+
+            //Thread.Sleep(1000);
+            return ("This response was intentionally delayed for testing.");
+        }
 
     }
 }
