@@ -8,6 +8,7 @@ using SignalRMVC.Areas.Identity.Data;
 using SignalRMVC.CustomClasses;
 using SignalRMVC.Models;
 using System.Security.Claims;
+using static SignalRMVC.Controllers.HomeController;
 
 namespace SignalRMVC
 {
@@ -40,7 +41,7 @@ namespace SignalRMVC
 
             }
         }
-        
+
         public async Task ForceLogout()
         {
             await Clients.All.SendAsync("RedirectToLogin");
@@ -261,10 +262,53 @@ namespace SignalRMVC
                 }
 
                 // Broadcast the message to the room
-                await Clients.Group(roomName).SendAsync("MessageReceived", messageId, user, message, messageTime);
+                var receiver = "";
+                await Clients.Group(roomName).SendAsync("MessageReceived", messageId, user, message, messageTime, receiver);
 
                 // Broadcast updated unread count
                 await BroadcastUnreadCount(roomName);
+            }
+            catch (Exception ex)
+            {
+                await LogAsync(userId, "EditMessage ", ex.Message + " InnerException " + (ex.InnerException?.Message ?? string.Empty));
+            }
+        }
+
+        public async Task SendMessageToUser(string user, string receiver, string message)
+        {
+            var userId = GetUserId();
+            try
+            {
+
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    var senderUser = await _userManager.FindByIdAsync(userId);
+                    var receiverUser = await _userManager.FindByIdAsync(receiver);
+
+                    var messageId = 0;
+                    var messageTime = "";
+
+                    if (receiverUser != null)
+                    {
+                        var chatMessage = new UsersMessage
+                        {
+                            SenderId = userId,
+                            ReceiverId = receiver,
+                            Message = message,
+                            CreatedOn = DateTime.Now
+                        };
+
+                        _context.UsersMessage.Add(chatMessage);
+                        await _context.SaveChangesAsync();
+
+                        messageId = chatMessage.Id;
+                        messageTime = chatMessage.CreatedOn.Value.ToString("ddd hh:mm tt");
+                    }
+
+                    await Clients.User(receiver).SendAsync("MessageReceived", messageId, user, message, messageTime, userId);
+
+                    await Clients.User(userId).SendAsync("MessageReceived", messageId, user, message, messageTime, receiver);
+                }
             }
             catch (Exception ex)
             {
@@ -299,6 +343,34 @@ namespace SignalRMVC
             }
             await _context.SaveChangesAsync();
         }
+
+        //public async Task MarkMessagesAsReadPersonalChat(string userGuid)
+        //{
+        //    AppHealthTracker.UpdateActivity();
+
+        //    var userId = GetUserId();
+
+        //    var roomName = await _context.ChatRoom
+        //        .Where(r => r.Id == roomId)
+        //        .Select(r => r.Name)
+        //        .FirstOrDefaultAsync();
+
+        //    if (roomName == null)
+        //        return; // or handle error
+
+        //    var unreadMessages = await _context.ChatMessageReadStatuses
+        //        .Where(s => s.UserId == userId
+        //                    && s.ChatMessage.GroupName == roomName)
+        //        .ToListAsync();
+
+        //    foreach (var status in unreadMessages)
+        //    {
+        //        //status.IsRead = true;
+        //        //status.ReadOn = DateTime.Now;
+        //        _context.Remove(status);
+        //    }
+        //    await _context.SaveChangesAsync();
+        //}
 
         public async Task GetUnreadMessageCounts()
         {
@@ -360,7 +432,5 @@ namespace SignalRMVC
             await _context.SaveChangesAsync();
         }
 
-
-   
     }
 }

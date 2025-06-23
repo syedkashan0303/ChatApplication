@@ -8,7 +8,9 @@ namespace SignalRMVC.Controllers
     using SignalRMVC.Areas.Identity.Data;
     using SignalRMVC.CustomClasses;
     using SignalRMVC.Models;
+    using System.Collections.Generic;
     using System.Security.Claims;
+    using static SignalRMVC.Controllers.HomeController;
 
     public class HomeController : Controller
     {
@@ -121,28 +123,53 @@ namespace SignalRMVC.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetMessagesByRoom(string roomName, int skipRecords = 0, int chunkRecords = 100)
+        public IActionResult GetMessagesByRoom(string roomName, int skipRecords = 0, int chunkRecords = 100, bool isRoom = false , string receiverId = "")
         {
             var now = DateTime.UtcNow;
             var fromDate = skipRecords * chunkRecords;
-            var messages = _db.ChatMessages
-              .Where(m => m.GroupName == roomName /*&& !m.IsDelete*/)
-              .OrderByDescending(m => m.Id).Skip(fromDate).Take(chunkRecords)
-              .Join(
-                  _db.Users,
-                  message => message.SenderId,
-                  user => user.Id,
-                  (message, user) => new
-                  {
-                      id = message.Id,
-                      sender = user.UserName, // Or use user.UserName or FullName if you have it
-                      message = message.IsDelete ? "Message deleted" : message.Message,
-                      createdOn = message.CreatedOn,
-                      messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("hh:mm tt") : DateTime.Now.ToString("hh : mm tt")
-                  }
-              )
-              .ToList().OrderBy(x => x.id);
-            return Ok(messages);
+            var currentUserId = GetUserId();
+            if (isRoom)
+            {
+                var messages = _db.ChatMessages
+                             .Where(m => m.GroupName == roomName /*&& !m.IsDelete*/)
+                             .OrderByDescending(m => m.Id).Skip(fromDate).Take(chunkRecords)
+                             .Join(
+                                 _db.Users,
+                                 message => message.SenderId,
+                                 user => user.Id,
+                                 (message, user) => new
+                                 {
+                                     id = message.Id,
+                                     sender = user.UserName, // Or use user.UserName or FullName if you have it
+                                     message = message.IsDelete ? "Message deleted" : message.Message,
+                                     createdOn = message.CreatedOn,
+                                     messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("hh:mm tt") : DateTime.Now.ToString("hh : mm tt")
+                                 }
+                             )
+                             .ToList().OrderBy(x => x.id);
+                return Ok(messages);
+            }
+            else
+            {
+                var messages = _db.UsersMessage
+                 .Where(m => (m.ReceiverId == receiverId && m.SenderId == currentUserId) || m.SenderId == receiverId && m.ReceiverId == currentUserId)
+                 .OrderByDescending(m => m.Id).Skip(fromDate).Take(chunkRecords)
+                 .Join(
+                     _db.Users,
+                     message => message.SenderId,
+                     user => user.Id,
+                     (message, user) => new
+                     {
+                         id = message.Id,
+                         sender = user.UserName, // Or use user.UserName or FullName if you have it
+                         message = message.IsDelete ? "Message deleted" : message.Message,
+                         createdOn = message.CreatedOn,
+                         messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("hh:mm tt") : DateTime.Now.ToString("hh : mm tt")
+                     }
+                 )
+                 .ToList().OrderBy(x => x.id);
+                return Ok(messages);
+            }
         }
 
         [HttpPost]
@@ -204,17 +231,29 @@ namespace SignalRMVC.Controllers
                 .Where(x => x.Active && x.UserId == userId)
                 .Select(x => x.GroupId)
                 .ToListAsync();
+            var users = await _db.Users.Where(x => !x.IsDeleted && x.Id != userId).ToListAsync();
 
             // Fetch group names and also generate encoded ID-safe names
-            var rooms = await _db.ChatRoom
+            List<Room> rooms = await _db.ChatRoom
                 .Where(x => !x.isDelete && groupUserList.Contains(x.Id))
-                .Select(r => new
+                .Select(r => new Room
                 {
                     Name = r.Name,
-                    SafeId = r.Id // or use your own sanitizer if needed
+                    SafeId = r.Id.ToString(),
+                    IsRoom = true
                 })
                 .ToListAsync();
 
+            rooms.AddRange(
+                users.Select(r => new Room
+                {
+                    Name = r.UserName,
+                    SafeId = r.Id,
+                    IsRoom = false
+                })
+            );
+
+            rooms.OrderBy(x => x.IsRoom);
             return Json(rooms);
         }
 
@@ -244,6 +283,11 @@ namespace SignalRMVC.Controllers
             return Ok("Healthy" + idleTime);
         }
 
-
+        public class Room
+        {
+            public string Name { get; set; }
+            public string SafeId { get; set; }
+            public bool IsRoom { get; set; }
+        }
     }
 }

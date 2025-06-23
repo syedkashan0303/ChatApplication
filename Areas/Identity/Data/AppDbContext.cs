@@ -15,6 +15,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         base.OnModelCreating(builder);
     }
     public DbSet<ChatMessage> ChatMessages { get; set; }
+    public DbSet<UsersMessage> UsersMessage { get; set; }
     public DbSet<ChatRoom> ChatRoom { get; set; }
     public DbSet<GroupUserMapping> GroupUserMapping { get; set; }
     public DbSet<EditedMessagesLog> EditedtMessagesLogs { get; set; }

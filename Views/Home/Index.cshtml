@@ -4,387 +4,406 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 
 <style>
-	#messagesList {
-		list-style-type: none;
-		padding-left: 0;
-	}
+    #messagesList {
+        list-style-type: none;
+        padding-left: 0;
+    }
 
-	.card-footer {
-		background-color: #f9f9f9;
-		overflow-y: auto;
-	}
+    .card-footer {
+        background-color: #f9f9f9;
+        overflow-y: auto;
+    }
 
-	.container, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl {
-		max-width: 1750px;
-	}
+    .container, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl {
+        max-width: 1750px;
+    }
 
-	.chatuser {
-		width: 100%;
-		font-size: 0.85rem;
-		opacity: 0.8;
-		text-align: center !important;
-	}
+    .chatuser {
+        width: 100%;
+        font-size: 0.85rem;
+        opacity: 0.8;
+        text-align: center !important;
+    }
 
-		.chatuser .time {
-			font-weight: normal;
-			font-size: 0.8rem;
-		}
+        .chatuser .time {
+            font-weight: normal;
+            font-size: 0.8rem;
+        }
 
-	.msg {
-		font-family: 'Alvi Nastaleeq';
-		line-height: 30px
-	}
+    .msg {
+        font-family: 'Alvi Nastaleeq';
+        line-height: 30px
+    }
 
-	.chatMessage, .editMessageText {
-		font-family: 'Alvi Nastaleeq';
-	}
+    .chatMessage, .editMessageText {
+        font-family: 'Alvi Nastaleeq';
+    }
 
-	.msg-custom {
-		background-color: #4C94FF;
-		text-align: right;
-		position: relative;
-		padding-bottom: 25px !important;
-	}
+    .msg-custom {
+        background-color: #4C94FF;
+        text-align: right;
+        position: relative;
+        padding-bottom: 25px !important;
+    }
 
-	.list-group-item {
-		padding: 0.0rem 1rem;
-	}
-
-
-
-	.mt-4 {
-		margin-top: -0.7rem !important;
-	}
-
-	.msg-custom .copy-btn {
-		position: absolute !important;
-		background: unset !important;
-		bottom: 3px;
-		border: unset;
-		top: unset !important;
-		color: #303d4f !important;
-		font-size: 14px;
-	}
-
-	.ChatRoom .card-body {
-		padding: 0 !important;
-		position: relative;
-	}
-
-		.ChatRoom .card-body textarea#chatMessage {
-			background: #eee;
-			border: 1px #c3c3c3 solid;
-			margin-top: 10px;
-			padding-right: 65px;
-			margin-left: 16px;
-		}
-
-	.card.ChatRoom {
-		border: unset;
-	}
-
-	.list-group-item {
-		background: unset;
-	}
-
-	.ChatRoom .card-body textarea#chatMessage:active, .ChatRoom .card-body textarea#chatMessage:focus {
-		outline: none;
-		box-shadow: none;
-	}
-
-	.d-flex.customClassContent {
-		justify-content: space-between;
-		width: 100%;
-	}
-
-	.message-text {
-		transition: font-size 0.3s ease; /* Smooth font-size change */
-	}
-
-	.TextareaBox {
-		position: relative;
-	}
-
-		.TextareaBox i {
-			position: absolute;
-			top: 10px;
-			right: 30px;
-			margin: auto;
-		}
-
-			.TextareaBox i:last-child {
-				right: 5px;
-			}
-
-	.justify-content-center {
-		height: 80vh;
-	}
+    .list-group-item {
+        padding: 0.0rem 1rem;
+    }
 
 
-	.group-item {
-		transition: all 0.2s ease;
-		border: none;
-		border-radius: 0.375rem;
-		margin-bottom: 5px;
-	}
 
-		.group-item:hover {
-			background-color: #0d6efd;
-			color: white;
-			cursor: pointer;
-			transform: translateY(-1px);
-			box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-		}
+    .mt-4 {
+        margin-top: -0.7rem !important;
+    }
 
-	.custom-scroll {
-		scrollbar-width: thin;
-		scrollbar-color: #adb5bd #f8f9fa;
-	}
+    .msg-custom .copy-btn {
+        position: absolute !important;
+        background: unset !important;
+        bottom: 3px;
+        border: unset;
+        top: unset !important;
+        color: #303d4f !important;
+        font-size: 14px;
+    }
 
-		.custom-scroll::-webkit-scrollbar {
-			width: 6px;
-		}
+    .justify-content-start .msg-custom .copy-btn {
+        color: #fff !important;
+    }
 
-		.custom-scroll::-webkit-scrollbar-track {
-			background: #f8f9fa;
-			border-radius: 4px;
-		}
+    .ChatRoom .card-body {
+        padding: 0 !important;
+        position: relative;
+    }
 
-		.custom-scroll::-webkit-scrollbar-thumb {
-			background-color: #adb5bd;
-			border-radius: 4px;
-		}
+        .ChatRoom .card-body textarea#chatMessage {
+            background: #eee;
+            border: 1px #c3c3c3 solid;
+            margin-top: 10px;
+            padding-right: 65px;
+            margin-left: 16px;
+        }
 
-	.letter-avatar {
-		width: 35px;
-		height: 35px;
-		border-radius: 50%;
-		background-color: #fff;
-		color: #303d4f;
-		font-weight: bold;
-		font-size: 16px;
-		text-transform: uppercase;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-	}
+    .card.ChatRoom {
+        border: unset;
+    }
 
-	ul#groupList li {
-		display: flex;
-		align-items: center;
-		margin-bottom: 15px;
-	}
+    .list-group-item {
+        background: unset;
+    }
 
-		ul#groupList li span {
-			font-size: 15px;
-		}
+    .ChatRoom .card-body textarea#chatMessage:active, .ChatRoom .card-body textarea#chatMessage:focus {
+        outline: none;
+        box-shadow: none;
+    }
 
-	.SideBar {
-		background: #2C3E50;
-		color: #fff;
-		border-radius: 0 !important;
-	}
+    .d-flex.customClassContent {
+        justify-content: space-between;
+        width: 100%;
+    }
 
-		.SideBar .card-header {
-			border: unset !important;
-			background: #303d4f !important;
-			border-bottom: solid 1px #ffffff26 !important;
-			height: 48px;
-		}
+    .message-text {
+        transition: font-size 0.3s ease; /* Smooth font-size change */
+    }
 
-	.ChatRoom .card-header {
-		background: #303d4f !important;
-		border-radius: 0 !important;
-	}
+    .TextareaBox {
+        position: relative;
+    }
 
-	.ChatRoom .card {
-		border: unset !important;
-		border-radius: 0 !important;
-	}
+        .TextareaBox i {
+            position: absolute;
+            top: 10px;
+            right: 30px;
+            margin: auto;
+        }
 
-	.msg-custom {
-		border-radius: 10px !important;
-		margin-bottom: 5px !important;
-	}
+            .TextareaBox i:last-child {
+                right: 5px;
+            }
 
-	.SideBar .group-item:hover, .SideBar .group-item.active {
-		background: #fff !important;
-		color: #303d4f !important;
-	}
+    .justify-content-center {
+        height: 80vh;
+    }
 
-	.list-group-item.justify-content-end .msg-custom {
-		color: #000 !important;
-	}
 
-	li.list-group-item.justify-content-start .msg-custom {
-		color: #fff !important;
-	}
+    .group-item {
+        transition: all 0.2s ease;
+        border: none;
+        border-radius: 0.375rem;
+        margin-bottom: 5px;
+    }
 
-	.ChatRoom button#sendMessage {
-		background: #303d4f !important;
-		border: solid 1px #303d4f !important;
-	}
+        .group-item:hover {
+            background-color: #0d6efd;
+            color: white;
+            cursor: pointer;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
 
-		.ChatRoom button#sendMessage:hover {
-			background: unset !important;
-			color: #000;
-		}
+    .custom-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: #adb5bd #f8f9fa;
+    }
 
-	.SideBar input#searchBar:focus, .SideBar #searchBar:active {
-		outline: none;
-	}
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
 
-	.msg-custom .edit-btn {
-		position: absolute !important;
-		background: unset !important;
-		bottom: 6px;
-		border: unset;
-		top: unset !important;
-		color: #303d4f !important;
-		font-size: 14px;
-		right: 30px;
-	}
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
 
-	.msg-custom .delete-btn {
-		position: absolute !important;
-		background: unset !important;
-		bottom: 6px;
-		border: unset;
-		top: unset !important;
-		color: #303d4f !important;
-		font-size: 14px;
-		right: 50px;
-	}
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background-color: #adb5bd;
+            border-radius: 4px;
+        }
 
-		.msg-custom .delete-btn, .msg-custom .delete-btn:active, .msg-custom .edit-btn:focus, .msg-custom .edit-btn:active {
-			outline: none !important;
-			box-shadow: none !important;
-			border: unset !important;
-		}
+    .letter-avatar {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        background-color: #fff;
+        color: #303d4f;
+        font-weight: bold;
+        font-size: 16px;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-	.ArbabTheme .msg-custom .copy-btn, .ArbabTheme .msg-custom .edit-btn, .ArbabTheme .msg-custom .delete-btn {
-		color: #fff !important;
-	}
+    ul#groupList li {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+    }
 
-	.badge {
-		background-color: red;
-		color: white;
-		border-radius: 50%;
-		padding: 2px 6px;
-		font-size: 12px;
-		margin-left: 5px;
-	}
+        ul#groupList li span {
+            font-size: 15px;
+        }
+
+    .SideBar {
+        background: #2C3E50;
+        color: #fff;
+        border-radius: 0 !important;
+    }
+
+        .SideBar .card-header {
+            border: unset !important;
+            background: #303d4f !important;
+            border-bottom: solid 1px #ffffff26 !important;
+            height: 48px;
+        }
+
+    .ChatRoom .card-header {
+        background: #303d4f !important;
+        border-radius: 0 !important;
+    }
+
+    .ChatRoom .card {
+        border: unset !important;
+        border-radius: 0 !important;
+    }
+
+    .msg-custom {
+        border-radius: 10px !important;
+        margin-bottom: 5px !important;
+    }
+
+    .SideBar .group-item:hover, .SideBar .group-item.active {
+        background: #fff !important;
+        color: #303d4f !important;
+    }
+
+    .list-group-item.justify-content-end .msg-custom {
+        color: #000 !important;
+    }
+
+    li.list-group-item.justify-content-start .msg-custom {
+        color: #fff !important;
+    }
+
+    .ChatRoom button#sendMessage {
+        background: #303d4f !important;
+        border: solid 1px #303d4f !important;
+    }
+
+        .ChatRoom button#sendMessage:hover {
+            background: unset !important;
+            color: #000;
+        }
+
+    .SideBar input#searchBar:focus, .SideBar #searchBar:active {
+        outline: none;
+    }
+
+    .msg-custom .edit-btn {
+        position: absolute !important;
+        background: unset !important;
+        bottom: 6px;
+        border: unset;
+        top: unset !important;
+        color: #303d4f !important;
+        font-size: 14px;
+        right: 30px;
+    }
+
+    .msg-custom .delete-btn {
+        position: absolute !important;
+        background: unset !important;
+        bottom: 6px;
+        border: unset;
+        top: unset !important;
+        color: #303d4f !important;
+        font-size: 14px;
+        right: 50px;
+    }
+
+        .msg-custom .delete-btn, .msg-custom .delete-btn:active, .msg-custom .edit-btn:focus, .msg-custom .edit-btn:active {
+            outline: none !important;
+            box-shadow: none !important;
+            border: unset !important;
+        }
+
+    .ArbabTheme .msg-custom .copy-btn, .ArbabTheme .msg-custom .edit-btn, .ArbabTheme .msg-custom .delete-btn {
+        color: #fff !important;
+    }
+
+    .badge {
+        background-color: red;
+        color: white;
+        border-radius: 50%;
+        padding: 2px 6px;
+        font-size: 12px;
+        margin-left: 5px;
+    }
+
+
+    .custom-scroll::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .custom-scroll::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+    }
+
 </style>
 
 
 <div class="container" style="padding: 0;">
-	<div class="row justify-content-center">
+    <div class="row justify-content-center">
 
-		<div class="col-md-12 row">
+        <div class="col-md-12 row">
 
-			<div class="col-md-2" style="padding: 0;">
-				<div class="SideBar card shadow-lg border-0 h-100 rounded-4">
-					<div class="card-header bg-gradient bg-primary text-white rounded-top-4">
+            <div class="col-md-2" style="padding: 0; max-height:100%;">
+                <div class="SideBar card shadow-lg border-0 h-100 rounded-4">
+                    <div class="card-header bg-gradient bg-primary text-white rounded-top-4">
 
-						<a asp-area="" asp-controller="Home" asp-action="Index">
-							<strong><i class="bi bi-house-door-fill me-1"></i>Home</strong>
-						</a>
+                        <a asp-area="" asp-controller="Home" asp-action="Index">
+                            <strong><i class="bi bi-house-door-fill me-1"></i>Home</strong>
+                        </a>
 
-					</div>
+                    </div>
 
-					<div class="card-body p-3 d-flex flex-column">
-						<!-- Search Bar -->
-						<div class="input-group mb-3">
-							<span class="input-group-text bg-white border-end-0">
-								<i class="bi bi-search text-muted"></i>
-							</span>
-							<input type="text" id="searchBar" class="form-control border-start-0" placeholder="Search Groups" onkeyup="filterGroups()">
-						</div>
+                    <div class="card-body p-3 d-flex flex-column" style="height: calc(100vh - 150px);">
+                        <!-- Search Bar -->
+                        <div class="input-group mb-3">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+                            <input type="text" id="searchBar" class="form-control border-start-0" placeholder="Search Groups" onkeyup="filterGroups()">
+                        </div>
+                        @* <ul id="groupList" class="list-group flex-grow-1 overflow-auto custom-scroll"> *@
+                        <ul id="groupList" class="list-group flex-grow-1 overflow-auto custom-scroll" style="height: 400px;">
 
-						<ul id="groupList" class="list-group flex-grow-1 overflow-auto custom-scroll">
-							<!-- Rooms will be appended here dynamically -->
-						</ul>
-					</div>
-				</div>
-			</div>
+                            <!-- Rooms will be appended here dynamically -->
+                        </ul>
 
 
-
-			<div class="col-md-10 chatsection ChatRoom" style="display:none ; padding : 0px;">
-				<input type="hidden" value="" id="hiddenRoomName" disabled />
-				<input type="hidden" class="form-control" value="@User.Identity?.Name" id="senderEmail" disabled />
-
-				<div class="card">
-					<div class="card-header bg-primary text-white">
-						<div class="chatheader row">
-							<div class="col-md-6">
-								<strong>Room</strong> <strong id="roomName"></strong>
-							</div>
-							<div class="col-md-6 text-end">
-								<select id="fontSizeDropdown" class="form-select form-select-sm w-auto d-inline-block">
-									<option value="9">9</option>
-									<option value="14">14</option>
-									<option value="18" selected>18</option>
-									<option value="22">22</option>
-									<option value="27">27</option>
-									<option value="34">34</option>
-								</select>
-							</div>
-						</div>
-					</div>
+                    </div>
+                </div>
+            </div>
 
 
 
-					<div class="card-footer" style="overflow-y: auto; background: #E6EAEA; border: 1px #c3c3c3 solid; border-radius: 0px 0px 5px 5px; height: 100%;">
-						<ul id="messagesList" class="list-group list-group-flush"></ul>
-					</div>
-					@* <div style="border: 1px solid #000;"> *@
-				</div>
+            <div class="col-md-10 chatsection ChatRoom" style="display:none ; padding : 0px;">
+                <input type="hidden" value="" id="hiddenRoomName" disabled />
+                <input type="hidden" value="" id="hiddenRoomid" disabled />
+                <input type="hidden" value="" id="isGroup" disabled />
+                <input type="hidden" class="form-control" value="@User.Identity?.Name" id="senderEmail" disabled />
 
-				<div class="card-body row">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <div class="chatheader row">
+                            <div class="col-md-6">
+                                <strong>Room</strong> <strong id="roomName"></strong>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <select id="fontSizeDropdown" class="form-select form-select-sm w-auto d-inline-block">
+                                    <option value="9">9</option>
+                                    <option value="14">14</option>
+                                    <option value="18" selected>18</option>
+                                    <option value="22">22</option>
+                                    <option value="27">27</option>
+                                    <option value="34">34</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-					<div class="col-md-11">
-						<div class="col-sm-12 TextareaBox">
-							<textarea class="form-control chatMessage" id="chatMessage" rows="2" placeholder="Type your message here..." style="height: 50px;"></textarea>
-							<i class="fa-solid fa-align-right" id="alignRight"></i>
-							<i class="fa-solid fa-align-left" id="alignLeft"></i>
-						</div>
-					</div>
 
-					<div class="col-md-1" style="display: flex;flex-direction: column-reverse;">
-						<button type="button" class="btn btn-success" id="sendMessage">Send</button>
-					</div>
-				</div>
 
-			</div>
+                    <div class="card-footer" style="overflow-y: auto; background: #E6EAEA; border: 1px #c3c3c3 solid; border-radius: 0px 0px 5px 5px; height: 100%;">
+                        <ul id="messagesList" class="list-group list-group-flush"></ul>
+                    </div>
+                </div>
 
-			<div class="col-md-10 arylogo" style="padding-left : 0px;">
-				<img src="~/Images/arynewslogo.png" style="width: 100%;" alt="Italian Trulli">
-			</div>
+                <div class="card-body row">
 
-		</div>
+                    <div class="col-md-11">
+                        <div class="col-sm-12 TextareaBox">
+                            <textarea class="form-control chatMessage" id="chatMessage" rows="2" placeholder="Type your message here..." style="height: 50px;"></textarea>
+                            <i class="fa-solid fa-align-right" id="alignRight"></i>
+                            <i class="fa-solid fa-align-left" id="alignLeft"></i>
+                        </div>
+                    </div>
 
-	</div>
+                    <div class="col-md-1" style="display: flex;flex-direction: column-reverse;">
+                        <button type="button" class="btn btn-success" id="sendMessage">Send</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="col-md-10 arylogo" style="padding-left : 0px;">
+                <img src="~/Images/arynewslogo.png" style="width: 100%;" alt="Italian Trulli">
+            </div>
+
+        </div>
+
+    </div>
 </div>
 
 <!-- Edit Message Modal -->
 <div class="modal fade" id="editMessageModal" tabindex="-1" aria-labelledby="editMessageModalLabel" aria-hidden="true">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title" id="editMessageModalLabel">Edit Message</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body">
-				<input type="hidden" id="editMessageId">
-				<textarea id="editMessageText" class="form-control editMessageText" rows="3" style="height: 250px !important;"></textarea>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-				<button type="button" id="saveEditMessage" class="btn btn-primary">Save Changes</button>
-			</div>
-		</div>
-	</div>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editMessageModalLabel">Edit Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editMessageId">
+                <textarea id="editMessageText" class="form-control editMessageText" rows="3" style="height: 250px !important;"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="saveEditMessage" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 
@@ -394,620 +413,673 @@
 <script src="~/js/signalr.min.js"></script>
 
 <script>
-		var connectionChat = new signalR.HubConnectionBuilder().withUrl("/hubs/basicchat").build();
-		connectionChat.on("RedirectToLogin", () => {
-			setTimeout(() => {
-				//  fetch('/Identity/Account/Logout', {
-				// 	method: 'POST',
-				// 	credentials: 'include'
-				// }).then(() => {
-				// 	// Redirect to login page
-				// 	window.location.href = '/Identity/Account/Login';
-				// });
-
-
-					window.location.href = "/Home/Index"; // or any other route
-			}, 3000);
-		});
-		let skipDays = 0;
-		let isLoading = false;
-		let allMessagesLoaded = false;
-		var selectedRoom = "";
-		let currentRoom = null;
-		let fontSize = 18;
-
-		$(document).ready(function() {
-
-			$('#chatMessage').css('direction', 'rtl');
-
-			$('#alignRight').click(function() {
-				$('#chatMessage').css('direction', 'rtl');
-			});
-
-			$('#alignLeft').click(function() {
-				$('#chatMessage').css('direction', 'ltr');
-			});
-			loadRooms();
-			renderMessage();
-
-			setTimeout(() => {
-				customFontSize(18);
-			}, 500);
-
-			// #region Signal R methods Start
-
-				connectionChat.on("MessageEdited", function (messageId, newContent) {
-					newContent = ( newContent.replace(/\\n/g, "<br>"));
-					const $msg = $("#message-" + messageId);
-					if ($msg.length) {
-						$msg.find(".message-text").html(newContent + " <i>(edited)</i>");
-						$msg.find(".edit-btn").attr("data-content", newContent);
-					}
-				});
-
-				connectionChat.on("MessageReceived", function (messageId ,user, message, messageTime) {
-
-					console.table("MessageReceived",messageId ,user , message , messageTime);
-					renderMessage(user, message, messageId,false, false, false, messageTime);
-					// Auto-scroll to bottom of chat window
-					$(".card-footer").scrollTop($(".card-footer")[0].scrollHeight);
-				});
-
-				connectionChat.on("MessageDeleted", function (messageId) {
-
-					const $messageBubble = $("#message-" + messageId);
-
-					if ($messageBubble.length) {
-						// Remove the entire <li> row that contains this message
-						// $messageBubble.closest("li").remove();
-						$messageBubble.find(".fa-trash").remove();
-						$messageBubble.find(".edit-btn").remove();
-						$messageBubble.find(".copy-btn").remove();
-						$messageBubble.find(".message-text").html('Message deleted');
-						$messageBubble.css({
-							"opacity": ".7",
-							"cursor": "not-allowed",
-							"font-style": "italic"
-						});
-					}
-				});
-
-				connectionChat.on("Error", function (message) {
-					console.error("SignalR Error from server:", message);
-					alert(message); // Optional
-				});
-
-			// Start SignalR connection once DOM is ready
-
-			connectionChat.start().then(function () {
-				console.log("✅ SignalR connected");
-
-				connectionChat.on("ReceiveUnreadCount", function (roomId, roomName, count) {
-					const badge = document.getElementById(`unread-count-${roomId}`);
-					if (badge) {
-						badge.textContent = count > 0 ? count : '';
-						badge.style.display = count > 0 ? 'inline-block' : 'none';
-					}
-				});
-
-				// Load unread message counts
-				connectionChat.invoke("GetUnreadMessageCounts")
-					.then(data => {
-						if (Array.isArray(data)) {
-							data.forEach(room => {
-								const badge = document.getElementById(`unread-count-${room.roomId}`);
-								if (badge) {
-									badge.textContent = room.count > 0 ? room.count : '';
-									badge.style.display = room.count > 0 ? 'inline-block' : 'none';
-								}
-							});
-						} else {
-							console.warn("⚠️ No unread count data received or invalid format:", data);
-						}
-					})
-					.catch(err => {
-						console.error("❌ Error loading unread counts:", err);
-					});
-
-
-				// Auto-join the first room if available
-				const firstRoom = $("#groupList .group-item").first().data("room");
-				if (firstRoom) {
-					connectionChat.invoke("JoinRoom", firstRoom).then(() => {
-						currentRoom = firstRoom;
-						$("#roomName").text(" - " + firstRoom);
-						$("#hiddenRoomName").val(firstRoom);
-						$("#messagesList").empty();
-						loadGroupMessages(firstRoom);
-					});
-				} else {
-					console.warn("⚠️ No room to join on load.");
-				}
-			}).catch(function (err) {
-				console.error("❌ SignalR connection failed:", err);
-			});
-
-			// #region Signal R methods End
-
-		});
-		// Scroll-to-top detection for loading older messages
-		$(".card-footer").on("scroll", function () {
-
-			if ($(this).scrollTop() == 0 && !isLoading && !allMessagesLoaded) {
-				skipDays += 1;
-				console.log("scrollTop :"+$(this).scrollTop())
-
-				loadGroupMessages(currentRoom, skipDays, true); // load more
-			}
-		});
-
-		$(document).on("click", ".copy-btn", function () {
-		var htmlContent = $(this).siblings(".message-text").html();
-		var textToCopy = htmlContent.replace(/<br\s*\/?>/gi, "\n");
-			textToCopy = textToCopy.replace(/<i>\(edited\)<\/i>/gi, "");
-
-		var $btn = $(this);
-		var $icon = $btn.find("i");
-
-		// Modern clipboard API
-		if (navigator.clipboard && window.isSecureContext) {
-			navigator.clipboard.writeText(textToCopy).then(() => {
-				$icon.removeClass("fa-copy").addClass("fa-check");
-				setTimeout(() => {
-					$icon.removeClass("fa-check").addClass("fa-copy");
-				}, 1500);
-			}).catch(err => {
-				console.error("Clipboard error:", err);
-				fallbackCopy(textToCopy);
-			});
-		}
-		else {
-			// Fallback for insecure context or older browsers
-			fallbackCopy(textToCopy);
-		}
-
-		function fallbackCopy(text) {
-			let textArea = $("<textarea>");
-			textArea.val(text).css({ position: "fixed", top: 0, left: 0, opacity: 0 });
-			$("body").append(textArea);
-			textArea[0].focus();
-			textArea[0].select();
-
-			try {
-				let successful = document.execCommand('copy');
-				if (successful) {
-					$icon.removeClass("fa-copy").addClass("fa-check");
-					setTimeout(() => {
-						$icon.removeClass("fa-check").addClass("fa-copy");
-					}, 1500);
-				}
-			} catch (err) {
-				console.error("Fallback copy failed:", err);
-			}
-			textArea.remove();
-		}
-	});
-
-		function filterGroups() {
-			var searchTerm = $('#searchBar').val().toLowerCase(); // Get the search term
-			var groupItems = $('#groupList .group-item'); // Get all group items
-
-			groupItems.each(function () {
-				var groupName = $(this).text().toLowerCase(); // Get the text of the group item
-				if (groupName.indexOf(searchTerm) === -1) {
-					// Hide groups that don't match the search term
-					$(this).hide();
-				} else {
-					// Show matching groups
-					$(this).show();
-				}
-			});
-		}
-
-		function loadRooms() {
-			$.ajax({
-				url: '/Home/GetRooms',
-				type: 'GET',
-				success: function (rooms) {
-					var groupList = $("#groupList");
-					groupList.empty();
-
-					$.each(rooms, function (index, room) {
-						let firstLetter = room.name.charAt(0).toUpperCase();
-						groupList.append(`
-							<li class="group-item" data-room="${room.name}"  data-id="${room.safeId}">
-								<div class="letter-avatar d-flex align-items-center justify-content-center me-2">
-									${firstLetter}
-								</div>
-								<span>${room.name}</span>
-								<span id="unread-count-${room.safeId}" class="badge bg-danger ms-2" style="display: none;"></span>
-							</li>
-						`);
-					});
-					filterGroups();
-				},
-				error: function (err) {
-					console.error("Failed to load rooms", err);
-				}
-			});
-		}
-
-		$(document).on("click", ".group-item", function () {
-
-			var roomName = $(this).data("room");
-			var roomId = $(this).data("id"); // ✅ get the room ID
-
-			console.log("roomId :"+$(`#unread-count-${roomId}`).text())
-			$(".group-item").removeClass("active");  // remove from all
-			$(this).addClass("active");
-
-			$('.chatsection').show();
-			$('.arylogo').hide();
-
-			// Leave previous room if needed (optional)
-			if (currentRoom) {
-				connectionChat.invoke("LeaveRoom", currentRoom);
-			}
-
-			// Join new room
-			connectionChat.invoke("JoinRoom", roomName).then(() => {
-				currentRoom = roomName;
-				$("#roomName").text(" - " + roomName);
-				$("#hiddenRoomName").val(roomName);
-
-				$("#messagesList").empty();
-				// Load chat messages from DB via AJAX
-				loadGroupMessages(roomName, 0, true,roomId);
-
-
-				connectionChat.invoke("MarkMessagesAsRead", roomId)
-				.then(() => {
-					$(`#unread-count-${roomId}`).hide();
-				});
-			});
-		});
-
-		$("#fontSizeDropdown").on("change", function () {
-			fontSize = parseInt($(this).val());
-			customFontSize(fontSize);
-		});
-
-		function customFontSize(size) {
-
-			$(".message-text").css("font-size", size + "px");
-		}
-
-		// function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false) {
-		// 	isLoading = true;
-		// 	$.ajax({
-		// 		url: `/Home/GetMessagesByRoom`,
-		// 		type: 'GET',
-		// 		data: { roomName: roomName, skipRecords: skipDaysParam },
-		// 		success: function(messages) {
-		// 			if (!messages || messages.length === 0) {
-		// 				allMessagesLoaded = false;
-		// 				isLoading = false;
-		// 				return;
-		// 			}
-
-		// 			const chatList = $("#messagesList");
-		// 			let scrollPosBefore = $(".card-footer")[0].scrollHeight;
-
-		// 			messages.forEach(function (msg) {
-		// 				const messageHtml = renderMessage(msg.sender, msg.message, msg.id , false, false, false, msg.messageTime);
-		// 				if (prepend) {
-		// 					chatList.prepend(messageHtml);
-		// 				} else {
-		// 					chatList.append(messageHtml);
-		// 				}
-		// 			});
-
-		// 			if (!prepend) scrollToBottom();
-		// 			else {
-		// 				let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
-		// 				$(".card-footer").scrollTop(scrollDiff);
-		// 			}
-
-		// 			isLoading = false;
-		// 		},
-		// 		error: function (error) {
-		// 			console.error("Error loading messages:", error);
-		// 			isLoading = false;
-		// 		}
-		// 	});
-		// }
-
-		function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false , roomId = 0) {
-		isLoading = true;
-		var unreadCount = parseInt($(`#unread-count-${roomId}`).html() || "0");
-		$.ajax({
-			url: `/Home/GetMessagesByRoom`,
-			type: 'GET',
-			data: { roomName: roomName, skipRecords: skipDaysParam },
-			success: function(messages) {
-				if (!messages || messages.length === 0) {
-					allMessagesLoaded = false;
-					isLoading = false;
-					return;
-				}
-
-				const chatList = $("#messagesList");
-				let scrollPosBefore = $(".card-footer")[0].scrollHeight;
-
-				messages.forEach(function (msg, index) {
-					// If this is the first unread message, add a marker
-					if (index == messages.length - unreadCount && unreadCount > 0) {
-						chatList.append(`<div id="unread-marker" class="text-center text-muted my-2" style="font-size: large;font-family: emoji;"><hr><small><h3>New Messages</h3></small><hr></div>`);
-					}
-
-					const messageHtml = renderMessage(msg.sender, msg.message, msg.id, false, false, false, msg.messageTime);
-					if (prepend) {
-						chatList.prepend(messageHtml);
-					} else {
-						chatList.append(messageHtml);
-					}
-				});
-
-					// const marker = document.getElementById("unread-marker");
-
-					// if (marker) {
-					// 	marker.scrollIntoView({ behavior: "smooth", block: "center" });
-					// }
-
-					// Scroll to the unread marker if exists
-					const marker = document.getElementById("unread-marker");
-					if (marker) {
-						marker.scrollIntoView({ behavior: "smooth", block: "start" });
-					} else {
-						let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
-						$(".card-footer").scrollTop(scrollDiff);
-					}
-				
-
-				isLoading = false;
-			},
-			error: function (error) {
-				console.error("Error loading messages:", error);
-				isLoading = false;
-			}
-		});
-	}
-
-
-
-		function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false ,messagetime) {
-
-			var senderEmail = $("#senderEmail").val();
-			var isOwnMessage = user === senderEmail;
-			let timeStr = messagetime;
-			var userName = capitalizeFirstLetter(user);
-			var userInfo = $("<div>")
-				.addClass("d-flex ms-2")
-				.css({
-					"min-width": "120px",
-					"position": "relative",
-					"display": "flex",
-					"flex-direction": "column",
-					"text-align": "right",
-					"align-items": "flex-end"
-				})
-				.append(
-					$("<span>").addClass("fw-semibold UserIcon").text(userName[0]),
-					$("<span>").addClass("fw-semibold UserName").text(userName),
-					$("<small>").addClass("text-muted").text(userName),
-					$("<small>").addClass("text-muted").text(timeStr)
-				);
-
-			// Show edited/deleted text
-			let messageText = (message || "").replace(/\\n/g, "<br>");
-			if (isEdited && !isDeleted) {
-				messageText += " <i>(edited)</i>";
-			}
-
-			var bubble = $("<div>")
-			.addClass("msg-custom rounded px-3 py-2 position-relative")
-			.addClass(isOwnMessage ? "text-white msg" : "text-dark msg")
-			.css({
-				"max-width": "85%",
-				"min-width": "40%",
-				"background-color": isOwnMessage ? "#f5f5f5" : "#303d4f"
-			})
-			.attr("id", `message-${messageId}`)
-			.append($("<div>").addClass("message-text content").html(messageText));
-
-			// Only apply "deleted" styles if message is deleted
-			if (messageText === "Message deleted") {
-				bubble.css({
-					"opacity": ".7",
-					"cursor": "not-allowed",
-					"font-style": "italic"
-				});
-			} else {
-				// Append copy button
-				bubble.append(
-					$("<button>")
-						.addClass("btn btn-sm btn-light copy-btn position-absolute top-0 end-0 m-1")
-						.html('<i class="fa-solid fa-copy" aria-hidden="true"></i>')
-				);
-			}
-
-		// Add edit/delete buttons if it's your message and not deleted
-		if (isOwnMessage && messageText !== "Message deleted") {
-			bubble.append(
-				$("<div>").addClass("mt-2 d-flex gap-2 justify-content-end")
-					.append(
-						$("<button>")
-							.addClass("btn btn-sm btn-outline-secondary edit-btn")
-							.html('<i class="fa-solid fa-pen-to-square"></i>')
-							.attr("data-id", messageId)
-							.attr("data-content", message),
-						$("<button>")
-							.addClass("btn btn-sm btn-outline-danger delete-btn")
-							.html('<i class="fa-solid fa-trash"></i>')
-							.attr("data-id", messageId)
-					)
-			);
-		}
-
-			// Flex row: bubble + user info
-			var contentWrapper = $("<div>")
-				.addClass("d-flex customClassContent")
-				.addClass(isOwnMessage ? "flex-row-reverse text-end" : "flex-row")
-				.append(bubble)
-				.append(userInfo);
-
-			// Main <li>
-			var li = $("<li>")
-				.addClass("list-group-item border-0 d-flex")
-				.addClass(isOwnMessage ? "justify-content-end" : "justify-content-start")
-				.append(contentWrapper);
-
-			return returnOnly ? li : $("#messagesList").append(li);
-		}
-
-		$(document).on("click", ".edit-btn", function () {
-			var messageId = $(this).data("id");
-			$("#editMessageId").val(messageId);
-			// var currentContent = $(this).attr("data-content");
-
-			var currentContent = $(this).attr("data-content");
-			// Convert <br> back to newline characters for editing
-			var editableText = currentContent.replace(/<br\s*\/?>/gi, "\n").replace(/\\n/g, "\n");
-			$("#editMessageText").val(editableText);
-
-			// Show the modal
-			$("#editMessageModal").modal("show");
-		});
-
-		$("#saveEditMessage").on("click", function () {
-			var messageId = $("#editMessageId").val();
-			var newContent = $("#editMessageText").val(); // keep raw text here
-			var $msg = $("#message-" + messageId);
-			newContent = ( $("#editMessageText").val().replace(/\n/g, "\\n"));
-			var oldContent = $msg.find(".edit-btn").attr("data-content");
-
-			if (newContent && newContent !== oldContent) {
-				// Send raw text with actual newlines to SignalR
-				connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom)
-					.catch(function (err) {
-							console.error("Invoke faile:");
-							console.error("Name:", err.name);
-							console.error("Message:", err.message);
-							console.error("Stack:", err.stack);
-							console.error("Code:", err.code);
-							console.error("Status:", err.status || err.statusCode);
-							console.error("Cause:", err.cause);
-							console.error("Full Error Object:", err.toString());
-					});
-
-				// Show newlines properly in UI (convert \n to <br>)
-				const formattedContent = newContent.replace(/\\n/g, "<br>");
-				$msg.find(".message-text").html(formattedContent + ' <i>(edited)</i>');
-				$msg.find(".edit-btn").attr("data-content", newContent);
-			}
-
-			$("#editMessageModal").modal("hide");
-		});
-
-		$(document).on("click", ".delete-btn", function () {
-			var messageId = $(this).data("id");
-			if (confirm("Are you sure you want to delete this message?")) {
-
-				connectionChat.invoke("DeleteMessage", parseInt(messageId), currentRoom)
-					.catch(function (err) {
-						console.error("Delete failed:", err.toString());
-				});
-
-				const $messageBubble = $("#message-" + messageId);
-
-				if ($messageBubble.length) {
-					// Remove the entire <li> row that contains this message
-					// $messageBubble.closest("li").remove();
-				}
-			}
-		});
-
-		function scrollToBottom() {
-			var messagesBox = $('.card-footer');
-			messagesBox.scrollTop(messagesBox.prop("scrollHeight"));
-		}
-
-		function capitalizeFirstLetter(string) {
-			if(string != null && string != "" )
-			{
-				return string.charAt(0).toUpperCase() + string.slice(1);
-			}
-			else
-			{
-				return ".";
-			}
-		}
-
-		$("#createRoom").on("click", function (e) {
-			e.preventDefault();
-
-			var newRoom = $("#newRoomName").val().trim();
-			if (!newRoom) return;
-
-			$.ajax({
-				url: '/Home/CreateRoom', // make sure the route matches your controller
-				type: 'POST',
-				data: { roomName: newRoom },
-				success: function () {
-					loadRooms(); // reload dropdown list
-					$("#newRoomName").val('');
-				},
-				error: function (xhr, status, error) {
-					console.error("Room creation failed:", error);
-				}
-			});
-		});
-
-		$("#sendMessage").on("click", function (event) {
-			event.preventDefault();
-
-			var sender = $("#senderEmail").val();
-			var message = $("#chatMessage").val();
-			var room = $("#hiddenRoomName").val().trim();
-
-			if (!message || !room) return;
-
-			message = ( $("#chatMessage").val().replace(/\n/g, "\\n"));
-
-			 connectionChat.invoke("SendMessageToRoom", room, sender, message);
-			//connectionChat.invoke("SendMessageToRoom", room,  message);
-
-			setTimeout(() => {
-				customFontSize(fontSize);
-			}, 500);
-
-			$("#chatMessage").val('');
-		});
-
-		$('#chatMessage').on('keydown', function(e) {
-			if (e.which === 13) { // Enter key
-				if (e.ctrlKey) { // Ctrl+Enter → Insert new line
-					// Get current cursor position
-					var start = this.selectionStart;
-					var end = this.selectionEnd;
-
-					// Insert a new line at cursor position
-					var text = $(this).val();
-					$(this).val(
-						text.substring(0, start) +
-						'\n' +
-						text.substring(end)
-					);
-
-					// Move cursor to after the new line
-					this.selectionStart = this.selectionEnd = start + 1;
-
-					return false; // Prevent default behavior
-				}
-				else { // Just Enter → Send message
-					e.preventDefault();
-					$('#sendMessage').click();
-				}
-			}
-		});
+    var connectionChat = new signalR.HubConnectionBuilder().withUrl("/hubs/basicchat").build();
+    connectionChat.on("RedirectToLogin", () => {
+        setTimeout(() => {
+                window.location.href = "/Home/Index"; // or any other route
+        }, 3000);
+    });
+    let skipDays = 0;
+    let isLoading = false;
+    let allMessagesLoaded = false;
+    var selectedRoom = "";
+    let currentRoom = null;
+    let fontSize = 18;
+
+    $(document).ready(function() {
+
+        $('#chatMessage').css('direction', 'rtl');
+
+        $('#alignRight').click(function() {
+            $('#chatMessage').css('direction', 'rtl');
+        });
+
+        $('#alignLeft').click(function() {
+            $('#chatMessage').css('direction', 'ltr');
+        });
+        loadRooms();
+        renderMessage();
+
+        setTimeout(() => {
+            customFontSize(18);
+        }, 500);
+
+        // #region Signal R methods Start
+
+            connectionChat.on("MessageEdited", function (messageId, newContent) {
+                newContent = ( newContent.replace(/\\n/g, "<br>"));
+                const $msg = $("#message-" + messageId);
+                if ($msg.length) {
+                    $msg.find(".message-text").html(newContent + " <i>(edited)</i>");
+                    $msg.find(".edit-btn").attr("data-content", newContent);
+                }
+            });
+
+            connectionChat.on("MessageReceived", function (messageId ,user, message, messageTime ,receiver) {
+
+                console.table("MessageReceived",messageId ,user , message , messageTime , receiver);
+                renderMessage(user, message, messageId,false, false, false, messageTime);
+                // Auto-scroll to bottom of chat window
+                $(".card-footer").scrollTop($(".card-footer")[0].scrollHeight);
+            });
+
+            connectionChat.on("MessageDeleted", function (messageId) {
+
+                const $messageBubble = $("#message-" + messageId);
+
+                if ($messageBubble.length) {
+                    // Remove the entire <li> row that contains this message
+                    // $messageBubble.closest("li").remove();
+                    $messageBubble.find(".fa-trash").remove();
+                    $messageBubble.find(".edit-btn").remove();
+                    $messageBubble.find(".copy-btn").remove();
+                    $messageBubble.find(".message-text").html('Message deleted');
+                    $messageBubble.css({
+                        "opacity": ".7",
+                        "cursor": "not-allowed",
+                        "font-style": "italic"
+                    });
+                }
+            });
+
+            connectionChat.on("Error", function (message) {
+                console.error("SignalR Error from server:", message);
+                alert(message); // Optional
+            });
+
+        // Start SignalR connection once DOM is ready
+
+        connectionChat.start().then(function () {
+            console.log("✅ SignalR connected");
+
+            connectionChat.on("ReceiveUnreadCount", function (roomId, roomName, count) {
+                const badge = document.getElementById(`unread-count-${roomId}`);
+                if (badge) {
+                    badge.textContent = count > 0 ? count : '';
+                    badge.style.display = count > 0 ? 'inline-block' : 'none';
+                }
+            });
+
+            // Load unread message counts
+            connectionChat.invoke("GetUnreadMessageCounts")
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        data.forEach(room => {
+                            const badge = document.getElementById(`unread-count-${room.roomId}`);
+                            if (badge) {
+                                badge.textContent = room.count > 0 ? room.count : '';
+                                badge.style.display = room.count > 0 ? 'inline-block' : 'none';
+                            }
+                        });
+                    } else {
+                        console.warn("⚠️ No unread count data received or invalid format:", data);
+                    }
+                })
+                .catch(err => {
+                    console.error("❌ Error loading unread counts:", err);
+                });
+
+
+            // Auto-join the first room if available
+            const firstRoom = $("#groupList .group-item").first().data("room");
+            if (firstRoom) {
+                connectionChat.invoke("JoinRoom", firstRoom).then(() => {
+                    currentRoom = firstRoom;
+                    $("#roomName").text(" - " + firstRoom);
+                    $("#hiddenRoomName").val(firstRoom);
+                    $("#messagesList").empty();
+                    loadGroupMessages(firstRoom);
+                });
+            } else {
+                console.warn("⚠️ No room to join on load.");
+            }
+        }).catch(function (err) {
+            console.error("❌ SignalR connection failed:", err);
+        });
+
+        // #region Signal R methods End
+    });
+    // Scroll-to-top detection for loading older messages
+    $(".card-footer").on("scroll", function () {
+
+        if ($(this).scrollTop() == 0 && !isLoading && !allMessagesLoaded) {
+            skipDays += 1;
+            console.log("scrollTop :"+$(this).scrollTop())
+
+            loadGroupMessages(currentRoom, skipDays, true, $("#isGroup").val() ,  $("#hiddenRoomid").val()); // load more
+        }
+    });
+
+    $(document).on("click", ".copy-btn", function () {
+        var htmlContent = $(this).siblings(".message-text").html();
+        var textToCopy = htmlContent.replace(/<br\s*\/?>/gi, "\n");
+            textToCopy = textToCopy.replace(/<i>\(edited\)<\/i>/gi, "");
+
+        var $btn = $(this);
+        var $icon = $btn.find("i");
+
+        // Modern clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                $icon.removeClass("fa-copy").addClass("fa-check");
+                setTimeout(() => {
+                    $icon.removeClass("fa-check").addClass("fa-copy");
+                }, 1500);
+            }).catch(err => {
+                console.error("Clipboard error:", err);
+                fallbackCopy(textToCopy);
+            });
+        }
+        else {
+            // Fallback for insecure context or older browsers
+            fallbackCopy(textToCopy);
+        }
+
+        function fallbackCopy(text) {
+            let textArea = $("<textarea>");
+            textArea.val(text).css({ position: "fixed", top: 0, left: 0, opacity: 0 });
+            $("body").append(textArea);
+            textArea[0].focus();
+            textArea[0].select();
+
+            try {
+                let successful = document.execCommand('copy');
+                if (successful) {
+                    $icon.removeClass("fa-copy").addClass("fa-check");
+                    setTimeout(() => {
+                        $icon.removeClass("fa-check").addClass("fa-copy");
+                    }, 1500);
+                }
+            } catch (err) {
+                console.error("Fallback copy failed:", err);
+            }
+            textArea.remove();
+        }
+    });
+
+    function filterGroups() {
+        var searchTerm = $('#searchBar').val().toLowerCase(); // Get the search term
+        var groupItems = $('#groupList .group-item'); // Get all group items
+
+        groupItems.each(function () {
+            var groupName = $(this).text().toLowerCase(); // Get the text of the group item
+            if (groupName.indexOf(searchTerm) === -1) {
+                // Hide groups that don't match the search term
+                $(this).hide();
+            } else {
+                // Show matching groups
+                $(this).show();
+            }
+        });
+    }
+
+    // function loadRooms() {
+    // 	$.ajax({
+    // 		url: '/Home/GetRooms',
+    // 		type: 'GET',
+    // 		success: function (rooms) {
+    // 			var groupList = $("#groupList");
+    // 			groupList.empty();
+
+    // 			$.each(rooms, function (index, room) {
+    // 				let firstLetter = room.name.charAt(0).toUpperCase();
+    // 				groupList.append(`
+    // 					<li class="group-item" data-room="${room.name}"  data-id="${room.safeId}">
+    // 						<div class="letter-avatar d-flex align-items-center justify-content-center me-2">
+    // 							${firstLetter}
+    // 						</div>
+    // 						<span>${room.name}</span>
+    // 						<span id="unread-count-${room.safeId}" class="badge bg-danger ms-2" style="display: none;"></span>
+    // 					</li>
+    // 				`);
+    // 			});
+    // 			filterGroups();
+    // 		},
+    // 		error: function (err) {
+    // 			console.error("Failed to load rooms", err);
+    // 		}
+    // 	});
+    // }
+
+    function loadRooms() {
+        $.ajax({
+            url: '/Home/GetRooms',
+            type: 'GET',
+            success: function (rooms) {
+                var groupList = $("#groupList");
+                groupList.empty();
+
+                let hasGroupHeader = false;
+                let hasUserHeader = false;
+
+                $.each(rooms, function (index, room) {
+                    let firstLetter = room.name.charAt(0).toUpperCase();
+
+                    if (room.isRoom && !hasGroupHeader) {
+                            groupList.append(`<li class="list-separator" style="background-color: #a80029;font-weight: bold;font-size: large;">Groups</li>`);
+                        hasGroupHeader = true;
+                    }
+
+                    if (!room.isRoom && !hasUserHeader) {
+                        groupList.append(`<li class="list-separator" style="background-color: #a80029;font-weight: bold;font-size: large;">Users</li>`);
+                        hasUserHeader = true;
+                    }
+
+                    groupList.append(
+                        `<li class="group-item" data-room="${room.name}" data-id="${room.safeId}" data-isRoom="${room.isRoom}">
+                            <div class="letter-avatar d-flex align-items-center justify-content-center me-2">
+                                ${firstLetter}
+                            </div>
+                            <span>${room.name}</span>
+                            <span id="unread-count-${room.safeId}" class="badge bg-danger ms-2" style="display: none;"></span>
+                        </li>`
+                    );
+                });
+
+                filterGroups();
+            },
+            error: function (err) {
+                console.error("Failed to load rooms", err);
+            }
+        });
+    }
+
+
+    $(document).on("click", ".group-item", function () {
+
+        var roomName = $(this).data("room");
+        var roomId = $(this).data("id"); // ✅ get the room ID
+        var isroom = $(this).data("isroom"); // ✅ get the room ID
+
+        console.log("roomId :"+$(`#unread-count-${roomId}`).text())
+        console.log("userId :"+roomId)
+        console.log("isroom :"+isroom)
+        $(".group-item").removeClass("active");  // remove from all
+        $(this).addClass("active");
+
+        $('.chatsection').show();
+        $('.arylogo').hide();
+
+        // Leave previous room if needed (optional)
+        if (currentRoom) {
+            connectionChat.invoke("LeaveRoom", currentRoom);
+        }
+
+        // Join new room
+        connectionChat.invoke("JoinRoom", roomName).then(() => {
+            currentRoom = roomName;
+            $("#roomName").text(" - " + roomName);
+            $("#hiddenRoomName").val(roomName);
+            $("#hiddenRoomid").val(roomId);
+            $("#isGroup").val(isroom);
+
+            $("#messagesList").empty();
+            // Load chat messages from DB via AJAX
+            loadGroupMessages(roomName, 0, true,roomId , isroom , roomId );
+
+            if(isroom == "true")
+            {
+                connectionChat.invoke("MarkMessagesAsRead", roomId)
+                .then(() => {
+                    $(`#unread-count-${roomId}`).hide();
+                });
+            }
+            else
+            {
+
+            }
+        });
+    });
+
+    $("#fontSizeDropdown").on("change", function () {
+        fontSize = parseInt($(this).val());
+        customFontSize(fontSize);
+    });
+
+    function customFontSize(size) {
+
+        $(".message-text").css("font-size", size + "px");
+    }
+
+    // function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false) {
+    // 	isLoading = true;
+    // 	$.ajax({
+    // 		url: `/Home/GetMessagesByRoom`,
+    // 		type: 'GET',
+    // 		data: { roomName: roomName, skipRecords: skipDaysParam },
+    // 		success: function(messages) {
+    // 			if (!messages || messages.length === 0) {
+    // 				allMessagesLoaded = false;
+    // 				isLoading = false;
+    // 				return;
+    // 			}
+
+    // 			const chatList = $("#messagesList");
+    // 			let scrollPosBefore = $(".card-footer")[0].scrollHeight;
+
+    // 			messages.forEach(function (msg) {
+    // 				const messageHtml = renderMessage(msg.sender, msg.message, msg.id , false, false, false, msg.messageTime);
+    // 				if (prepend) {
+    // 					chatList.prepend(messageHtml);
+    // 				} else {
+    // 					chatList.append(messageHtml);
+    // 				}
+    // 			});
+
+    // 			if (!prepend) scrollToBottom();
+    // 			else {
+    // 				let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
+    // 				$(".card-footer").scrollTop(scrollDiff);
+    // 			}
+
+    // 			isLoading = false;
+    // 		},
+    // 		error: function (error) {
+    // 			console.error("Error loading messages:", error);
+    // 			isLoading = false;
+    // 		}
+    // 	});
+    // }
+
+    function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false , roomId = 0 , isroom = false , receiverid = "") {
+        isLoading = true;
+        var unreadCount = parseInt($(`#unread-count-${roomId}`).html() || "0");
+        $.ajax({
+            url: `/Home/GetMessagesByRoom`,
+            type: 'GET',
+            data: { roomName: roomName, skipRecords: skipDaysParam, isRoom : isroom , receiverId  :  receiverid },
+            success: function(messages) {
+                if (!messages || messages.length === 0) {
+                    allMessagesLoaded = false;
+                    isLoading = false;
+                    return;
+                }
+
+                const chatList = $("#messagesList");
+                let scrollPosBefore = $(".card-footer")[0].scrollHeight;
+
+                messages.forEach(function (msg, index) {
+                    // If this is the first unread message, add a marker
+                    if (index == messages.length - unreadCount && unreadCount > 0) {
+                        chatList.append(`<div id="unread-marker" class="text-center text-muted my-2" style="font-size: large;font-family: emoji;"><hr><small><h3>New Messages</h3></small><hr></div>`);
+                    }
+
+                    const messageHtml = renderMessage(msg.sender, msg.message, msg.id, false, false, false, msg.messageTime);
+                    if (prepend) {
+                        chatList.prepend(messageHtml);
+                    } else {
+                        chatList.append(messageHtml);
+                    }
+                });
+
+                    // const marker = document.getElementById("unread-marker");
+
+                    // if (marker) {
+                    // 	marker.scrollIntoView({ behavior: "smooth", block: "center" });
+                    // }
+
+                    // Scroll to the unread marker if exists
+                    const marker = document.getElementById("unread-marker");
+                    if (marker) {
+                        marker.scrollIntoView({ behavior: "smooth", block: "start" });
+                    } else {
+                        let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
+                        $(".card-footer").scrollTop(scrollDiff);
+                    }
+
+
+                isLoading = false;
+            },
+            error: function (error) {
+                console.error("Error loading messages:", error);
+                isLoading = false;
+            }
+        });
+    }
+
+    function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false ,messagetime) {
+        console.log(`user = ${user} ,message = ${message}`)
+        var senderEmail = $("#senderEmail").val();
+        var isOwnMessage = user === senderEmail;
+        let timeStr = messagetime;
+        var userName = capitalizeFirstLetter(user);
+        var userInfo = $("<div>")
+            .addClass("d-flex ms-2")
+            .css({
+                "min-width": "120px",
+                "position": "relative",
+                "display": "flex",
+                "flex-direction": "column",
+                "text-align": "right",
+                "align-items": "flex-end"
+            })
+            .append(
+                $("<span>").addClass("fw-semibold UserIcon").text(userName[0]),
+                $("<span>").addClass("fw-semibold UserName").text(userName),
+                $("<small>").addClass("text-muted").text(userName),
+                $("<small>").addClass("text-muted").text(timeStr)
+            );
+
+        // Show edited/deleted text
+        let messageText = (message || "").replace(/\\n/g, "<br>");
+        if (isEdited && !isDeleted) {
+            messageText += " <i>(edited)</i>";
+        }
+
+        var bubble = $("<div>")
+        .addClass("msg-custom rounded px-3 py-2 position-relative")
+        .addClass(isOwnMessage ? "text-white msg" : "text-dark msg")
+        .css({
+            "max-width": "85%",
+            "min-width": "40%",
+            "background-color": isOwnMessage ? "#f5f5f5" : "#303d4f"
+        })
+        .attr("id", `message-${messageId}`)
+        .append($("<div>").addClass("message-text content").html(messageText));
+
+        // Only apply "deleted" styles if message is deleted
+        if (messageText === "Message deleted") {
+            bubble.css({
+                "opacity": ".7",
+                "cursor": "not-allowed",
+                "font-style": "italic"
+            });
+        } else {
+            // Append copy button
+            bubble.append(
+                $("<button>")
+                    .addClass("btn btn-sm btn-light copy-btn position-absolute top-0 end-0 m-1")
+                    .html('<i class="fa-solid fa-copy" aria-hidden="true"></i>')
+            );
+        }
+
+    // Add edit/delete buttons if it's your message and not deleted
+    if (isOwnMessage && messageText !== "Message deleted") {
+        bubble.append(
+            $("<div>").addClass("mt-2 d-flex gap-2 justify-content-end")
+                .append(
+                    $("<button>")
+                        .addClass("btn btn-sm btn-outline-secondary edit-btn")
+                        .html('<i class="fa-solid fa-pen-to-square"></i>')
+                        .attr("data-id", messageId)
+                        .attr("data-content", message),
+                    $("<button>")
+                        .addClass("btn btn-sm btn-outline-danger delete-btn")
+                        .html('<i class="fa-solid fa-trash"></i>')
+                        .attr("data-id", messageId)
+                )
+        );
+    }
+
+        // Flex row: bubble + user info
+        var contentWrapper = $("<div>")
+            .addClass("d-flex customClassContent")
+            .addClass(isOwnMessage ? "flex-row-reverse text-end" : "flex-row")
+            .append(bubble)
+            .append(userInfo);
+
+        // Main <li>
+        var li = $("<li>")
+            .addClass("list-group-item border-0 d-flex")
+            .addClass(isOwnMessage ? "justify-content-end" : "justify-content-start")
+            .append(contentWrapper);
+
+        return returnOnly ? li : $("#messagesList").append(li);
+    }
+
+    $(document).on("click", ".edit-btn", function () {
+        var messageId = $(this).data("id");
+        $("#editMessageId").val(messageId);
+        // var currentContent = $(this).attr("data-content");
+
+        var currentContent = $(this).attr("data-content");
+        // Convert <br> back to newline characters for editing
+        var editableText = currentContent.replace(/<br\s*\/?>/gi, "\n").replace(/\\n/g, "\n");
+        $("#editMessageText").val(editableText);
+
+        // Show the modal
+        $("#editMessageModal").modal("show");
+    });
+
+    $("#saveEditMessage").on("click", function () {
+        var messageId = $("#editMessageId").val();
+        var newContent = $("#editMessageText").val(); // keep raw text here
+        var $msg = $("#message-" + messageId);
+        newContent = ( $("#editMessageText").val().replace(/\n/g, "\\n"));
+        var oldContent = $msg.find(".edit-btn").attr("data-content");
+
+        if (newContent && newContent !== oldContent) {
+            // Send raw text with actual newlines to SignalR
+            connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom)
+                .catch(function (err) {
+                        console.error("Invoke faile:");
+                        console.error("Name:", err.name);
+                        console.error("Message:", err.message);
+                        console.error("Stack:", err.stack);
+                        console.error("Code:", err.code);
+                        console.error("Status:", err.status || err.statusCode);
+                        console.error("Cause:", err.cause);
+                        console.error("Full Error Object:", err.toString());
+                });
+
+            // Show newlines properly in UI (convert \n to <br>)
+            const formattedContent = newContent.replace(/\\n/g, "<br>");
+            $msg.find(".message-text").html(formattedContent + ' <i>(edited)</i>');
+            $msg.find(".edit-btn").attr("data-content", newContent);
+        }
+
+        $("#editMessageModal").modal("hide");
+    });
+
+    $(document).on("click", ".delete-btn", function () {
+        var messageId = $(this).data("id");
+        if (confirm("Are you sure you want to delete this message?")) {
+
+            connectionChat.invoke("DeleteMessage", parseInt(messageId), currentRoom)
+                .catch(function (err) {
+                    console.error("Delete failed:", err.toString());
+            });
+
+            const $messageBubble = $("#message-" + messageId);
+
+            if ($messageBubble.length) {
+                // Remove the entire <li> row that contains this message
+                // $messageBubble.closest("li").remove();
+            }
+        }
+    });
+
+    function scrollToBottom() {
+        var messagesBox = $('.card-footer');
+        messagesBox.scrollTop(messagesBox.prop("scrollHeight"));
+    }
+
+    function capitalizeFirstLetter(string) {
+        if(string != null && string != "" )
+        {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+        else
+        {
+            return ".";
+        }
+    }
+
+    $("#createRoom").on("click", function (e) {
+        e.preventDefault();
+
+        var newRoom = $("#newRoomName").val().trim();
+        if (!newRoom) return;
+
+        $.ajax({
+            url: '/Home/CreateRoom', // make sure the route matches your controller
+            type: 'POST',
+            data: { roomName: newRoom },
+            success: function () {
+                loadRooms(); // reload dropdown list
+                $("#newRoomName").val('');
+            },
+            error: function (xhr, status, error) {
+                console.error("Room creation failed:", error);
+            }
+        });
+    });
+
+    $("#sendMessage").on("click", function (event) {
+        event.preventDefault();
+
+        var sender = $("#senderEmail").val();
+        var message = $("#chatMessage").val();
+        var room = $("#hiddenRoomName").val().trim();
+        var chatId = $("#hiddenRoomid").val();
+        var isroom =  $("#isGroup").val();
+
+        if (!message || !room) return;
+
+        message = ( $("#chatMessage").val().replace(/\n/g, "\\n"));
+
+        if(isroom == "true")
+        {
+            connectionChat.invoke("SendMessageToRoom", room, sender, message);
+        }
+        else
+        {
+            connectionChat.invoke("SendMessageToUser", sender, chatId, message);
+        }
+        //connectionChat.invoke("SendMessageToRoom", room,  message);
+
+        setTimeout(() => {
+            customFontSize(fontSize);
+        }, 500);
+
+        $("#chatMessage").val('');
+    });
+
+    $('#chatMessage').on('keydown', function(e) {
+        if (e.which === 13) { // Enter key
+            if (e.ctrlKey) { // Ctrl+Enter → Insert new line
+                // Get current cursor position
+                var start = this.selectionStart;
+                var end = this.selectionEnd;
+
+                // Insert a new line at cursor position
+                var text = $(this).val();
+                $(this).val(
+                    text.substring(0, start) +
+                    '\n' +
+                    text.substring(end)
+                );
+
+                // Move cursor to after the new line
+                this.selectionStart = this.selectionEnd = start + 1;
+
+                return false; // Prevent default behavior
+            }
+            else { // Just Enter → Send message
+                e.preventDefault();
+                $('#sendMessage').click();
+            }
+        }
+    });
+
 </script>
