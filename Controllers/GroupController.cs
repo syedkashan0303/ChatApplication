@@ -234,7 +234,7 @@ namespace SignalRMVC.Controllers
                 return Json(new { success = false, message = "User not found." });
             }
 
-            user.LockoutEnabled = false;
+            user.LockoutEnabled = true;
             user.LockoutEnd = DateTimeOffset.Now.AddYears(10);
             //var result = await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.Now.AddYears(10));
             _context.SaveChanges();
@@ -430,25 +430,22 @@ namespace SignalRMVC.Controllers
 
                 user.FullName = model.UserName;
                 user.PhoneNumber = model.PhoneNumber;
-                user.PasswordHash = model.PasswordHash;
 
+                // Update password if provided
                 if (!string.IsNullOrEmpty(model.PasswordHash))
                 {
-                    // Update password if provided
-                    if (!string.IsNullOrEmpty(model.PasswordHash))
-                    {
+                    user.PasswordHash = model.PasswordHash;
 
-                        var token = _userManager.GeneratePasswordResetTokenAsync(user).Result;
-                        var passwordResult = _userManager.ResetPasswordAsync(user, token, user.PasswordHash).Result;
-                        if (!passwordResult.Succeeded)
+                    var token = _userManager.GeneratePasswordResetTokenAsync(user).Result;
+                    var passwordResult = _userManager.ResetPasswordAsync(user, token, user.PasswordHash).Result;
+                    if (!passwordResult.Succeeded)
+                    {
+                        foreach (var error in passwordResult.Errors)
                         {
-                            foreach (var error in passwordResult.Errors)
-                            {
-                                ModelState.AddModelError("", error.Description);
-                            }
-                            model.UserRoles = GetUserRoles().Result;
-                            return View(model);
+                            ModelState.AddModelError("", error.Description);
                         }
+                        model.UserRoles = GetUserRoles().Result;
+                        return View(model);
                     }
                 }
                 var userRole = _context.UserRoles.FirstOrDefault(x => x.UserId == user.Id && x.RoleId != model.RoleId);

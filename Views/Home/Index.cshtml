@@ -300,11 +300,9 @@
             <div class="col-md-2" style="padding: 0; max-height:100%;">
                 <div class="SideBar card shadow-lg border-0 h-100 rounded-4">
                     <div class="card-header bg-gradient bg-primary text-white rounded-top-4">
-
                         <a asp-area="" asp-controller="Home" asp-action="Index">
                             <strong><i class="bi bi-house-door-fill me-1"></i>Home</strong>
                         </a>
-
                     </div>
 
                     <div class="card-body p-3 d-flex flex-column" style="height: calc(100vh - 150px);">
@@ -317,16 +315,11 @@
                         </div>
                         @* <ul id="groupList" class="list-group flex-grow-1 overflow-auto custom-scroll"> *@
                         <ul id="groupList" class="list-group flex-grow-1 overflow-auto custom-scroll" style="height: 400px;">
-
                             <!-- Rooms will be appended here dynamically -->
                         </ul>
-
-
                     </div>
                 </div>
             </div>
-
-
 
             <div class="col-md-10 chatsection ChatRoom" style="display:none ; padding : 0px;">
                 <input type="hidden" value="" id="hiddenRoomName" disabled />
@@ -371,7 +364,7 @@
                     </div>
 
                     <div class="col-md-1" style="display: flex;flex-direction: column-reverse;">
-                        <button type="button" class="btn btn-success" id="sendMessage">Send</button>
+                        <button type="button" class="btn btn-success" id="sendMessage" aria-label="Send Message">Send</button>
                     </div>
                 </div>
 
@@ -446,43 +439,83 @@
 
         // #region Signal R methods Start
 
-            connectionChat.on("MessageEdited", function (messageId, newContent) {
-                newContent = ( newContent.replace(/\\n/g, "<br>"));
-                const $msg = $("#message-" + messageId);
-                if ($msg.length) {
-                    $msg.find(".message-text").html(newContent + " <i>(edited)</i>");
-                    $msg.find(".edit-btn").attr("data-content", newContent);
+        connectionChat.on("MessageEdited", function (messageId, newContent) {
+            newContent = ( newContent.replace(/\\n/g, "<br>"));
+            const $msg = $("#message-" + messageId);
+            if ($msg.length) {
+                $msg.find(".message-text").html(newContent + " <i>(edited)</i>");
+                $msg.find(".edit-btn").attr("data-content", newContent);
+            }
+        });
+
+        // connectionChat.on("MessageReceived", function (messageId ,user, message, messageTime ,receiver) {
+
+        //     console.log(`sender Email = ${myUserEmail} Receiver is = ${currentChatUserEmail}`);
+
+        //     console.table("MessageReceived",messageId ,user , message , messageTime , receiver);
+        //     renderMessage(user, message, messageId,false, false, false, messageTime);
+        //     // Auto-scroll to bottom of chat window
+        //     $(".card-footer").scrollTop($(".card-footer")[0].scrollHeight);
+        // });
+
+        connectionChat.on("MessageReceived", function (messageId ,user, message, messageTime ,senderId ,receiver , isGroup) {
+            const myUserEmail = $("#hiddenRoomid").val();
+            const currentChatUserEmail = $("#hiddenRoomName").val(); // hidden input holding active chat user's ID/email
+
+            if(isGroup == false)
+            {
+            const isRelevantToMe =
+                (user === currentChatUserEmail && senderId === myUserEmail) ||  // received from current chat user
+                (receiver === currentChatUserEmail && user === myUserEmail);    // sent to current chat user
+
+                console.log("MessageReceived =>", { messageId, user, message, messageTime, senderId, receiver, isGroup, currentChatUserEmail, myUserEmail });
+
+                if (!isRelevantToMe) {
+                    console.log("Ignored: message not for this chat");
+                    return;
                 }
-            });
+            }
+            renderMessage(user, message, messageId, false, false, false, messageTime);
+        });
 
-            connectionChat.on("MessageReceived", function (messageId ,user, message, messageTime ,receiver) {
+        connectionChat.on("SendMessageUser", function (messageId, user, message, messageTime, senderId, receiver, isGroup) {
+            const myUserEmail = $("#hiddenRoomid").val();
+            const currentChatUserEmail = $("#hiddenRoomName").val();
 
-                console.table("MessageReceived",messageId ,user , message , messageTime , receiver);
-                renderMessage(user, message, messageId,false, false, false, messageTime);
-                // Auto-scroll to bottom of chat window
-                $(".card-footer").scrollTop($(".card-footer")[0].scrollHeight);
-            });
+            console.log("SendMessageUser =>", { messageId, user, message, messageTime, senderId, receiver, isGroup, currentChatUserEmail, myUserEmail });
 
-            connectionChat.on("MessageDeleted", function (messageId) {
+            if(isGroup == false)
+            {
+            const isRelevantToMe = (receiver === myUserEmail);
 
-                const $messageBubble = $("#message-" + messageId);
-
-                if ($messageBubble.length) {
-                    // Remove the entire <li> row that contains this message
-                    // $messageBubble.closest("li").remove();
-                    $messageBubble.find(".fa-trash").remove();
-                    $messageBubble.find(".edit-btn").remove();
-                    $messageBubble.find(".copy-btn").remove();
-                    $messageBubble.find(".message-text").html('Message deleted');
-                    $messageBubble.css({
-                        "opacity": ".7",
-                        "cursor": "not-allowed",
-                        "font-style": "italic"
-                    });
+                if (!isRelevantToMe) {
+                    console.log("Ignored: message not for this chat");
+                    return;
                 }
-            });
+            }
+            renderMessage(user, message, messageId, false, false, false, messageTime);
+        });
 
-            connectionChat.on("Error", function (message) {
+        connectionChat.on("MessageDeleted", function (messageId) {
+
+            const $messageBubble = $("#message-" + messageId);
+
+            if ($messageBubble.length) {
+                // Remove the entire <li> row that contains this message
+                // $messageBubble.closest("li").remove();
+                $messageBubble.find(".fa-trash").remove();
+                $messageBubble.find(".edit-btn").remove();
+                $messageBubble.find(".copy-btn").remove();
+                $messageBubble.find(".message-text").html('Message deleted');
+                $messageBubble.css({
+                    "opacity": ".7",
+                    "cursor": "not-allowed",
+                    "font-style": "italic"
+                });
+            }
+        });
+
+        connectionChat.on("Error", function (message) {
                 console.error("SignalR Error from server:", message);
                 alert(message); // Optional
             });
@@ -493,6 +526,8 @@
             console.log("✅ SignalR connected");
 
             connectionChat.on("ReceiveUnreadCount", function (roomId, roomName, count) {
+
+                console.log("ReceiveUnreadCount =>", {roomId, roomName, count})
                 const badge = document.getElementById(`unread-count-${roomId}`);
                 if (badge) {
                     badge.textContent = count > 0 ? count : '';
@@ -505,6 +540,8 @@
                 .then(data => {
                     if (Array.isArray(data)) {
                         data.forEach(room => {
+                            // console.log("GetUnreadMessageCounts =>", {room.roomId, room.count})
+
                             const badge = document.getElementById(`unread-count-${room.roomId}`);
                             if (badge) {
                                 badge.textContent = room.count > 0 ? room.count : '';
@@ -545,7 +582,6 @@
         if ($(this).scrollTop() == 0 && !isLoading && !allMessagesLoaded) {
             skipDays += 1;
             console.log("scrollTop :"+$(this).scrollTop())
-
             loadGroupMessages(currentRoom, skipDays, true, $("#isGroup").val() ,  $("#hiddenRoomid").val()); // load more
         }
     });
@@ -684,16 +720,12 @@
         });
     }
 
-
     $(document).on("click", ".group-item", function () {
 
         var roomName = $(this).data("room");
         var roomId = $(this).data("id"); // ✅ get the room ID
         var isroom = $(this).data("isroom"); // ✅ get the room ID
 
-        console.log("roomId :"+$(`#unread-count-${roomId}`).text())
-        console.log("userId :"+roomId)
-        console.log("isroom :"+isroom)
         $(".group-item").removeClass("active");  // remove from all
         $(this).addClass("active");
 
@@ -714,10 +746,12 @@
             $("#isGroup").val(isroom);
 
             $("#messagesList").empty();
+
+            console.log($("#hiddenRoomid").val())
             // Load chat messages from DB via AJAX
             loadGroupMessages(roomName, 0, true,roomId , isroom , roomId );
 
-            if(isroom == "true")
+            if(isroom === true)
             {
                 connectionChat.invoke("MarkMessagesAsRead", roomId)
                 .then(() => {
@@ -726,7 +760,10 @@
             }
             else
             {
-
+                connectionChat.invoke("P_To_P_MarkMessagesAsRead", roomId)
+                .then(() => {
+                    $(`#unread-count-${roomId}`).hide();
+                });
             }
         });
     });
@@ -740,46 +777,6 @@
 
         $(".message-text").css("font-size", size + "px");
     }
-
-    // function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false) {
-    // 	isLoading = true;
-    // 	$.ajax({
-    // 		url: `/Home/GetMessagesByRoom`,
-    // 		type: 'GET',
-    // 		data: { roomName: roomName, skipRecords: skipDaysParam },
-    // 		success: function(messages) {
-    // 			if (!messages || messages.length === 0) {
-    // 				allMessagesLoaded = false;
-    // 				isLoading = false;
-    // 				return;
-    // 			}
-
-    // 			const chatList = $("#messagesList");
-    // 			let scrollPosBefore = $(".card-footer")[0].scrollHeight;
-
-    // 			messages.forEach(function (msg) {
-    // 				const messageHtml = renderMessage(msg.sender, msg.message, msg.id , false, false, false, msg.messageTime);
-    // 				if (prepend) {
-    // 					chatList.prepend(messageHtml);
-    // 				} else {
-    // 					chatList.append(messageHtml);
-    // 				}
-    // 			});
-
-    // 			if (!prepend) scrollToBottom();
-    // 			else {
-    // 				let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
-    // 				$(".card-footer").scrollTop(scrollDiff);
-    // 			}
-
-    // 			isLoading = false;
-    // 		},
-    // 		error: function (error) {
-    // 			console.error("Error loading messages:", error);
-    // 			isLoading = false;
-    // 		}
-    // 	});
-    // }
 
     function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false , roomId = 0 , isroom = false , receiverid = "") {
         isLoading = true;
@@ -838,7 +835,6 @@
     }
 
     function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false ,messagetime) {
-        console.log(`user = ${user} ,message = ${message}`)
         var senderEmail = $("#senderEmail").val();
         var isOwnMessage = user === senderEmail;
         let timeStr = messagetime;
