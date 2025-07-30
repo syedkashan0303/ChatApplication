@@ -73,3 +73,8 @@
 /obj/Release/net8.0/SignalRMVC.genpublishdeps.cache
 /bin/Release/net8.0/SignalRMVC.deps.json
 /obj/Release/net8.0/PubTmp/Out/SignalRMVC.deps.json
+/obj
+/obj/Debug/net8.0/rjsmcshtml.dswa.cache.json
+/obj/Debug/net8.0/rjsmrazor.dswa.cache.json
+/obj/Debug/net8.0/staticwebassets.build.json.cache
+/obj/SignalRMVC.csproj.nuget.dgspec.json
