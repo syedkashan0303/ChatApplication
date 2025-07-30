@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.DotNet.Scaffolding.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using NuGet.Protocol.Plugins;
 using SignalRMVC.Areas.Identity.Data;
@@ -25,6 +26,7 @@ namespace SignalRMVC
             _context = context;
             _scopeFactory = scopeFactory;
         }
+        // Called when a client connects to the hub. Tracks activity and retrieves user roles.
         public override async Task OnConnectedAsync()
         {
             try
@@ -43,11 +45,13 @@ namespace SignalRMVC
             }
         }
 
+        // Forces all connected clients to logout by sending a redirect message.
         public async Task ForceLogout()
         {
             await Clients.All.SendAsync("RedirectToLogin");
         }
 
+        // Retrieves the current user's ID from the connection context.
         public string GetUserId()
         {
             var httpContext = Context.GetHttpContext();
@@ -57,6 +61,7 @@ namespace SignalRMVC
             return userId;
         }
 
+        // Gets the roles assigned to a user by their user ID.
         public async Task<IList<string>> GetUserRoles(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
@@ -64,7 +69,8 @@ namespace SignalRMVC
             return roles;
         }
 
-        public async Task EditMessage(int messageId, string newContent, string roomName)
+        // Allows a user to edit their own message in a chat room and logs the edit.
+        public async Task EditMessage(int messageId, string newContent, string roomName , string chatUserId = "")
         {
             var userId = GetUserId();
             try
@@ -73,34 +79,71 @@ namespace SignalRMVC
 
                 using var scope = _scopeFactory.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var message = await context.ChatMessages.FindAsync(messageId);
-                if (message == null)
+
+                if (!string.IsNullOrEmpty(chatUserId))
                 {
-                    await LogAsync(userId, "EditMessage", " message is null");
+                    var usersMessage = await context.UsersMessage.FindAsync(messageId);
+                    if (usersMessage == null)
+                    {
+                        await LogAsync(userId, "EditMessage", " message is null");
 
-                    await Clients.Caller.SendAsync("Error", "Message not found.");
-                    return;
+                        await Clients.Caller.SendAsync("Error", "Message not found.");
+                        return;
+                    }
+
+                    if (usersMessage.SenderId != userId || usersMessage.ReceiverId != chatUserId)
+                    {
+                        await LogAsync(userId, "EditMessage", " (SenderId is not match with login customer)");
+                        await Clients.Caller.SendAsync("Error", "Unauthorized to edit this message.");
+                        return;
+                    }
+                    var messageLogs = new EditedMessagesLog();
+                    messageLogs.MessageId = messageId;
+                    messageLogs.Message = usersMessage.Message;
+                    messageLogs.EditedBy = userId;
+                    messageLogs.EditedOn = DateTime.Now;
+                    messageLogs.GroupName = userId + " ==> "+ chatUserId;
+                    context.EditedtMessagesLogs.Add(messageLogs);
+                    context.SaveChanges();
+
+                    usersMessage.Message = newContent;
+                    await context.SaveChangesAsync();
+
+                    await Clients.User(chatUserId).SendAsync("MessageEdited", messageId, newContent);
+
                 }
-
-                if (message.SenderId != userId)
+                else
                 {
-                    await LogAsync(userId, "EditMessage", " (SenderId is not match with login customer)");
-                    await Clients.Caller.SendAsync("Error", "Unauthorized to edit this message.");
-                    return;
+                    var message = await context.ChatMessages.FindAsync(messageId);
+                    if (message == null)
+                    {
+                        await LogAsync(userId, "EditMessage", " message is null");
+
+                        await Clients.Caller.SendAsync("Error", "Message not found.");
+                        return;
+                    }
+
+                    if (message.SenderId != userId)
+                    {
+                        await LogAsync(userId, "EditMessage", " (SenderId is not match with login customer)");
+                        await Clients.Caller.SendAsync("Error", "Unauthorized to edit this message.");
+                        return;
+                    }
+                    var msgLogs = new EditedMessagesLog();
+                    msgLogs.MessageId = messageId;
+                    msgLogs.Message = message.Message;
+                    msgLogs.EditedBy = userId;
+                    msgLogs.EditedOn = DateTime.Now;
+                    msgLogs.GroupName = roomName;
+                    context.EditedtMessagesLogs.Add(msgLogs);
+                    context.SaveChanges();
+
+                    message.Message = newContent;
+                    await context.SaveChangesAsync();
+
+                    await Clients.Group(roomName).SendAsync("MessageEdited", messageId, newContent);
                 }
-                var msgLogs = new EditedMessagesLog();
-                msgLogs.MessageId = messageId;
-                msgLogs.Message = message.Message;
-                msgLogs.EditedBy = userId;
-                msgLogs.EditedOn = DateTime.Now;
-                msgLogs.GroupName = roomName;
-                context.EditedtMessagesLogs.Add(msgLogs);
-                context.SaveChanges();
-
-                message.Message = newContent;
-                await context.SaveChangesAsync();
-
-                await Clients.Group(roomName).SendAsync("MessageEdited", messageId, newContent);
+              
             }
             catch (Exception ex)
             {
@@ -109,31 +152,52 @@ namespace SignalRMVC
             }
         }
 
-        public async Task DeleteMessage(int messageId, string roomName)
+        // Allows a user to delete their own message in a chat room.
+        public async Task DeleteMessage(int messageId, string roomName, string chatUserId = "")
         {
             var userId = "";
             try
             {
                 AppHealthTracker.UpdateActivity();
-
                 userId = GetUserId();
-
                 using var scope = _scopeFactory.CreateScope();
                 var _context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var message = await _context.ChatMessages.FindAsync(messageId);
-                if (message == null)
+                if (!string.IsNullOrEmpty(chatUserId))
                 {
-                    await Clients.Caller.SendAsync("Error", "Message not found in database.");
-                    return;
+                    var message = await _context.UsersMessage.FindAsync(messageId);
+                    if (message == null)
+                    {
+                        await Clients.Caller.SendAsync("Error", "Message not found in database.");
+                        return;
+                    }
+                    if (message.SenderId != userId)
+                    {
+                        await Clients.Caller.SendAsync("Error", "You are not allowed to delete this message.");
+                        return;
+                    }
+                    message.IsDelete = true;
+                    await _context.SaveChangesAsync();
+
+                    await Clients.Group(roomName).SendAsync("MessageDeleted", messageId);
+                    await Clients.User(chatUserId).SendAsync("UserMessageDeleted", messageId);
                 }
-                if (message.SenderId != userId)
+                else
                 {
-                    await Clients.Caller.SendAsync("Error", "You are not allowed to delete this message.");
-                    return;
+                    var message = await _context.ChatMessages.FindAsync(messageId);
+                    if (message == null)
+                    {
+                        await Clients.Caller.SendAsync("Error", "Message not found in database.");
+                        return;
+                    }
+                    if (message.SenderId != userId)
+                    {
+                        await Clients.Caller.SendAsync("Error", "You are not allowed to delete this message.");
+                        return;
+                    }
+                    message.IsDelete = true;
+                    await _context.SaveChangesAsync();
+                    await Clients.Group(roomName).SendAsync("MessageDeleted", messageId);
                 }
-                message.IsDelete = true;
-                await _context.SaveChangesAsync();
-                await Clients.Group(roomName).SendAsync("MessageDeleted", messageId);
             }
             catch (Exception ex)
             {
@@ -145,8 +209,10 @@ namespace SignalRMVC
 
         #region Group / Room working
 
+        // List of groups joined by connections (used for group management).
         public static List<string> GroupsJoined { get; set; } = new List<string>();
 
+        // Adds the current user to a SignalR group based on their role.
         [Authorize]
         public async Task JoinGroup(string sender)
         {
@@ -160,63 +226,21 @@ namespace SignalRMVC
             }
         }
 
+        // Adds the current connection to a chat room group.
         public async Task JoinRoom(string roomName)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, roomName);
             //await Clients.Group(roomName).SendAsync("MessageReceived", "System", $"A new user has joined room: {roomName}");
         }
 
+        // Removes the current connection from a chat room group.
         public async Task LeaveRoom(string roomName)
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomName);
             //await Clients.Group(roomName).SendAsync("MessageReceived", "System", $"A user has left room: {roomName}");
         }
 
-        //public async Task SendMessageToRoom(string roomName, string user, string message)
-        //{
-        //    var messageId = 0;
-        //    var messageTime = "";
-        //    var senderUser = await _userManager.FindByNameAsync(user);
-
-        //    if (senderUser != null)
-        //    {
-        //        var chatMessage = new ChatMessage
-        //        {
-        //            SenderId = senderUser?.Id,
-        //            ReceiverId = null,
-        //            Message = message,
-        //            GroupName = roomName,
-        //            CreatedOn = DateTime.Now
-        //        };
-
-        //        _context.ChatMessages.Add(chatMessage);
-        //        await _context.SaveChangesAsync();
-
-        //        messageId = chatMessage.Id;
-        //        messageTime = chatMessage.CreatedOn.Value.ToString("ddd hh:mm tt");
-
-        //        // Get users in the group (except sender)
-        //        var usersInRoom = await _context.Users
-        //            .Where(u => u.Id != senderUser.Id)
-        //            .ToListAsync();
-
-        //        foreach (var userInRoom in usersInRoom)
-        //        {
-        //            _context.ChatMessageReadStatuses.Add(new ChatMessageReadStatus
-        //            {
-        //                ChatMessageId = chatMessage.Id,
-        //                UserId = userInRoom.Id,
-        //                IsRead = false
-        //            });
-        //        }
-        //        await _context.SaveChangesAsync();
-        //    }
-
-        //    await Clients.Group(roomName).SendAsync("MessageReceived", messageId, user, message, messageTime);
-
-
-        //}
-
+        // Sends a message to all users in a chat room and updates unread message status.
         public async Task SendMessageToRoom(string roomName, string user, string message)
         {
             var userId = GetUserId(); // Your method to get current user ID
@@ -275,6 +299,7 @@ namespace SignalRMVC
             }
         }
 
+        // Sends a direct message from one user to another and updates unread status.
         public async Task SendMessageToUser(string user, string receiver, string message)
         {
             var userId = GetUserId();
@@ -332,6 +357,7 @@ namespace SignalRMVC
             }
         }
 
+        // Marks all messages as read for the current user in a specific room.
         public async Task MarkMessagesAsRead(int roomId)
         {
             AppHealthTracker.UpdateActivity();
@@ -360,11 +386,12 @@ namespace SignalRMVC
             await _context.SaveChangesAsync();
         }
 
+        // Marks all direct messages as read between the current user and another user.
         public async Task P_To_P_MarkMessagesAsRead(string UserId)
         {
-            AppHealthTracker.UpdateActivity();
+            //AppHealthTracker.UpdateActivity();
 
-            var senderId = GetUserId();
+            var Receiver = GetUserId();
 
             var roomName = await _context.Users
                 .Where(r => r.Id == UserId)
@@ -374,7 +401,7 @@ namespace SignalRMVC
                 return; // or handle error
 
             var unreadMessages = await _context.UsersMessageReadStatus
-                .Where(s => s.SenderId == senderId && s.ReceiverId == UserId)
+                .Where(s => s.SenderId == UserId && s.ReceiverId == Receiver)
                 .ToListAsync();
 
             foreach (var status in unreadMessages)
@@ -386,34 +413,7 @@ namespace SignalRMVC
             await _context.SaveChangesAsync();
         }
 
-        //public async Task MarkMessagesAsReadPersonalChat(string userGuid)
-        //{
-        //    AppHealthTracker.UpdateActivity();
-
-        //    var userId = GetUserId();
-
-        //    var roomName = await _context.ChatRoom
-        //        .Where(r => r.Id == roomId)
-        //        .Select(r => r.Name)
-        //        .FirstOrDefaultAsync();
-
-        //    if (roomName == null)
-        //        return; // or handle error
-
-        //    var unreadMessages = await _context.ChatMessageReadStatuses
-        //        .Where(s => s.UserId == userId
-        //                    && s.ChatMessage.GroupName == roomName)
-        //        .ToListAsync();
-
-        //    foreach (var status in unreadMessages)
-        //    {
-        //        //status.IsRead = true;
-        //        //status.ReadOn = DateTime.Now;
-        //        _context.Remove(status);
-        //    }
-        //    await _context.SaveChangesAsync();
-        //}
-
+        // Retrieves the count of unread messages for the current user in all rooms and personal chats.
         public async Task GetUnreadMessageCounts()
         {
             var userId = GetUserId();
@@ -457,6 +457,7 @@ namespace SignalRMVC
             }
         }
 
+        // Broadcasts unread message counts to users in a room or for direct messages.
         public async Task BroadcastUnreadCount(string roomName = "" , string SenderId = "")
         {
 
@@ -492,10 +493,10 @@ namespace SignalRMVC
                              join sender in _context.Users on chatMsg.SenderId equals sender.Id
                              where status.ReceiverId == chatMsg.ReceiverId && 
                              status.SenderId == SenderId && !status.IsRead
-                             group status by new { sender.Id, sender.UserName } into g
+                             group status by new { sender.Id, sender.UserName, chatMsg.ReceiverId } into g
                              select new
                              {
-                                 UserId = g.Key.Id,
+                                 UserId = g.Key.ReceiverId,
                                  RoomId = g.Key.Id,
                                  RoomName = g.Key.UserName,
                                  Count = g.Count()
@@ -513,57 +514,7 @@ namespace SignalRMVC
             }
         }
 
-        //public async Task BroadcastUnreadCount(string roomName = "", string userId = "")
-        //{
-        //    var unreadCounts = new List<(string roomId, string roomName, int count)>();
-
-        //    if (!string.IsNullOrEmpty(roomName))
-        //    {
-        //        var room = await _context.ChatRoom.FirstOrDefaultAsync(r => r.Name == roomName);
-        //        if (room == null) return;
-
-        //        var groupUnreadCounts = await (
-        //            from status in _context.ChatMessageReadStatuses
-        //            join chatMsg in _context.ChatMessages on status.ChatMessageId equals chatMsg.Id
-        //            where !status.IsRead && chatMsg.GroupName == roomName
-        //            group status by status.UserId into g
-        //            select new
-        //            {
-        //                UserId = g.Key,
-        //                Count = g.Count()
-        //            }
-        //        ).ToListAsync();
-
-        //        unreadCounts.AddRange(groupUnreadCounts.Select(x => (roomId: room.Id.ToString(), roomName: roomName, count: x.Count)));
-        //    }
-
-        //    if (!string.IsNullOrEmpty(userId))
-        //    {
-        //        var personalUnreadCounts = await (
-        //            from status in _context.UsersMessageReadStatus
-        //            join chatMsg in _context.UsersMessage on status.ChatMessageId equals chatMsg.Id
-        //            join sender in _context.Users on chatMsg.SenderId equals sender.Id
-        //            where status.ReceiverId == userId && !status.IsRead
-        //            group status by new { sender.Id, sender.UserName } into g
-        //            select new
-        //            {
-        //                UserId = g.Key.Id,
-        //                roomName = g.Key.UserName,
-        //                Count = g.Count()
-        //            }
-        //        ).ToListAsync();
-
-        //        unreadCounts.AddRange(personalUnreadCounts.Select(x => (roomId: x.UserId, roomName: roomName, count: x.Count)));
-        //    }
-
-        //    foreach (var item in unreadCounts)
-        //    {
-        //        await Clients.User(item.roomId).SendAsync("ReceiveUnreadCount", item.roomId, item.roomName, item.count);
-        //    }
-        //}
-
-        #endregion
-
+        // Logs chat actions and events to the database.
         public async Task LogAsync(string userId, string actionName, string details = null)
         {
             var log = new ChatLog
@@ -577,5 +528,6 @@ namespace SignalRMVC
             await _context.SaveChangesAsync();
         }
 
+        #endregion
     }
 }

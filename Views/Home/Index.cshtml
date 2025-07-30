@@ -459,34 +459,37 @@
         // });
 
         connectionChat.on("MessageReceived", function (messageId ,user, message, messageTime ,senderId ,receiver , isGroup) {
-            const myUserEmail = $("#hiddenRoomid").val();
+            var myUserEmail = $("#hiddenRoomid").val();
+            // var myUserEmail = receiver;
             const currentChatUserEmail = $("#hiddenRoomName").val(); // hidden input holding active chat user's ID/email
 
             if(isGroup == false)
             {
-            const isRelevantToMe =
-                (user === currentChatUserEmail && senderId === myUserEmail) ||  // received from current chat user
-                (receiver === currentChatUserEmail && user === myUserEmail);    // sent to current chat user
+                const isRelevantToMe =
+                    (user === currentChatUserEmail && senderId === myUserEmail) ||  // received from current chat user
+                    (receiver === currentChatUserEmail && user === myUserEmail);    // sent to current chat user
 
-                console.log("MessageReceived =>", { messageId, user, message, messageTime, senderId, receiver, isGroup, currentChatUserEmail, myUserEmail });
+                // const isRelevantToMe = (receiver === myUserEmail);    // sent to current chat user
 
-                if (!isRelevantToMe) {
-                    console.log("Ignored: message not for this chat");
-                    return;
-                }
+                    console.log("MessageReceived =>", { messageId, user, message, messageTime, senderId, receiver, isGroup, currentChatUserEmail, myUserEmail });
+
+                    if (!isRelevantToMe) {
+                        console.log("Ignored: message not for this chat");
+                        return;
+                    }
             }
             renderMessage(user, message, messageId, false, false, false, messageTime);
         });
 
         connectionChat.on("SendMessageUser", function (messageId, user, message, messageTime, senderId, receiver, isGroup) {
-            const myUserEmail = $("#hiddenRoomid").val();
+            var myUserEmail = $("#hiddenRoomid").val();
             const currentChatUserEmail = $("#hiddenRoomName").val();
 
             console.log("SendMessageUser =>", { messageId, user, message, messageTime, senderId, receiver, isGroup, currentChatUserEmail, myUserEmail });
 
             if(isGroup == false)
             {
-            const isRelevantToMe = (receiver === myUserEmail);
+                const isRelevantToMe = (receiver === myUserEmail);
 
                 if (!isRelevantToMe) {
                     console.log("Ignored: message not for this chat");
@@ -514,6 +517,22 @@
                 });
             }
         });
+
+        connectionChat.on("UserMessageDeleted", function (messageId) {
+            const $messageBubble = $("#message-" + messageId);
+            if ($messageBubble.length) {
+                $messageBubble.find(".fa-trash").remove();
+                $messageBubble.find(".edit-btn").remove();
+                $messageBubble.find(".copy-btn").remove();
+                $messageBubble.find(".message-text").html('Message deleted');
+                $messageBubble.css({
+                    "opacity": ".7",
+                    "cursor": "not-allowed",
+                    "font-style": "italic"
+                });
+            }
+        });
+
 
         connectionChat.on("Error", function (message) {
                 console.error("SignalR Error from server:", message);
@@ -576,6 +595,7 @@
 
         // #region Signal R methods End
     });
+
     // Scroll-to-top detection for loading older messages
     $(".card-footer").on("scroll", function () {
 
@@ -648,34 +668,6 @@
             }
         });
     }
-
-    // function loadRooms() {
-    // 	$.ajax({
-    // 		url: '/Home/GetRooms',
-    // 		type: 'GET',
-    // 		success: function (rooms) {
-    // 			var groupList = $("#groupList");
-    // 			groupList.empty();
-
-    // 			$.each(rooms, function (index, room) {
-    // 				let firstLetter = room.name.charAt(0).toUpperCase();
-    // 				groupList.append(`
-    // 					<li class="group-item" data-room="${room.name}"  data-id="${room.safeId}">
-    // 						<div class="letter-avatar d-flex align-items-center justify-content-center me-2">
-    // 							${firstLetter}
-    // 						</div>
-    // 						<span>${room.name}</span>
-    // 						<span id="unread-count-${room.safeId}" class="badge bg-danger ms-2" style="display: none;"></span>
-    // 					</li>
-    // 				`);
-    // 			});
-    // 			filterGroups();
-    // 		},
-    // 		error: function (err) {
-    // 			console.error("Failed to load rooms", err);
-    // 		}
-    // 	});
-    // }
 
     function loadRooms() {
         $.ajax({
@@ -939,14 +931,20 @@
 
     $("#saveEditMessage").on("click", function () {
         var messageId = $("#editMessageId").val();
+        var messageId = $("#editMessageId").val();
         var newContent = $("#editMessageText").val(); // keep raw text here
         var $msg = $("#message-" + messageId);
         newContent = ( $("#editMessageText").val().replace(/\n/g, "\\n"));
         var oldContent = $msg.find(".edit-btn").attr("data-content");
 
         if (newContent && newContent !== oldContent) {
-            // Send raw text with actual newlines to SignalR
-            connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom)
+
+        var isroom =  $("#isGroup").val();
+        var chatUserId =  $("#hiddenRoomid").val();
+        console.log("EditMsg ==>", {isroom , chatUserId});
+        if(isroom == "true")
+        {
+            connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom, "")
                 .catch(function (err) {
                         console.error("Invoke faile:");
                         console.error("Name:", err.name);
@@ -957,6 +955,24 @@
                         console.error("Cause:", err.cause);
                         console.error("Full Error Object:", err.toString());
                 });
+        }
+        else
+        {
+            connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom, chatUserId)
+                .catch(function (err) {
+                        console.error("Invoke faile:");
+                        console.error("Name:", err.name);
+                        console.error("Message:", err.message);
+                        console.error("Stack:", err.stack);
+                        console.error("Code:", err.code);
+                        console.error("Status:", err.status || err.statusCode);
+                        console.error("Cause:", err.cause);
+                        console.error("Full Error Object:", err.toString());
+                });
+        }
+
+            // Send raw text with actual newlines to SignalR
+            
 
             // Show newlines properly in UI (convert \n to <br>)
             const formattedContent = newContent.replace(/\\n/g, "<br>");
@@ -969,12 +985,23 @@
 
     $(document).on("click", ".delete-btn", function () {
         var messageId = $(this).data("id");
+        var isroom =  $("#isGroup").val();
+        var chatUserId =  $("#hiddenRoomid").val();
         if (confirm("Are you sure you want to delete this message?")) {
-
-            connectionChat.invoke("DeleteMessage", parseInt(messageId), currentRoom)
-                .catch(function (err) {
-                    console.error("Delete failed:", err.toString());
-            });
+            if(isroom == "true")
+            {
+                connectionChat.invoke("DeleteMessage", parseInt(messageId), currentRoom ,"")
+                    .catch(function (err) {
+                     console.error("Delete failed:", err.toString());
+                });
+            }
+            else
+            {
+                connectionChat.invoke("DeleteMessage", parseInt(messageId), currentRoom, chatUserId)
+                    .catch(function (err) {
+                     console.error("Delete failed:", err.toString());
+                });
+            }
 
             const $messageBubble = $("#message-" + messageId);
 
