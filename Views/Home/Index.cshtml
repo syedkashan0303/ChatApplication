@@ -768,6 +768,15 @@
     function customFontSize(size) {
 
         $(".message-text").css("font-size", size + "px");
+        if(size >= 22 )
+        {
+            $(".message-text").css("line-height", size + 15 + "px");
+        }
+        else
+        {
+            $(".message-text").css("line-height", size + 8 + "px");
+        }
+
     }
 
     function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false , roomId = 0 , isroom = false , receiverid = "") {

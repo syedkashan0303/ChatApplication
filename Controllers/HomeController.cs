@@ -143,7 +143,7 @@ namespace SignalRMVC.Controllers
                                      sender = user.UserName, // Or use user.UserName or FullName if you have it
                                      message = message.IsDelete ? "Message deleted" : message.Message,
                                      createdOn = message.CreatedOn,
-                                     messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("hh:mm tt") : DateTime.Now.ToString("hh : mm tt")
+                                     messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt") : DateTime.Now.ToString("dd-MM-yy hh:mm tt")
                                  }
                              )
                              .ToList().OrderBy(x => x.id);
@@ -164,7 +164,7 @@ namespace SignalRMVC.Controllers
                          sender = user.UserName, // Or use user.UserName or FullName if you have it
                          message = message.IsDelete ? "Message deleted" : message.Message,
                          createdOn = message.CreatedOn,
-                         messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("hh:mm tt") : DateTime.Now.ToString("hh : mm tt")
+                         messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt") : DateTime.Now.ToString("dd-MM-yy hh:mm tt")
                      }
                  )
                  .ToList().OrderBy(x => x.id);

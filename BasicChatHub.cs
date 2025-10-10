@@ -263,7 +263,7 @@ namespace SignalRMVC
                 _context.ChatMessages.Add(chatMessage);
                 await _context.SaveChangesAsync();
                 messageId = chatMessage.Id;
-                messageTime = chatMessage.CreatedOn.Value.ToString("ddd hh:mm tt");
+                messageTime = chatMessage.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt");
                 // Create unread status entries for other users in group
                 var room = await _context.ChatRoom.FirstOrDefaultAsync(r => r.Name == roomName);
                 if (room != null)
@@ -330,7 +330,7 @@ namespace SignalRMVC
                         await _context.SaveChangesAsync();
 
                         messageId = chatMessage.Id;
-                        messageTime = chatMessage.CreatedOn.Value.ToString("ddd hh:mm tt");
+                        messageTime = chatMessage.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt");
 
                         var readStatuses = new UsersMessageReadStatus
                         {
