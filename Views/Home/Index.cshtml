@@ -479,6 +479,7 @@
                     }
             }
             renderMessage(user, message, messageId, false, false, false, messageTime);
+            moveChatToTop(isGroup ? receiver : senderId, isGroup);
         });
 
         connectionChat.on("SendMessageUser", function (messageId, user, message, messageTime, senderId, receiver, isGroup) {
@@ -541,57 +542,124 @@
 
         // Start SignalR connection once DOM is ready
 
-        connectionChat.start().then(function () {
-            console.log("✅ SignalR connected");
+        // connectionChat.start().then(function () {
+        //     console.log("✅ SignalR connected");
 
-            connectionChat.on("ReceiveUnreadCount", function (roomId, roomName, count) {
+        //     connectionChat.on("ReceiveUnreadCount", function (roomId, roomName, count) {
 
-                console.log("ReceiveUnreadCount =>", {roomId, roomName, count})
-                const badge = document.getElementById(`unread-count-${roomId}`);
-                if (badge) {
-                    badge.textContent = count > 0 ? count : '';
-                    badge.style.display = count > 0 ? 'inline-block' : 'none';
+        //         console.log("ReceiveUnreadCount =>", {roomId, roomName, count})
+        //         const badge = document.getElementById(`unread-count-${roomId}`);
+        //         if (badge) {
+        //             badge.textContent = count > 0 ? count : '';
+        //             badge.style.display = count > 0 ? 'inline-block' : 'none';
+        //         }
+        //     });
+
+        //     // Load unread message counts
+        //     connectionChat.invoke("GetUnreadMessageCounts")
+        //         .then(data => {
+        //             if (Array.isArray(data)) {
+        //                 data.forEach(room => {
+        //                     // console.log("GetUnreadMessageCounts =>", {room.roomId, room.count})
+
+        //                     const badge = document.getElementById(`unread-count-${room.roomId}`);
+        //                     if (badge) {
+        //                         badge.textContent = room.count > 0 ? room.count : '';
+        //                         badge.style.display = room.count > 0 ? 'inline-block' : 'none';
+        //                     }
+        //                 });
+        //             } else {
+        //                 console.warn("⚠️ No unread count data received or invalid format:", data);
+        //             }
+        //         })
+        //         .catch(err => {
+        //             console.error("❌ Error loading unread counts:", err);
+        //         });
+
+
+        //     // Auto-join the first room if available
+        //     const firstRoom = $("#groupList .group-item").first().data("room");
+        //     if (firstRoom) {
+        //         connectionChat.invoke("JoinRoom", firstRoom).then(() => {
+        //             currentRoom = firstRoom;
+        //             $("#roomName").text(" - " + firstRoom);
+        //             $("#hiddenRoomName").val(firstRoom);
+        //             $("#messagesList").empty();
+        //             loadGroupMessages(firstRoom);
+        //         });
+        //     } else {
+        //         console.warn("⚠️ No room to join on load.");
+        //     }
+        // }).catch(function (err) {
+        //     console.error("❌ SignalR connection failed:", err);
+        // });
+
+
+     connectionChat.start().then(function () {
+        console.log("✅ SignalR connected");
+
+        // 🔹 On real-time unread count update
+        connectionChat.on("ReceiveUnreadCount", function (roomId, roomName, count , isRoom) {
+            console.log("ReceiveUnreadCount =>", { roomId, roomName, count  , isRoom});
+
+            const badge = document.getElementById(`unread-count-${roomId}`);
+            if (badge) {
+                badge.textContent = count > 0 ? count : '';
+                badge.style.display = count > 0 ? 'inline-block' : 'none';
+            }
+
+            // Move to top if unread > 0
+            if (count > 0) {
+                    const isRoom = $(`li.group-item[data-id='${roomId}']`).data("isroom");
+                    moveChatToTop(roomId, isRoom);
+                    sortChatListByUnread();
+              // keep unread sorted
+            }
+        });
+
+        // 🔹 Load unread message counts on startup
+        connectionChat.invoke("GetUnreadMessageCounts")
+            .then(data => {
+                if (Array.isArray(data)) {
+                    data.forEach(room => {
+                        const badge = document.getElementById(`unread-count-${room.roomId}`);
+                        if (badge) {
+                            badge.textContent = room.count > 0 ? room.count : '';
+                            badge.style.display = room.count > 0 ? 'inline-block' : 'none';
+                        }
+                    if (room.count > 0) {
+                        const isRoom = $(`li.group-item[data-id='${room.roomId}']`).data("isroom");
+                        moveChatToTop(room.roomId, isRoom);
+                    }
+                    });
+
+                    // ✅ After initial unread load, sort list
+                    sortChatListByUnread();
+                } else {
+                    console.warn("⚠️ No unread count data received or invalid format:", data);
                 }
+            })
+            .catch(err => {
+                console.error("❌ Error loading unread counts:", err);
             });
 
-            // Load unread message counts
-            connectionChat.invoke("GetUnreadMessageCounts")
-                .then(data => {
-                    if (Array.isArray(data)) {
-                        data.forEach(room => {
-                            // console.log("GetUnreadMessageCounts =>", {room.roomId, room.count})
+        // Auto-join first room
+        const firstRoom = $("#groupList .group-item").first().data("room");
+        if (firstRoom) {
+            connectionChat.invoke("JoinRoom", firstRoom).then(() => {
+                currentRoom = firstRoom;
+                $("#roomName").text(" - " + firstRoom);
+                $("#hiddenRoomName").val(firstRoom);
+                $("#messagesList").empty();
+                loadGroupMessages(firstRoom);
+            });
+        } else {
+            console.warn("⚠️ No room to join on load.");
+        }
+    }).catch(function (err) {
+        console.error("❌ SignalR connection failed:", err);
+    });
 
-                            const badge = document.getElementById(`unread-count-${room.roomId}`);
-                            if (badge) {
-                                badge.textContent = room.count > 0 ? room.count : '';
-                                badge.style.display = room.count > 0 ? 'inline-block' : 'none';
-                            }
-                        });
-                    } else {
-                        console.warn("⚠️ No unread count data received or invalid format:", data);
-                    }
-                })
-                .catch(err => {
-                    console.error("❌ Error loading unread counts:", err);
-                });
-
-
-            // Auto-join the first room if available
-            const firstRoom = $("#groupList .group-item").first().data("room");
-            if (firstRoom) {
-                connectionChat.invoke("JoinRoom", firstRoom).then(() => {
-                    currentRoom = firstRoom;
-                    $("#roomName").text(" - " + firstRoom);
-                    $("#hiddenRoomName").val(firstRoom);
-                    $("#messagesList").empty();
-                    loadGroupMessages(firstRoom);
-                });
-            } else {
-                console.warn("⚠️ No room to join on load.");
-            }
-        }).catch(function (err) {
-            console.error("❌ SignalR connection failed:", err);
-        });
 
         // #region Signal R methods End
     });
@@ -1113,5 +1181,149 @@
             }
         }
     });
+
+    // function moveChatToTop(safeId, isRoom) {
+    //     var groupList = $("#groupList");
+    //     var chatItem = groupList.find(`li.group-item[data-id='${safeId}']`);
+
+    //     if (chatItem.length) {
+    //         // 🧠 Remove and reinsert at top of list (just after "Groups" or "Users" headers)
+    //         chatItem.detach();
+
+    //         // If it's a group — place it right after the "Groups" header
+    //         if (isRoom) {
+    //             var groupHeader = groupList.find("li.list-separator:contains('Groups')");
+    //             if (groupHeader.length) {
+    //                 chatItem.insertAfter(groupHeader);
+    //             } else {
+    //                 groupList.prepend(chatItem);
+    //             }
+    //         }
+    //         // If it's a user — place it at very top of user section
+    //         else {
+    //             var userHeader = groupList.find("li.list-separator:contains('Users')");
+    //             if (userHeader.length) {
+    //                 // 🟢 Check if there are any other users already below it
+    //                 var firstUser = userHeader.nextAll(".group-item[data-isroom='false']").first();
+    //                 if (firstUser.length) {
+    //                     // Insert above the first user (top of user list)
+    //                     chatItem.insertBefore(firstUser);
+    //                 } else {
+    //                     // If no users yet, place right after header
+    //                     chatItem.insertAfter(userHeader);
+    //                 }
+    //             } else {
+    //                 // If header not found, move to top of list
+    //                 groupList.prepend(chatItem);
+    //             }
+    //         }
+    //     }
+    // }
+
+
+    // 🟩 Function: Move chat item to the very top of the list
+    function moveChatToTop(safeId, isRoom) {
+          var groupList = $("#groupList");
+          var chatItem = groupList.find(`li.group-item[data-id='${safeId}']`);
+
+          if (chatItem.length) {
+              console.log("🔝 Moving chat to top:", safeId);
+
+              // 🧠 Detach the chat item (keeps event bindings intact)
+              chatItem.detach();
+
+              if (isRoom) {
+              // 🟢 Move inside "Groups" section
+              var groupHeader = groupList.find("li.list-separator:contains('Groups')");
+              if (groupHeader.length) {
+                  chatItem.insertAfter(groupHeader);
+                  } else {
+                      // Fallback: if no header, put at top
+                      groupList.prepend(chatItem);
+                  }
+              } else {
+                  // 🟣 Move inside "Users" section
+                  var userHeader = groupList.find("li.list-separator:contains('Users')");
+                  if (userHeader.length) {
+                      // Find the first user chat after the header
+                      var firstUser = userHeader.nextAll(".group-item[data-isroom='false']").last();
+                      if (firstUser.length) {
+                          // Insert before the first user chat (top position in user section)
+                          console.log("insertBefore :"+ firstUser)
+                          chatItem.insertAfter(firstUser);
+                      } else {
+                          // If no users yet, place right after the header
+                          console.log("insertAfter :"+ firstUser)
+                          chatItem.insertBefore(userHeader);
+                      }
+                  } else {
+                      // Fallback: if no header, put at top
+                      groupList.prepend(chatItem);
+                  }
+              }
+
+              // 💡 Optional: add a short highlight for visual feedback
+              chatItem.css({
+                  "background-color": "#3e0a18",
+                  "transition": "background-color 0.5s"
+              });
+              setTimeout(() => {
+                  chatItem.css("background-color", "");
+              }, 800);
+          } else {
+              console.warn("⚠️ Chat item not found for:", safeId);
+          }
+      }
+
+      function sortChatListByUnread() {
+          const groupList = $("#groupList");
+          const groups = [];
+          const users = [];
+
+          let currentSection = null;
+
+          // 🧩 Separate chats into Groups / Users arrays
+          groupList.children("li").each(function () {
+              const li = $(this);
+
+              if (li.hasClass("list-separator")) {
+                  currentSection = li.text().trim();
+                  return;
+              }
+
+              const badge = li.find(".badge");
+              const count = badge && badge.text() ? parseInt(badge.text()) : 0;
+
+              const item = { element: li.detach(), count: count };
+
+              if (currentSection === "Groups") groups.push(item);
+              else if (currentSection === "Users") users.push(item);
+          });
+
+          // 🔢 Sort by unread count (descending)
+          groups.sort((a, b) => b.count - a.count);
+          users.sort((a, b) => a.count - b.count);
+
+          // 🏗️ Find headers
+          const groupHeader = groupList.find("li.list-separator:contains('Groups')");
+          const userHeader = groupList.find("li.list-separator:contains('Users')");
+
+          // 🧱 Re-render sorted Groups section
+          if (groupHeader.length) {
+              // Insert after header in correct order
+              $.each(groups, function (index, item) {
+                  groupHeader.after(item.element);
+              });
+          }
+
+          // 🧱 Re-render sorted Users section
+          if (userHeader.length) {
+              $.each(users, function (index, item) {
+                  userHeader.after(item.element);
+              });
+          }
+
+          console.log("✅ Chat list sorted by unread count");
+      }
 
 </script>

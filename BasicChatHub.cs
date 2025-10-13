@@ -429,7 +429,8 @@ namespace SignalRMVC
                 {
                     RoomId = g.Key.Id.ToString(),
                     RoomName = g.Key.Name,
-                    Count = g.Count()
+                    Count = g.Count(),
+                    isRoom = true
                 }
             ).ToListAsync();
 
@@ -443,7 +444,8 @@ namespace SignalRMVC
                 {
                     RoomId = g.Key.Id,
                     RoomName = g.Key.UserName,
-                    Count = g.Count()
+                    Count = g.Count(),
+                    isRoom = false
                 }
             ).ToListAsync();
 
@@ -453,7 +455,7 @@ namespace SignalRMVC
             // Send unread count for each room to the **caller** only
             foreach (var room in unreadGroupMessages)
             {
-                await Clients.Caller.SendAsync("ReceiveUnreadCount", room.RoomId, room.RoomName, room.Count);
+                await Clients.Caller.SendAsync("ReceiveUnreadCount", room.RoomId, room.RoomName, room.Count, room.isRoom);
             }
         }
 
@@ -461,7 +463,7 @@ namespace SignalRMVC
         public async Task BroadcastUnreadCount(string roomName = "" , string SenderId = "")
         {
 
-            var unreadList = new List<(string userId, string roomId, string roomName, int count)>();
+            var unreadList = new List<(string userId, string roomId, string roomName, int count, bool isroom)>();
 
             if (!string.IsNullOrEmpty(roomName))
             {
@@ -477,11 +479,12 @@ namespace SignalRMVC
                                               UserId = g.Key,
                                               roomId = room.Id.ToString(),
                                               roomName = roomName,
-                                              Count = g.Count()
+                                              Count = g.Count(),
+                                              isRoom = true
                                           }).ToListAsync();
 
                 //unreadList.AddRange(unreadCounts);
-                unreadList.AddRange(unreadCounts.Select(x => (userId :x.UserId, roomId: x.roomId.ToString(), roomName: roomName, count: x.Count)));
+                unreadList.AddRange(unreadCounts.Select(x => (userId :x.UserId, roomId: x.roomId.ToString(), roomName: roomName, count: x.Count, isroom: x.isRoom)));
             }
 
             if (!string.IsNullOrEmpty(SenderId))
@@ -499,18 +502,19 @@ namespace SignalRMVC
                                  UserId = g.Key.ReceiverId,
                                  RoomId = g.Key.Id,
                                  RoomName = g.Key.UserName,
-                                 Count = g.Count()
+                                 Count = g.Count(),
+                                 isRoom = false
                              }
                          ).ToListAsync();
 
                 //unreadList.AddRange(unreadCounts);
-                unreadList.AddRange(unreadPersonalMessages.Select(x => (userId: x.UserId, roomId: x.RoomId.ToString(), roomName: x.RoomName, count: x.Count)));
+                unreadList.AddRange(unreadPersonalMessages.Select(x => (userId: x.UserId, roomId: x.RoomId.ToString(), roomName: x.RoomName, count: x.Count , isroom: x.isRoom)));
             }
 
             foreach (var userUnread in unreadList)
             {
                 await Clients.User(userUnread.userId)
-                    .SendAsync("ReceiveUnreadCount", userUnread.roomId, roomName, userUnread.count);
+                    .SendAsync("ReceiveUnreadCount", userUnread.roomId, roomName, userUnread.count, userUnread.isroom);
             }
         }
 
