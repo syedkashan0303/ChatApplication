@@ -1,9 +1,9 @@
 ﻿namespace SignalRMVC.CustomClasses
 {
+    using Microsoft.AspNetCore.Http;
     using System;
     using System.Diagnostics;
     using System.Threading.Tasks;
-    using Microsoft.AspNetCore.Http;
 
     public class ResponseTimeMiddleware
     {

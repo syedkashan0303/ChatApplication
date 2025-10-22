@@ -1,8 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using SignalRMVC.Models;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace SignalRMVC.CustomClasses
 {

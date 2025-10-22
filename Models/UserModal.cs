@@ -4,7 +4,7 @@ namespace SignalRMVC.Models
 {
     public class UserModal
     {
-        public  UserModal() 
+        public UserModal()
         {
             UserRoles = new List<SelectListItem>();
         }

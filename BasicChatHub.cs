@@ -1,16 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.DotNet.Scaffolding.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
-using NuGet.Protocol.Plugins;
 using SignalRMVC.Areas.Identity.Data;
 using SignalRMVC.CustomClasses;
 using SignalRMVC.Models;
 using System.Security.Claims;
-using static SignalRMVC.Controllers.HomeController;
 
 namespace SignalRMVC
 {
@@ -70,7 +65,7 @@ namespace SignalRMVC
         }
 
         // Allows a user to edit their own message in a chat room and logs the edit.
-        public async Task EditMessage(int messageId, string newContent, string roomName , string chatUserId = "")
+        public async Task EditMessage(int messageId, string newContent, string roomName, string chatUserId = "")
         {
             var userId = GetUserId();
             try
@@ -102,7 +97,7 @@ namespace SignalRMVC
                     messageLogs.Message = usersMessage.Message;
                     messageLogs.EditedBy = userId;
                     messageLogs.EditedOn = DateTime.Now;
-                    messageLogs.GroupName = userId + " ==> "+ chatUserId;
+                    messageLogs.GroupName = userId + " ==> " + chatUserId;
                     context.EditedtMessagesLogs.Add(messageLogs);
                     context.SaveChanges();
 
@@ -143,7 +138,7 @@ namespace SignalRMVC
 
                     await Clients.Group(roomName).SendAsync("MessageEdited", messageId, newContent);
                 }
-              
+
             }
             catch (Exception ex)
             {
@@ -291,7 +286,7 @@ namespace SignalRMVC
                 await Clients.Group(roomName).SendAsync("MessageReceived", messageId, user, message, messageTime, senderId, receiver, isGroup);
 
                 // Broadcast updated unread count
-                await BroadcastUnreadCount(roomName : roomName);
+                await BroadcastUnreadCount(roomName: roomName);
             }
             catch (Exception ex)
             {
@@ -460,7 +455,7 @@ namespace SignalRMVC
         }
 
         // Broadcasts unread message counts to users in a room or for direct messages.
-        public async Task BroadcastUnreadCount(string roomName = "" , string SenderId = "")
+        public async Task BroadcastUnreadCount(string roomName = "", string SenderId = "")
         {
 
             var unreadList = new List<(string userId, string roomId, string roomName, int count, bool isroom)>();
@@ -484,7 +479,7 @@ namespace SignalRMVC
                                           }).ToListAsync();
 
                 //unreadList.AddRange(unreadCounts);
-                unreadList.AddRange(unreadCounts.Select(x => (userId :x.UserId, roomId: x.roomId.ToString(), roomName: roomName, count: x.Count, isroom: x.isRoom)));
+                unreadList.AddRange(unreadCounts.Select(x => (userId: x.UserId, roomId: x.roomId.ToString(), roomName: roomName, count: x.Count, isroom: x.isRoom)));
             }
 
             if (!string.IsNullOrEmpty(SenderId))
@@ -494,7 +489,7 @@ namespace SignalRMVC
                              from status in _context.UsersMessageReadStatus
                              join chatMsg in _context.UsersMessage on status.ChatMessageId equals chatMsg.Id
                              join sender in _context.Users on chatMsg.SenderId equals sender.Id
-                             where status.ReceiverId == chatMsg.ReceiverId && 
+                             where status.ReceiverId == chatMsg.ReceiverId &&
                              status.SenderId == SenderId && !status.IsRead
                              group status by new { sender.Id, sender.UserName, chatMsg.ReceiverId } into g
                              select new
@@ -508,7 +503,7 @@ namespace SignalRMVC
                          ).ToListAsync();
 
                 //unreadList.AddRange(unreadCounts);
-                unreadList.AddRange(unreadPersonalMessages.Select(x => (userId: x.UserId, roomId: x.RoomId.ToString(), roomName: x.RoomName, count: x.Count , isroom: x.isRoom)));
+                unreadList.AddRange(unreadPersonalMessages.Select(x => (userId: x.UserId, roomId: x.RoomId.ToString(), roomName: x.RoomName, count: x.Count, isroom: x.isRoom)));
             }
 
             foreach (var userUnread in unreadList)

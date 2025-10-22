@@ -10,7 +10,6 @@ namespace SignalRMVC.Controllers
     using SignalRMVC.Models;
     using System.Collections.Generic;
     using System.Security.Claims;
-    using static SignalRMVC.Controllers.HomeController;
 
     public class HomeController : Controller
     {
@@ -123,7 +122,7 @@ namespace SignalRMVC.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetMessagesByRoom(string roomName, int skipRecords = 0, int chunkRecords = 100, bool isRoom = false , string receiverId = "")
+        public IActionResult GetMessagesByRoom(string roomName, int skipRecords = 0, int chunkRecords = 100, bool isRoom = false, string receiverId = "")
         {
             var now = DateTime.UtcNow;
             var fromDate = skipRecords * chunkRecords;

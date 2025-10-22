@@ -3,7 +3,7 @@
     public class ScheduledTaskService : BackgroundService
     {
         private readonly IServiceScopeFactory _scopeFactory;
-        
+
         private readonly IHostApplicationLifetime _appLifetime;
         private readonly ILogger<ScheduledTaskService> _logger;
 
@@ -11,11 +11,11 @@
             IServiceScopeFactory scopeFactory,
             IHostApplicationLifetime appLifetime,
             ILogger<ScheduledTaskService> logger)
-            {
+        {
             _scopeFactory = scopeFactory;
             _appLifetime = appLifetime;
             _logger = logger;
-            }
+        }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -32,7 +32,7 @@
                 //await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
             }
         }
-        
+
         /// 
         /// 
         /// this code for reStart the application

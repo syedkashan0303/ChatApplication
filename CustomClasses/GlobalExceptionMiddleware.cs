@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace SignalRMVC.CustomClasses
+﻿namespace SignalRMVC.CustomClasses
 {
     public class GlobalExceptionMiddleware
     {
@@ -30,7 +28,7 @@ namespace SignalRMVC.CustomClasses
                 {
                     Message = "An unexpected error occurred. Please try again later.",
                     Error = ex.Message, // Optional: remove in production
-                    FullMessage = ex.InnerException != null ?  ex.InnerException.Message : ""
+                    FullMessage = ex.InnerException != null ? ex.InnerException.Message : ""
                 };
 
                 //var json = System.Text.Json.JsonSerializer.Serialize(errorResponse);
@@ -41,7 +39,7 @@ namespace SignalRMVC.CustomClasses
                     WriteIndented = true
                 });
 
-                var logFilePath = @"D:\ChatAppLogs\JsonException"+ DateTime.Now.ToString("dd_MM_yyyy_HH_mm") + ".json";
+                var logFilePath = @"D:\ChatAppLogs\JsonException" + DateTime.Now.ToString("dd_MM_yyyy_HH_mm") + ".json";
                 await File.AppendAllTextAsync(logFilePath, json + Environment.NewLine);
                 //await context.Response.WriteAsync(json);
             }

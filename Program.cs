@@ -1,13 +1,13 @@
 ﻿using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 using SignalRMVC;
 using SignalRMVC.Areas.Identity.Data; // Make sure ApplicationUser is here
 using SignalRMVC.CustomClasses;
 using SignalRMVC.Models;
-using Serilog;
-using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
