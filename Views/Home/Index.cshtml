@@ -406,7 +406,29 @@
 <script src="~/js/signalr.min.js"></script>
 
 <script>
-    var connectionChat = new signalR.HubConnectionBuilder().withUrl("/hubs/basicchat").build();
+    var connectionChat = new signalR.HubConnectionBuilder().withUrl("/hubs/basicchat").withAutomaticReconnect().build();
+
+    connectionChat.onreconnecting(error => {
+        console.warn("SignalR Reconnecting:", error);
+        // data-bs-toggle="tooltip" data-bs-placement="top"
+        // toastr.warning("Connection lost. Reconnecting...", "Chat");
+    });
+
+    connectionChat.onreconnected(connectionId => {
+        console.log("SignalR Reconnected. Connection ID:", connectionId);
+        // toastr.success("Connection restored!", "Chat");
+        
+        // Re-join the current room if we were in one
+        if (currentRoom) {
+             console.log("Re-joining room after reconnect:", currentRoom);
+             connectionChat.invoke("JoinRoom", currentRoom);
+        }
+    });
+
+    connectionChat.onclose(error => {
+        console.error("SignalR Connection closed:", error);
+        // toastr.error("Connection lost. Please refresh the page.", "Chat");
+    });
     connectionChat.on("RedirectToLogin", () => {
         setTimeout(() => {
                 window.location.href = "/Home/Index"; // or any other route
@@ -447,16 +469,6 @@
                 $msg.find(".edit-btn").attr("data-content", newContent);
             }
         });
-
-        // connectionChat.on("MessageReceived", function (messageId ,user, message, messageTime ,receiver) {
-
-        //     console.log(`sender Email = ${myUserEmail} Receiver is = ${currentChatUserEmail}`);
-
-        //     console.table("MessageReceived",messageId ,user , message , messageTime , receiver);
-        //     renderMessage(user, message, messageId,false, false, false, messageTime);
-        //     // Auto-scroll to bottom of chat window
-        //     $(".card-footer").scrollTop($(".card-footer")[0].scrollHeight);
-        // });
 
         connectionChat.on("MessageReceived", function (messageId ,user, message, messageTime ,senderId ,receiver , isGroup) {
             var myUserEmail = $("#hiddenRoomid").val();
@@ -540,61 +552,6 @@
                 alert(message); // Optional
             });
 
-        // Start SignalR connection once DOM is ready
-
-        // connectionChat.start().then(function () {
-        //     console.log("✅ SignalR connected");
-
-        //     connectionChat.on("ReceiveUnreadCount", function (roomId, roomName, count) {
-
-        //         console.log("ReceiveUnreadCount =>", {roomId, roomName, count})
-        //         const badge = document.getElementById(`unread-count-${roomId}`);
-        //         if (badge) {
-        //             badge.textContent = count > 0 ? count : '';
-        //             badge.style.display = count > 0 ? 'inline-block' : 'none';
-        //         }
-        //     });
-
-        //     // Load unread message counts
-        //     connectionChat.invoke("GetUnreadMessageCounts")
-        //         .then(data => {
-        //             if (Array.isArray(data)) {
-        //                 data.forEach(room => {
-        //                     // console.log("GetUnreadMessageCounts =>", {room.roomId, room.count})
-
-        //                     const badge = document.getElementById(`unread-count-${room.roomId}`);
-        //                     if (badge) {
-        //                         badge.textContent = room.count > 0 ? room.count : '';
-        //                         badge.style.display = room.count > 0 ? 'inline-block' : 'none';
-        //                     }
-        //                 });
-        //             } else {
-        //                 console.warn("⚠️ No unread count data received or invalid format:", data);
-        //             }
-        //         })
-        //         .catch(err => {
-        //             console.error("❌ Error loading unread counts:", err);
-        //         });
-
-
-        //     // Auto-join the first room if available
-        //     const firstRoom = $("#groupList .group-item").first().data("room");
-        //     if (firstRoom) {
-        //         connectionChat.invoke("JoinRoom", firstRoom).then(() => {
-        //             currentRoom = firstRoom;
-        //             $("#roomName").text(" - " + firstRoom);
-        //             $("#hiddenRoomName").val(firstRoom);
-        //             $("#messagesList").empty();
-        //             loadGroupMessages(firstRoom);
-        //         });
-        //     } else {
-        //         console.warn("⚠️ No room to join on load.");
-        //     }
-        // }).catch(function (err) {
-        //     console.error("❌ SignalR connection failed:", err);
-        // });
-
-
      connectionChat.start().then(function () {
         console.log("✅ SignalR connected");
 
@@ -670,9 +627,22 @@
         if ($(this).scrollTop() == 0 && !isLoading && !allMessagesLoaded) {
             skipDays += 1;
             console.log("scrollTop :"+$(this).scrollTop())
-            loadGroupMessages(currentRoom, skipDays, true, $("#isGroup").val() ,  $("#hiddenRoomid").val()); // load more
+
+            var isroom =  $("#isGroup").val();
+            loadGroupMessages(currentRoom, skipDays, true, 0 , isroom ,  $("#hiddenRoomid").val()); // load more
         }
     });
+
+    // let scrollTimer;
+    // $(".card-footer").on("scroll", function () {
+    //     clearTimeout(scrollTimer);
+    //     scrollTimer = setTimeout(() => {
+    //         if ($(this).scrollTop() <= 5 && !isLoading && !allMessagesLoaded) {
+    //             skipDays++;
+    //             loadGroupMessages(currentRoom, skipDays, true, $("#isGroup").val() ,  $("#hiddenRoomid").val());
+    //         }
+    //     }, 150);
+    // });
 
     $(document).on("click", ".copy-btn", function () {
         var htmlContent = $(this).siblings(".message-text").html();
@@ -1008,7 +978,6 @@
 
     $("#saveEditMessage").on("click", function () {
         var messageId = $("#editMessageId").val();
-        var messageId = $("#editMessageId").val();
         var newContent = $("#editMessageText").val(); // keep raw text here
         var $msg = $("#message-" + messageId);
         newContent = ( $("#editMessageText").val().replace(/\n/g, "\\n"));
@@ -1049,7 +1018,7 @@
         }
 
             // Send raw text with actual newlines to SignalR
-            
+
 
             // Show newlines properly in UI (convert \n to <br>)
             const formattedContent = newContent.replace(/\\n/g, "<br>");
@@ -1181,44 +1150,6 @@
             }
         }
     });
-
-    // function moveChatToTop(safeId, isRoom) {
-    //     var groupList = $("#groupList");
-    //     var chatItem = groupList.find(`li.group-item[data-id='${safeId}']`);
-
-    //     if (chatItem.length) {
-    //         // 🧠 Remove and reinsert at top of list (just after "Groups" or "Users" headers)
-    //         chatItem.detach();
-
-    //         // If it's a group — place it right after the "Groups" header
-    //         if (isRoom) {
-    //             var groupHeader = groupList.find("li.list-separator:contains('Groups')");
-    //             if (groupHeader.length) {
-    //                 chatItem.insertAfter(groupHeader);
-    //             } else {
-    //                 groupList.prepend(chatItem);
-    //             }
-    //         }
-    //         // If it's a user — place it at very top of user section
-    //         else {
-    //             var userHeader = groupList.find("li.list-separator:contains('Users')");
-    //             if (userHeader.length) {
-    //                 // 🟢 Check if there are any other users already below it
-    //                 var firstUser = userHeader.nextAll(".group-item[data-isroom='false']").first();
-    //                 if (firstUser.length) {
-    //                     // Insert above the first user (top of user list)
-    //                     chatItem.insertBefore(firstUser);
-    //                 } else {
-    //                     // If no users yet, place right after header
-    //                     chatItem.insertAfter(userHeader);
-    //                 }
-    //             } else {
-    //                 // If header not found, move to top of list
-    //                 groupList.prepend(chatItem);
-    //             }
-    //         }
-    //     }
-    // }
 
 
     // 🟩 Function: Move chat item to the very top of the list
