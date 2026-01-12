@@ -776,6 +776,7 @@
             $("#isGroup").val(isroom);
             skipDays = 0;
             $("#messagesList").empty();
+            $("#messagesList").append('<div id="chat-loader" class="d-flex justify-content-center align-items-center w-100" style="height: 100%;"><div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>');
 
             console.log($("#hiddenRoomid").val())
             // Load chat messages from DB via AJAX
@@ -826,6 +827,7 @@
             type: 'GET',
             data: { roomName: roomName, skipRecords: skipDaysParam, isRoom : isroom , receiverId  :  receiverid },
             success: function(messages) {
+                $("#chat-loader").remove();
                 if (!messages || messages.length === 0) {
                     allMessagesLoaded = false;
                     isLoading = false;
@@ -869,6 +871,7 @@
             error: function (error) {
                 console.error("Error loading messages:", error);
                 isLoading = false;
+                $("#chat-loader").remove();
             }
         });
     }
@@ -1108,21 +1111,30 @@
 
         message = ( $("#chatMessage").val().replace(/\n/g, "\\n"));
 
+        var $btn = $("#sendMessage");
+        var originalText = $btn.html();
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...');
+
+        let promise;
         if(isroom == "true")
         {
-            connectionChat.invoke("SendMessageToRoom", room, sender, message);
+            promise = connectionChat.invoke("SendMessageToRoom", room, sender, message);
         }
         else
         {
-            connectionChat.invoke("SendMessageToUser", sender, chatId, message);
+            promise = connectionChat.invoke("SendMessageToUser", sender, chatId, message);
         }
-        //connectionChat.invoke("SendMessageToRoom", room,  message);
-
-        setTimeout(() => {
-            customFontSize(fontSize);
-        }, 500);
-
-        $("#chatMessage").val('');
+        
+        promise.then(() => {
+            $("#chatMessage").val('');
+        }).catch(err => {
+            console.error("Send failed:", err);
+        }).finally(() => {
+             $btn.prop('disabled', false).html(originalText);
+             setTimeout(() => {
+                customFontSize(fontSize);
+            }, 500);
+        });
     });
 
     $('#chatMessage').on('keydown', function(e) {
