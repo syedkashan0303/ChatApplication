@@ -608,7 +608,7 @@
                 $("#roomName").text(" - " + firstRoom);
                 $("#hiddenRoomName").val(firstRoom);
                 $("#messagesList").empty();
-                loadGroupMessages(firstRoom);
+                loadGroupMessages(firstRoom,0,true,0,'');
             });
         } else {
             console.warn("⚠️ No room to join on load.");
@@ -774,7 +774,7 @@
             $("#hiddenRoomName").val(roomName);
             $("#hiddenRoomid").val(roomId);
             $("#isGroup").val(isroom);
-
+            skipDays = 0;
             $("#messagesList").empty();
 
             console.log($("#hiddenRoomid").val())
@@ -819,6 +819,7 @@
 
     function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false , roomId = 0 , isroom = false , receiverid = "") {
         isLoading = true;
+        debugger;
         var unreadCount = parseInt($(`#unread-count-${roomId}`).html() || "0");
         $.ajax({
             url: `/Home/GetMessagesByRoom`,
@@ -839,8 +840,7 @@
                     if (index == messages.length - unreadCount && unreadCount > 0) {
                         chatList.append(`<div id="unread-marker" class="text-center text-muted my-2" style="font-size: large;font-family: emoji;"><hr><small><h3>New Messages</h3></small><hr></div>`);
                     }
-
-                    const messageHtml = renderMessage(msg.sender, msg.message, msg.id, false, false, false, msg.messageTime);
+                    const messageHtml = renderMessage(msg.sender, msg.message, msg.id, true, false, false, msg.messageTime);
                     if (prepend) {
                         chatList.prepend(messageHtml);
                     } else {
@@ -855,13 +855,13 @@
                     // }
 
                     // Scroll to the unread marker if exists
-                    const marker = document.getElementById("unread-marker");
-                    if (marker) {
-                        marker.scrollIntoView({ behavior: "smooth", block: "start" });
-                    } else {
+                    // const marker = document.getElementById("unread-marker");
+                    // if (marker) {
+                    //     marker.scrollIntoView({ behavior: "smooth", block: "start" });
+                    // } else {
                         let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
                         $(".card-footer").scrollTop(scrollDiff);
-                    }
+                    // }
 
 
                 isLoading = false;
@@ -960,6 +960,7 @@
             .append(contentWrapper);
 
         return returnOnly ? li : $("#messagesList").append(li);
+        // return  li ;
     }
 
     $(document).on("click", ".edit-btn", function () {

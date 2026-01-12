@@ -1,4 +1,4 @@
-namespace SignalRMVC.Controllers
+﻿namespace SignalRMVC.Controllers
 {
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Identity;
@@ -121,55 +121,135 @@ namespace SignalRMVC.Controllers
             return Ok();
         }
 
+        //[HttpGet]
+        //public async Task<IActionResult> GetMessagesByRoom(string roomName, int skipRecords = 0, int chunkRecords = 10, bool isRoom = false, string receiverId = "")
+        //{
+        //    var now = DateTime.UtcNow;
+        //    var fromDate = skipRecords * chunkRecords;
+        //    var currentUserId = GetUserId();
+        //    if (isRoom)
+        //    {
+        //        var messages = _db.ChatMessages
+        //                     .Where(m => m.GroupName == roomName /*&& !m.IsDelete*/)
+        //                     .OrderByDescending(m => m.Id).Skip(fromDate).Take(chunkRecords)
+        //                     .Join(
+        //                        _db.Users,
+        //                         message => message.SenderId,
+        //                         user => user.Id,
+        //                         (message, user) => new
+        //                         {
+        //                             id = message.Id,
+        //                             sender = user.UserName, // Or use user.UserName or FullName if you have it
+        //                             message = message.IsDelete ? "Message deleted" : message.Message,
+        //                             createdOn = message.CreatedOn,
+        //                             messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt") : DateTime.Now.ToString("dd-MM-yy hh:mm tt")
+        //                         }
+        //                     )
+        //                     .ToList().OrderByDescending(x => x.id);
+        //        return Ok(messages);
+        //    }
+        //    else
+        //    {
+        //        var messages = _db.UsersMessage
+        //         .Where(m => (m.ReceiverId == receiverId && m.SenderId == currentUserId) || m.SenderId == receiverId && m.ReceiverId == currentUserId)
+        //         .OrderByDescending(m => m.Id).Skip(fromDate).Take(chunkRecords)
+        //         .Join(
+        //             _db.Users,
+        //             message => message.SenderId,
+        //             user => user.Id,
+        //             (message, user) => new
+        //             {
+        //                 id = message.Id,
+        //                 sender = user.UserName, // Or use user.UserName or FullName if you have it
+        //                 message = message.IsDelete ? "Message deleted" : message.Message,
+        //                 createdOn = message.CreatedOn,
+        //                 messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt") : DateTime.Now.ToString("dd-MM-yy hh:mm tt")
+        //             }
+        //         )
+        //         .ToList().OrderBy(x => x.id);
+        //        return Ok(messages);
+        //    }
+        //}
+
         [HttpGet]
-        public IActionResult GetMessagesByRoom(string roomName, int skipRecords = 0, int chunkRecords = 100, bool isRoom = false, string receiverId = "")
+        public async Task<IActionResult> GetMessagesByRoom(
+            string roomName,
+            int skipRecords = 0,
+            int chunkRecords = 10,
+            bool isRoom = false,
+            string receiverId = "")
         {
-            var now = DateTime.UtcNow;
             var fromDate = skipRecords * chunkRecords;
             var currentUserId = GetUserId();
+
+            // ===========================
+            // GROUP / ROOM CHAT
+            // ===========================
             if (isRoom)
             {
-                var messages = _db.ChatMessages
-                             .Where(m => m.GroupName == roomName /*&& !m.IsDelete*/)
-                             .OrderByDescending(m => m.Id).Skip(fromDate).Take(chunkRecords)
-                             .Join(
-                                 _db.Users,
-                                 message => message.SenderId,
-                                 user => user.Id,
-                                 (message, user) => new
-                                 {
-                                     id = message.Id,
-                                     sender = user.UserName, // Or use user.UserName or FullName if you have it
-                                     message = message.IsDelete ? "Message deleted" : message.Message,
-                                     createdOn = message.CreatedOn,
-                                     messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt") : DateTime.Now.ToString("dd-MM-yy hh:mm tt")
-                                 }
-                             )
-                             .ToList().OrderBy(x => x.id);
-                return Ok(messages);
+                var messages = await _db.ChatMessages
+                    .AsNoTracking()
+                    .Where(m => m.GroupName == roomName)
+                    .OrderByDescending(m => m.Id)
+                    .Skip(fromDate)
+                    .Take(chunkRecords)
+                    .Join(
+                        _db.Users,
+                        m => m.SenderId,
+                        u => u.Id,
+                        (m, u) => new
+                        {
+                            id = m.Id,
+                            sender = u.UserName,
+                            message = m.IsDelete ? "Message deleted" : m.Message,
+                            createdOn = m.CreatedOn,
+                            messageTime = m.CreatedOn.HasValue
+                                ? m.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt")
+                                : ""
+                        }
+                    )
+                    .ToListAsync();
+
+                // client ko ASC order chahiye
+                return Ok(messages.OrderByDescending(x => x.id));
             }
+
+            // ===========================
+            // PRIVATE / ONE-TO-ONE CHAT
+            // ===========================
             else
             {
-                var messages = _db.UsersMessage
-                 .Where(m => (m.ReceiverId == receiverId && m.SenderId == currentUserId) || m.SenderId == receiverId && m.ReceiverId == currentUserId)
-                 .OrderByDescending(m => m.Id).Skip(fromDate).Take(chunkRecords)
-                 .Join(
-                     _db.Users,
-                     message => message.SenderId,
-                     user => user.Id,
-                     (message, user) => new
-                     {
-                         id = message.Id,
-                         sender = user.UserName, // Or use user.UserName or FullName if you have it
-                         message = message.IsDelete ? "Message deleted" : message.Message,
-                         createdOn = message.CreatedOn,
-                         messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt") : DateTime.Now.ToString("dd-MM-yy hh:mm tt")
-                     }
-                 )
-                 .ToList().OrderBy(x => x.id);
-                return Ok(messages);
+                var messages = await _db.UsersMessage
+                    .AsNoTracking()
+                    .Where(m =>
+                        (m.ReceiverId == receiverId && m.SenderId == currentUserId) ||
+                        (m.SenderId == receiverId && m.ReceiverId == currentUserId)
+                    )
+                    .OrderByDescending(m => m.Id)
+                    .Skip(fromDate)
+                    .Take(chunkRecords)
+                    .Join(
+                        _db.Users,
+                        m => m.SenderId,
+                        u => u.Id,
+                        (m, u) => new
+                        {
+                            id = m.Id,
+                            sender = u.UserName,
+                            message = m.IsDelete ? "Message deleted" : m.Message,
+                            createdOn = m.CreatedOn,
+                            messageTime = m.CreatedOn.HasValue
+                                ? m.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt")
+                                : ""
+                        }
+                    )
+                    .ToListAsync();
+
+                return Ok(messages.OrderByDescending(x => x.id));
             }
         }
+
+
 
         [HttpPost]
         public async Task<IActionResult> EditMessage(int id, string newContent)
