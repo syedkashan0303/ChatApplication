@@ -203,9 +203,7 @@
                             sender = u.UserName,
                             message = m.IsDelete ? "Message deleted" : m.Message,
                             createdOn = m.CreatedOn,
-                            messageTime = m.CreatedOn.HasValue
-                                ? m.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt")
-                                : ""
+                            messageTime = m.CreatedOn.HasValue ? m.CreatedOn.Value.ToString("dd-MM-yy HH:mm") : ""
                         }
                     )
                     .ToListAsync();
@@ -238,9 +236,7 @@
                             sender = u.UserName,
                             message = m.IsDelete ? "Message deleted" : m.Message,
                             createdOn = m.CreatedOn,
-                            messageTime = m.CreatedOn.HasValue
-                                ? m.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt")
-                                : ""
+                            messageTime = m.CreatedOn.HasValue ? m.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt") : ""
                         }
                     )
                     .ToListAsync();

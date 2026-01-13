@@ -8,6 +8,9 @@ using SignalRMVC;
 using SignalRMVC.Areas.Identity.Data; // Make sure ApplicationUser is here
 using SignalRMVC.CustomClasses;
 using SignalRMVC.Models;
+using Serilog.Events;
+using System.Diagnostics;
+using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,25 +48,32 @@ builder.Services.AddHostedService<ScheduledTaskService>();
 builder.Services.AddHttpClient(); // ✅ Register IHttpClientFactory
 //builder.Services.AddHostedService<AppWatchdogService>();
 
-builder.Services.AddSignalR();
+//builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    options.AddFilter<LoggingHubFilter>();
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+});
 
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug() // capture everything
-    .WriteTo.File(
-        @"D:\ChatAppLogs\ChatApp-Errors-.log",
-        restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Error,
-        rollingInterval: RollingInterval.Day,
-        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"
-    )
-    .Enrich.FromLogContext()
-    .CreateLogger();
+
+// Serilog setup moved to Host.UseSerilog
+// Log.Logger setup removed
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(@"D:\ChatAppKeys"))
     .SetApplicationName("arynewschat");
 
 
-builder.Host.UseSerilog(); // Plug Serilog into ASP.NET Core
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext());
+
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
 
 var app = builder.Build();
 
@@ -96,6 +106,7 @@ app.UseExceptionHandler(errorApp =>
 app.UseMiddleware<GlobalExceptionMiddleware>(); // 👈 Add this first
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+app.UseSerilogRequestLogging();
 //app.UseMiddleware<ResponseTimeMiddleware>();
 
 app.UseRouting();

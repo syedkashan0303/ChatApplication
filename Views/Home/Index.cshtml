@@ -405,254 +405,239 @@
 <script src="~/js/toastr.min.js"></script>
 <script src="~/js/signalr.min.js"></script>
 
+
+
 <script>
-    var connectionChat = new signalR.HubConnectionBuilder().withUrl("/hubs/basicchat").withAutomaticReconnect().build();
-
-    connectionChat.onreconnecting(error => {
-        console.warn("SignalR Reconnecting:", error);
-        // data-bs-toggle="tooltip" data-bs-placement="top"
-        // toastr.warning("Connection lost. Reconnecting...", "Chat");
-    });
-
-    connectionChat.onreconnected(connectionId => {
-        console.log("SignalR Reconnected. Connection ID:", connectionId);
-        // toastr.success("Connection restored!", "Chat");
-        
-        // Re-join the current room if we were in one
-        if (currentRoom) {
-             console.log("Re-joining room after reconnect:", currentRoom);
-             connectionChat.invoke("JoinRoom", currentRoom);
-        }
-    });
-
-    connectionChat.onclose(error => {
-        console.error("SignalR Connection closed:", error);
-        // toastr.error("Connection lost. Please refresh the page.", "Chat");
-    });
-    connectionChat.on("RedirectToLogin", () => {
-        setTimeout(() => {
-                window.location.href = "/Home/Index"; // or any other route
-        }, 3000);
-    });
+    // ==========================
+    // ✅ GLOBAL VARIABLES (Top)
+    // ==========================
     let skipDays = 0;
     let isLoading = false;
     let allMessagesLoaded = false;
-    var selectedRoom = "";
     let currentRoom = null;
     let fontSize = 18;
 
-    $(document).ready(function() {
+    // hidden inputs
+    function getSenderEmail() { return $("#senderEmail").val(); }
+    function getHiddenRoomName() { return $("#hiddenRoomName").val(); }
+    function getHiddenRoomId() { return $("#hiddenRoomid").val(); }
+    function getIsGroup() { return $("#isGroup").val(); }
+
+    // ==========================
+    // ✅ SIGNALR CONNECTION (Only One Instance)
+    // ==========================
+    var connectionChat = new signalR.HubConnectionBuilder()
+        .withUrl("/hubs/basicchat") // ✅ MUST MATCH Program.cs
+        .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+        .build();
+
+    // ==========================
+    // ✅ SIGNALR CONNECTION EVENTS
+    // ==========================
+    connectionChat.onreconnecting(error => {
+        console.warn("SignalR Reconnecting:", error);
+        // toastr.warning("Connection lost. Reconnecting...", "Chat");
+    });
+
+    connectionChat.onreconnected(async () => {
+        console.log("SignalR Reconnected");
+
+        // ✅ Rejoin current room after reconnect
+        if (currentRoom) {
+            try {
+                await connectionChat.invoke("JoinRoom", currentRoom);
+                console.log("Re-joined room:", currentRoom);
+            } catch (err) {
+                console.error("JoinRoom failed after reconnect:", err);
+            }
+        }
+
+        // ✅ Refresh unread counts (NO re-registering events)
+        try {
+            await loadUnreadCounts();
+        } catch (e) {
+            console.error("Unread refresh failed:", e);
+        }
+    });
+
+    connectionChat.onclose((error) => {
+        console.error("SignalR Connection closed:", error);
+
+        // retry forever
+        setTimeout(async () => {
+            try {
+                await connectionChat.start();
+                console.log("SignalR restarted after close");
+
+                if (currentRoom) {
+                    await connectionChat.invoke("JoinRoom", currentRoom);
+                }
+
+                await loadUnreadCounts();
+            } catch (err) {
+                console.error("Restart failed:", err);
+            }
+        }, 5000);
+    });
+
+    // ==========================
+    // ✅ SERVER EVENT: RedirectToLogin
+    // ==========================
+    connectionChat.on("RedirectToLogin", () => {
+        setTimeout(() => {
+            window.location.href = "/Home/Index";
+        }, 3000);
+    });
+
+    // ==========================
+    // ✅ SIGNALR EVENTS (REGISTER ONCE ONLY)
+    // ==========================
+
+    // 🔹 Message Edited
+    connectionChat.on("MessageEdited", function (messageId, newContent) {
+        newContent = (newContent.replace(/\\n/g, "<br>"));
+        const $msg = $("#message-" + messageId);
+
+        if ($msg.length) {
+            $msg.find(".message-text").html(newContent + " <i>(edited)</i>");
+            $msg.find(".edit-btn").attr("data-content", newContent);
+        }
+    });
+
+    // 🔹 Message Received (Group + Personal)
+    connectionChat.on("MessageReceived", function (messageId, user, message, messageTime, senderId, receiver, isGroup) {
+
+        var myUserEmail = getHiddenRoomId();
+        const currentChatUserEmail = getHiddenRoomName();
+
+        // ✅ For personal chat: only render if message belongs to current open chat
+        if (isGroup == false) {
+            const isRelevantToMe =
+                (user === currentChatUserEmail && senderId === myUserEmail) ||
+                (receiver === currentChatUserEmail && user === myUserEmail);
+
+            if (!isRelevantToMe) {
+                return;
+            }
+        }
+
+        renderMessage(user, message, messageId, false, false, false, messageTime);
+        moveChatToTop(isGroup ? receiver : senderId, isGroup);
+    });
+
+    // 🔹 Personal message sent event (your custom)
+    connectionChat.on("SendMessageUser", function (messageId, user, message, messageTime, senderId, receiver, isGroup) {
+
+        var myUserEmail = getHiddenRoomId();
+        const currentChatUserEmail = getHiddenRoomName();
+
+        if (isGroup == false) {
+            const isRelevantToMe = (receiver === myUserEmail);
+            if (!isRelevantToMe) return;
+        }
+
+        renderMessage(user, message, messageId, false, false, false, messageTime);
+    });
+
+    // 🔹 Message Deleted (Group)
+    connectionChat.on("MessageDeleted", function (messageId) {
+        markMessageDeletedUI(messageId);
+    });
+
+    // 🔹 Message Deleted (User)
+    connectionChat.on("UserMessageDeleted", function (messageId) {
+        markMessageDeletedUI(messageId);
+    });
+
+    // 🔹 Server Error
+    connectionChat.on("Error", function (message) {
+        console.error("SignalR Error from server:", message);
+        alert(message);
+    });
+
+    // 🔹 Unread count update realtime
+    connectionChat.on("ReceiveUnreadCount", function (roomId, roomName, count, isRoom) {
+        console.log("ReceiveUnreadCount =>", { roomId, roomName, count, isRoom });
+
+        const badge = document.getElementById(`unread-count-${roomId}`);
+        if (badge) {
+            badge.textContent = count > 0 ? count : '';
+            badge.style.display = count > 0 ? 'inline-block' : 'none';
+        }
+
+        if (count > 0) {
+            const isRoomLocal = $(`li.group-item[data-id='${roomId}']`).data("isroom");
+            moveChatToTop(roomId, isRoomLocal);
+            sortChatListByUnread();
+        }
+    });
+
+    // ==========================
+    // ✅ START CONNECTION (ONLY ONCE)
+    // ==========================
+    connectionChat.start()
+        .then(async function () {
+            console.log("✅ SignalR connected");
+
+            // Load rooms first (so firstRoom exists)
+            await loadRooms();
+
+            // Load unread counts
+            await loadUnreadCounts();
+
+            // Auto join first room
+            autoJoinFirstRoom();
+
+        })
+        .catch(function (err) {
+            console.error("❌ SignalR connection failed:", err);
+        });
+
+    // ==========================
+    // ✅ DOCUMENT READY
+    // ==========================
+    $(document).ready(function () {
 
         $('#chatMessage').css('direction', 'rtl');
 
-        $('#alignRight').click(function() {
+        $('#alignRight').click(function () {
             $('#chatMessage').css('direction', 'rtl');
         });
 
-        $('#alignLeft').click(function() {
+        $('#alignLeft').click(function () {
             $('#chatMessage').css('direction', 'ltr');
         });
-        loadRooms();
-        renderMessage();
 
+        // Default font size apply
         setTimeout(() => {
             customFontSize(18);
         }, 500);
-
-        // #region Signal R methods Start
-
-        connectionChat.on("MessageEdited", function (messageId, newContent) {
-            newContent = ( newContent.replace(/\\n/g, "<br>"));
-            const $msg = $("#message-" + messageId);
-            if ($msg.length) {
-                $msg.find(".message-text").html(newContent + " <i>(edited)</i>");
-                $msg.find(".edit-btn").attr("data-content", newContent);
-            }
-        });
-
-        connectionChat.on("MessageReceived", function (messageId ,user, message, messageTime ,senderId ,receiver , isGroup) {
-            var myUserEmail = $("#hiddenRoomid").val();
-            // var myUserEmail = receiver;
-            const currentChatUserEmail = $("#hiddenRoomName").val(); // hidden input holding active chat user's ID/email
-
-            if(isGroup == false)
-            {
-                const isRelevantToMe =
-                    (user === currentChatUserEmail && senderId === myUserEmail) ||  // received from current chat user
-                    (receiver === currentChatUserEmail && user === myUserEmail);    // sent to current chat user
-
-                // const isRelevantToMe = (receiver === myUserEmail);    // sent to current chat user
-
-                    console.log("MessageReceived =>", { messageId, user, message, messageTime, senderId, receiver, isGroup, currentChatUserEmail, myUserEmail });
-
-                    if (!isRelevantToMe) {
-                        console.log("Ignored: message not for this chat");
-                        return;
-                    }
-            }
-            renderMessage(user, message, messageId, false, false, false, messageTime);
-            moveChatToTop(isGroup ? receiver : senderId, isGroup);
-        });
-
-        connectionChat.on("SendMessageUser", function (messageId, user, message, messageTime, senderId, receiver, isGroup) {
-            var myUserEmail = $("#hiddenRoomid").val();
-            const currentChatUserEmail = $("#hiddenRoomName").val();
-
-            console.log("SendMessageUser =>", { messageId, user, message, messageTime, senderId, receiver, isGroup, currentChatUserEmail, myUserEmail });
-
-            if(isGroup == false)
-            {
-                const isRelevantToMe = (receiver === myUserEmail);
-
-                if (!isRelevantToMe) {
-                    console.log("Ignored: message not for this chat");
-                    return;
-                }
-            }
-            renderMessage(user, message, messageId, false, false, false, messageTime);
-        });
-
-        connectionChat.on("MessageDeleted", function (messageId) {
-
-            const $messageBubble = $("#message-" + messageId);
-
-            if ($messageBubble.length) {
-                // Remove the entire <li> row that contains this message
-                // $messageBubble.closest("li").remove();
-                $messageBubble.find(".fa-trash").remove();
-                $messageBubble.find(".edit-btn").remove();
-                $messageBubble.find(".copy-btn").remove();
-                $messageBubble.find(".message-text").html('Message deleted');
-                $messageBubble.css({
-                    "opacity": ".7",
-                    "cursor": "not-allowed",
-                    "font-style": "italic"
-                });
-            }
-        });
-
-        connectionChat.on("UserMessageDeleted", function (messageId) {
-            const $messageBubble = $("#message-" + messageId);
-            if ($messageBubble.length) {
-                $messageBubble.find(".fa-trash").remove();
-                $messageBubble.find(".edit-btn").remove();
-                $messageBubble.find(".copy-btn").remove();
-                $messageBubble.find(".message-text").html('Message deleted');
-                $messageBubble.css({
-                    "opacity": ".7",
-                    "cursor": "not-allowed",
-                    "font-style": "italic"
-                });
-            }
-        });
-
-
-        connectionChat.on("Error", function (message) {
-                console.error("SignalR Error from server:", message);
-                alert(message); // Optional
-            });
-
-     connectionChat.start().then(function () {
-        console.log("✅ SignalR connected");
-
-        // 🔹 On real-time unread count update
-        connectionChat.on("ReceiveUnreadCount", function (roomId, roomName, count , isRoom) {
-            console.log("ReceiveUnreadCount =>", { roomId, roomName, count  , isRoom});
-
-            const badge = document.getElementById(`unread-count-${roomId}`);
-            if (badge) {
-                badge.textContent = count > 0 ? count : '';
-                badge.style.display = count > 0 ? 'inline-block' : 'none';
-            }
-
-            // Move to top if unread > 0
-            if (count > 0) {
-                    const isRoom = $(`li.group-item[data-id='${roomId}']`).data("isroom");
-                    moveChatToTop(roomId, isRoom);
-                    sortChatListByUnread();
-              // keep unread sorted
-            }
-        });
-
-        // 🔹 Load unread message counts on startup
-        connectionChat.invoke("GetUnreadMessageCounts")
-            .then(data => {
-                if (Array.isArray(data)) {
-                    data.forEach(room => {
-                        const badge = document.getElementById(`unread-count-${room.roomId}`);
-                        if (badge) {
-                            badge.textContent = room.count > 0 ? room.count : '';
-                            badge.style.display = room.count > 0 ? 'inline-block' : 'none';
-                        }
-                    if (room.count > 0) {
-                        const isRoom = $(`li.group-item[data-id='${room.roomId}']`).data("isroom");
-                        moveChatToTop(room.roomId, isRoom);
-                    }
-                    });
-
-                    // ✅ After initial unread load, sort list
-                    sortChatListByUnread();
-                } else {
-                    console.warn("⚠️ No unread count data received or invalid format:", data);
-                }
-            })
-            .catch(err => {
-                console.error("❌ Error loading unread counts:", err);
-            });
-
-        // Auto-join first room
-        const firstRoom = $("#groupList .group-item").first().data("room");
-        if (firstRoom) {
-            connectionChat.invoke("JoinRoom", firstRoom).then(() => {
-                currentRoom = firstRoom;
-                $("#roomName").text(" - " + firstRoom);
-                $("#hiddenRoomName").val(firstRoom);
-                $("#messagesList").empty();
-                loadGroupMessages(firstRoom,0,true,0,'');
-            });
-        } else {
-            console.warn("⚠️ No room to join on load.");
-        }
-    }).catch(function (err) {
-        console.error("❌ SignalR connection failed:", err);
     });
 
-
-        // #region Signal R methods End
-    });
-
-    // Scroll-to-top detection for loading older messages
+    // ==========================
+    // ✅ INFINITE SCROLL LOAD OLD MESSAGES
+    // ==========================
     $(".card-footer").on("scroll", function () {
 
-        if ($(this).scrollTop() == 0 && !isLoading && !allMessagesLoaded) {
+        if ($(this).scrollTop() == 0 && !isLoading && !allMessagesLoaded && currentRoom) {
             skipDays += 1;
-            console.log("scrollTop :"+$(this).scrollTop())
 
-            var isroom =  $("#isGroup").val();
-            loadGroupMessages(currentRoom, skipDays, true, 0 , isroom ,  $("#hiddenRoomid").val()); // load more
+            var isroom = $("#isGroup").val();
+            loadGroupMessages(currentRoom, skipDays, true, 0, isroom, $("#hiddenRoomid").val());
         }
     });
 
-    // let scrollTimer;
-    // $(".card-footer").on("scroll", function () {
-    //     clearTimeout(scrollTimer);
-    //     scrollTimer = setTimeout(() => {
-    //         if ($(this).scrollTop() <= 5 && !isLoading && !allMessagesLoaded) {
-    //             skipDays++;
-    //             loadGroupMessages(currentRoom, skipDays, true, $("#isGroup").val() ,  $("#hiddenRoomid").val());
-    //         }
-    //     }, 150);
-    // });
-
+    // ==========================
+    // ✅ COPY BUTTON
+    // ==========================
     $(document).on("click", ".copy-btn", function () {
         var htmlContent = $(this).siblings(".message-text").html();
         var textToCopy = htmlContent.replace(/<br\s*\/?>/gi, "\n");
-            textToCopy = textToCopy.replace(/<i>\(edited\)<\/i>/gi, "");
+        textToCopy = textToCopy.replace(/<i>\(edited\)<\/i>/gi, "");
 
         var $btn = $(this);
         var $icon = $btn.find("i");
 
-        // Modern clipboard API
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(textToCopy).then(() => {
                 $icon.removeClass("fa-copy").addClass("fa-check");
@@ -663,9 +648,7 @@
                 console.error("Clipboard error:", err);
                 fallbackCopy(textToCopy);
             });
-        }
-        else {
-            // Fallback for insecure context or older browsers
+        } else {
             fallbackCopy(textToCopy);
         }
 
@@ -691,24 +674,28 @@
         }
     });
 
+    // ==========================
+    // ✅ SEARCH GROUPS
+    // ==========================
     function filterGroups() {
-        var searchTerm = $('#searchBar').val().toLowerCase(); // Get the search term
-        var groupItems = $('#groupList .group-item'); // Get all group items
+        var searchTerm = $('#searchBar').val().toLowerCase();
+        var groupItems = $('#groupList .group-item');
 
         groupItems.each(function () {
-            var groupName = $(this).text().toLowerCase(); // Get the text of the group item
+            var groupName = $(this).text().toLowerCase();
             if (groupName.indexOf(searchTerm) === -1) {
-                // Hide groups that don't match the search term
                 $(this).hide();
             } else {
-                // Show matching groups
                 $(this).show();
             }
         });
     }
 
+    // ==========================
+    // ✅ LOAD ROOMS (AJAX)
+    // ==========================
     function loadRooms() {
-        $.ajax({
+        return $.ajax({
             url: '/Home/GetRooms',
             type: 'GET',
             success: function (rooms) {
@@ -722,7 +709,7 @@
                     let firstLetter = room.name.charAt(0).toUpperCase();
 
                     if (room.isRoom && !hasGroupHeader) {
-                            groupList.append(`<li class="list-separator" style="background-color: #a80029;font-weight: bold;font-size: large;">Groups</li>`);
+                        groupList.append(`<li class="list-separator" style="background-color: #a80029;font-weight: bold;font-size: large;">Groups</li>`);
                         hasGroupHeader = true;
                     }
 
@@ -732,7 +719,7 @@
                     }
 
                     groupList.append(
-                        `<li class="group-item" data-room="${room.name}" data-id="${room.safeId}" data-isRoom="${room.isRoom}">
+                        `<li class="group-item" data-room="${room.name}" data-id="${room.safeId}" data-isroom="${room.isRoom}">
                             <div class="letter-avatar d-flex align-items-center justify-content-center me-2">
                                 ${firstLetter}
                             </div>
@@ -750,86 +737,141 @@
         });
     }
 
+    // ==========================
+    // ✅ UNREAD COUNTS LOAD (SignalR Invoke)
+    // ==========================
+    async function loadUnreadCounts() {
+        try {
+            const data = await connectionChat.invoke("GetUnreadMessageCounts");
+
+            if (Array.isArray(data)) {
+                data.forEach(room => {
+                    const badge = document.getElementById(`unread-count-${room.roomId}`);
+                    if (badge) {
+                        badge.textContent = room.count > 0 ? room.count : '';
+                        badge.style.display = room.count > 0 ? 'inline-block' : 'none';
+                    }
+                });
+
+                sortChatListByUnread();
+            }
+        } catch (err) {
+            console.error("❌ Error loading unread counts:", err);
+        }
+    }
+
+    // ==========================
+    // ✅ AUTO JOIN FIRST ROOM
+    // ==========================
+    function autoJoinFirstRoom() {
+        const firstRoom = $("#groupList .group-item").first().data("room");
+
+        if (!firstRoom) {
+            console.warn("⚠️ No room to join on load.");
+            return;
+        }
+
+        connectionChat.invoke("JoinRoom", firstRoom).then(() => {
+            currentRoom = firstRoom;
+            $("#roomName").text(" - " + firstRoom);
+            $("#hiddenRoomName").val(firstRoom);
+
+            skipDays = 0;
+            allMessagesLoaded = false;
+
+            $("#messagesList").empty();
+            loadGroupMessages(firstRoom, 0, true, 0, '', '');
+        });
+    }
+
+    // ==========================
+    // ✅ CLICK ROOM / USER CHAT
+    // ==========================
     $(document).on("click", ".group-item", function () {
 
         var roomName = $(this).data("room");
-        var roomId = $(this).data("id"); // ✅ get the room ID
-        var isroom = $(this).data("isroom"); // ✅ get the room ID
+        var roomId = $(this).data("id");
+        var isroom = $(this).data("isroom");
 
-        $(".group-item").removeClass("active");  // remove from all
+        $(".group-item").removeClass("active");
         $(this).addClass("active");
 
         $('.chatsection').show();
         $('.arylogo').hide();
 
-        // Leave previous room if needed (optional)
+        // Leave previous room
         if (currentRoom) {
-            connectionChat.invoke("LeaveRoom", currentRoom);
+            connectionChat.invoke("LeaveRoom", currentRoom).catch(() => { });
         }
 
-        // Join new room
         connectionChat.invoke("JoinRoom", roomName).then(() => {
+
             currentRoom = roomName;
             $("#roomName").text(" - " + roomName);
             $("#hiddenRoomName").val(roomName);
             $("#hiddenRoomid").val(roomId);
             $("#isGroup").val(isroom);
+
             skipDays = 0;
+            allMessagesLoaded = false;
+
             $("#messagesList").empty();
             $("#messagesList").append('<div id="chat-loader" class="d-flex justify-content-center align-items-center w-100" style="height: 100%;"><div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>');
 
-            console.log($("#hiddenRoomid").val())
-            // Load chat messages from DB via AJAX
-            loadGroupMessages(roomName, 0, true,roomId , isroom , roomId );
+            // Load messages
+            loadGroupMessages(roomName, 0, false, roomId, isroom, roomId);
 
-            if(isroom === true)
-            {
+            // Mark as read
+            if (isroom === true) {
                 connectionChat.invoke("MarkMessagesAsRead", roomId)
-                .then(() => {
-                    $(`#unread-count-${roomId}`).hide();
-                });
-            }
-            else
-            {
+                    .then(() => $(`#unread-count-${roomId}`).hide())
+                    .catch(() => { });
+            } else {
                 connectionChat.invoke("P_To_P_MarkMessagesAsRead", roomId)
-                .then(() => {
-                    $(`#unread-count-${roomId}`).hide();
-                });
+                    .then(() => $(`#unread-count-${roomId}`).hide())
+                    .catch(() => { });
             }
         });
     });
 
+    // ==========================
+    // ✅ FONT SIZE DROPDOWN
+    // ==========================
     $("#fontSizeDropdown").on("change", function () {
         fontSize = parseInt($(this).val());
         customFontSize(fontSize);
     });
 
     function customFontSize(size) {
-
         $(".message-text").css("font-size", size + "px");
-        if(size >= 22 )
-        {
+
+        if (size >= 22) {
             $(".message-text").css("line-height", size + 15 + "px");
-        }
-        else
-        {
+        } else {
             $(".message-text").css("line-height", size + 8 + "px");
         }
-
     }
 
-    function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false , roomId = 0 , isroom = false , receiverid = "") {
+    // ==========================
+    // ✅ LOAD GROUP/PERSONAL MESSAGES (AJAX)
+    // ==========================
+    function loadGroupMessages(roomName, skipDaysParam = 0, prepend = false, roomId = 0, isroom = false, receiverid = "") {
+
         isLoading = true;
-        debugger;
+
         var unreadCount = parseInt($(`#unread-count-${roomId}`).html() || "0");
+
         $.ajax({
             url: `/Home/GetMessagesByRoom`,
             type: 'GET',
-            data: { roomName: roomName, skipRecords: skipDaysParam, isRoom : isroom , receiverId  :  receiverid },
-            success: function(messages) {
+            data: { roomName: roomName, skipRecords: skipDaysParam, isRoom: isroom, receiverId: receiverid },
+            success: function (messages) {
+
                 $("#chat-loader").remove();
+
+                // ✅ if empty => stop further loading
                 if (!messages || messages.length === 0) {
-                    allMessagesLoaded = false;
+                    allMessagesLoaded = true;
                     isLoading = false;
                     return;
                 }
@@ -838,33 +880,33 @@
                 let scrollPosBefore = $(".card-footer")[0].scrollHeight;
 
                 messages.forEach(function (msg, index) {
-                    // If this is the first unread message, add a marker
-                    if (index == messages.length - unreadCount && unreadCount > 0) {
-                        chatList.append(`<div id="unread-marker" class="text-center text-muted my-2" style="font-size: large;font-family: emoji;"><hr><small><h3>New Messages</h3></small><hr></div>`);
+
+                    // unread messages start index
+                    const unreadStartIndex = messages.length - unreadCount;
+                    console.log("unreadStartIndex :"+ unreadStartIndex)
+                    // Marker should be inserted just before first unread message
+                    if (unreadCount > 0 && index == unreadStartIndex) {
+                        const markerHtml = `<div id="unread-marker" class="text-center text-muted my-2" style="font-size: large;font-family: emoji;">
+                                                <hr><small><h3>New Messages</h3></small><hr>
+                                            </div>`;
+                       chatList.append(markerHtml);
                     }
+
                     const messageHtml = renderMessage(msg.sender, msg.message, msg.id, true, false, false, msg.messageTime);
-                    if (prepend) {
+
+                    if (prepend)
+                    {
                         chatList.prepend(messageHtml);
-                    } else {
+                    }
+                    else
+                    {
                         chatList.append(messageHtml);
                     }
                 });
 
-                    // const marker = document.getElementById("unread-marker");
 
-                    // if (marker) {
-                    // 	marker.scrollIntoView({ behavior: "smooth", block: "center" });
-                    // }
-
-                    // Scroll to the unread marker if exists
-                    // const marker = document.getElementById("unread-marker");
-                    // if (marker) {
-                    //     marker.scrollIntoView({ behavior: "smooth", block: "start" });
-                    // } else {
-                        let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
-                        $(".card-footer").scrollTop(scrollDiff);
-                    // }
-
+                let scrollDiff = $(".card-footer")[0].scrollHeight - scrollPosBefore;
+                $(".card-footer").scrollTop(scrollDiff);
 
                 isLoading = false;
             },
@@ -876,11 +918,17 @@
         });
     }
 
-    function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false ,messagetime) {
-        var senderEmail = $("#senderEmail").val();
+    // ==========================
+    // ✅ RENDER MESSAGE
+    // ==========================
+    function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false, messagetime) {
+
+        var senderEmail = getSenderEmail();
         var isOwnMessage = user === senderEmail;
+
         let timeStr = messagetime;
         var userName = capitalizeFirstLetter(user);
+
         var userInfo = $("<div>")
             .addClass("d-flex ms-2")
             .css({
@@ -898,24 +946,20 @@
                 $("<small>").addClass("text-muted").text(timeStr)
             );
 
-        // Show edited/deleted text
         let messageText = (message || "").replace(/\\n/g, "<br>");
-        if (isEdited && !isDeleted) {
-            messageText += " <i>(edited)</i>";
-        }
+        if (isEdited && !isDeleted) messageText += " <i>(edited)</i>";
 
         var bubble = $("<div>")
-        .addClass("msg-custom rounded px-3 py-2 position-relative")
-        .addClass(isOwnMessage ? "text-white msg" : "text-dark msg")
-        .css({
-            "max-width": "85%",
-            "min-width": "40%",
-            "background-color": isOwnMessage ? "#f5f5f5" : "#303d4f"
-        })
-        .attr("id", `message-${messageId}`)
-        .append($("<div>").addClass("message-text content").html(messageText));
+            .addClass("msg-custom rounded px-3 py-2 position-relative")
+            .addClass(isOwnMessage ? "text-white msg" : "text-dark msg")
+            .css({
+                "max-width": "85%",
+                "min-width": "40%",
+                "background-color": isOwnMessage ? "#f5f5f5" : "#303d4f"
+            })
+            .attr("id", `message-${messageId}`)
+            .append($("<div>").addClass("message-text content").html(messageText));
 
-        // Only apply "deleted" styles if message is deleted
         if (messageText === "Message deleted") {
             bubble.css({
                 "opacity": ".7",
@@ -923,7 +967,6 @@
                 "font-style": "italic"
             });
         } else {
-            // Append copy button
             bubble.append(
                 $("<button>")
                     .addClass("btn btn-sm btn-light copy-btn position-absolute top-0 end-0 m-1")
@@ -931,100 +974,72 @@
             );
         }
 
-    // Add edit/delete buttons if it's your message and not deleted
-    if (isOwnMessage && messageText !== "Message deleted") {
-        bubble.append(
-            $("<div>").addClass("mt-2 d-flex gap-2 justify-content-end")
-                .append(
-                    $("<button>")
-                        .addClass("btn btn-sm btn-outline-secondary edit-btn")
-                        .html('<i class="fa-solid fa-pen-to-square"></i>')
-                        .attr("data-id", messageId)
-                        .attr("data-content", message),
-                    $("<button>")
-                        .addClass("btn btn-sm btn-outline-danger delete-btn")
-                        .html('<i class="fa-solid fa-trash"></i>')
-                        .attr("data-id", messageId)
-                )
-        );
-    }
+        if (isOwnMessage && messageText !== "Message deleted") {
+            bubble.append(
+                $("<div>").addClass("mt-2 d-flex gap-2 justify-content-end")
+                    .append(
+                        $("<button>")
+                            .addClass("btn btn-sm btn-outline-secondary edit-btn")
+                            .html('<i class="fa-solid fa-pen-to-square"></i>')
+                            .attr("data-id", messageId)
+                            .attr("data-content", message),
+                        $("<button>")
+                            .addClass("btn btn-sm btn-outline-danger delete-btn")
+                            .html('<i class="fa-solid fa-trash"></i>')
+                            .attr("data-id", messageId)
+                    )
+            );
+        }
 
-        // Flex row: bubble + user info
         var contentWrapper = $("<div>")
             .addClass("d-flex customClassContent")
             .addClass(isOwnMessage ? "flex-row-reverse text-end" : "flex-row")
             .append(bubble)
             .append(userInfo);
 
-        // Main <li>
         var li = $("<li>")
             .addClass("list-group-item border-0 d-flex")
             .addClass(isOwnMessage ? "justify-content-end" : "justify-content-start")
             .append(contentWrapper);
 
         return returnOnly ? li : $("#messagesList").append(li);
-        // return  li ;
     }
 
+    // ==========================
+    // ✅ EDIT MESSAGE
+    // ==========================
     $(document).on("click", ".edit-btn", function () {
         var messageId = $(this).data("id");
         $("#editMessageId").val(messageId);
-        // var currentContent = $(this).attr("data-content");
 
         var currentContent = $(this).attr("data-content");
-        // Convert <br> back to newline characters for editing
         var editableText = currentContent.replace(/<br\s*\/?>/gi, "\n").replace(/\\n/g, "\n");
         $("#editMessageText").val(editableText);
 
-        // Show the modal
         $("#editMessageModal").modal("show");
     });
 
     $("#saveEditMessage").on("click", function () {
         var messageId = $("#editMessageId").val();
-        var newContent = $("#editMessageText").val(); // keep raw text here
+        var newContent = $("#editMessageText").val();
         var $msg = $("#message-" + messageId);
-        newContent = ( $("#editMessageText").val().replace(/\n/g, "\\n"));
+
+        newContent = ($("#editMessageText").val().replace(/\n/g, "\\n"));
         var oldContent = $msg.find(".edit-btn").attr("data-content");
 
         if (newContent && newContent !== oldContent) {
 
-        var isroom =  $("#isGroup").val();
-        var chatUserId =  $("#hiddenRoomid").val();
-        console.log("EditMsg ==>", {isroom , chatUserId});
-        if(isroom == "true")
-        {
-            connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom, "")
-                .catch(function (err) {
-                        console.error("Invoke faile:");
-                        console.error("Name:", err.name);
-                        console.error("Message:", err.message);
-                        console.error("Stack:", err.stack);
-                        console.error("Code:", err.code);
-                        console.error("Status:", err.status || err.statusCode);
-                        console.error("Cause:", err.cause);
-                        console.error("Full Error Object:", err.toString());
-                });
-        }
-        else
-        {
-            connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom, chatUserId)
-                .catch(function (err) {
-                        console.error("Invoke faile:");
-                        console.error("Name:", err.name);
-                        console.error("Message:", err.message);
-                        console.error("Stack:", err.stack);
-                        console.error("Code:", err.code);
-                        console.error("Status:", err.status || err.statusCode);
-                        console.error("Cause:", err.cause);
-                        console.error("Full Error Object:", err.toString());
-                });
-        }
+            var isroom = $("#isGroup").val();
+            var chatUserId = $("#hiddenRoomid").val();
 
-            // Send raw text with actual newlines to SignalR
+            if (isroom == "true") {
+                connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom, "")
+                    .catch(err => console.error("Edit failed:", err));
+            } else {
+                connectionChat.invoke("EditMessage", parseInt(messageId), newContent, currentRoom, chatUserId)
+                    .catch(err => console.error("Edit failed:", err));
+            }
 
-
-            // Show newlines properly in UI (convert \n to <br>)
             const formattedContent = newContent.replace(/\\n/g, "<br>");
             $msg.find(".message-text").html(formattedContent + ' <i>(edited)</i>');
             $msg.find(".edit-btn").attr("data-content", newContent);
@@ -1033,241 +1048,183 @@
         $("#editMessageModal").modal("hide");
     });
 
+    // ==========================
+    // ✅ DELETE MESSAGE
+    // ==========================
     $(document).on("click", ".delete-btn", function () {
         var messageId = $(this).data("id");
-        var isroom =  $("#isGroup").val();
-        var chatUserId =  $("#hiddenRoomid").val();
+        var isroom = $("#isGroup").val();
+        var chatUserId = $("#hiddenRoomid").val();
+
         if (confirm("Are you sure you want to delete this message?")) {
-            if(isroom == "true")
-            {
-                connectionChat.invoke("DeleteMessage", parseInt(messageId), currentRoom ,"")
-                    .catch(function (err) {
-                     console.error("Delete failed:", err.toString());
-                });
-            }
-            else
-            {
+
+            if (isroom == "true") {
+                connectionChat.invoke("DeleteMessage", parseInt(messageId), currentRoom, "")
+                    .catch(err => console.error("Delete failed:", err));
+            } else {
                 connectionChat.invoke("DeleteMessage", parseInt(messageId), currentRoom, chatUserId)
-                    .catch(function (err) {
-                     console.error("Delete failed:", err.toString());
-                });
-            }
-
-            const $messageBubble = $("#message-" + messageId);
-
-            if ($messageBubble.length) {
-                // Remove the entire <li> row that contains this message
-                // $messageBubble.closest("li").remove();
+                    .catch(err => console.error("Delete failed:", err));
             }
         }
     });
 
-    function scrollToBottom() {
-        var messagesBox = $('.card-footer');
-        messagesBox.scrollTop(messagesBox.prop("scrollHeight"));
+    function markMessageDeletedUI(messageId) {
+        const $messageBubble = $("#message-" + messageId);
+
+        if ($messageBubble.length) {
+            $messageBubble.find(".fa-trash").remove();
+            $messageBubble.find(".edit-btn").remove();
+            $messageBubble.find(".copy-btn").remove();
+            $messageBubble.find(".message-text").html('Message deleted');
+            $messageBubble.css({
+                "opacity": ".7",
+                "cursor": "not-allowed",
+                "font-style": "italic"
+            });
+        }
     }
 
-    function capitalizeFirstLetter(string) {
-        if(string != null && string != "" )
-        {
-            return string.charAt(0).toUpperCase() + string.slice(1);
-        }
-        else
-        {
-            return ".";
-        }
-    }
-
-    $("#createRoom").on("click", function (e) {
-        e.preventDefault();
-
-        var newRoom = $("#newRoomName").val().trim();
-        if (!newRoom) return;
-
-        $.ajax({
-            url: '/Home/CreateRoom', // make sure the route matches your controller
-            type: 'POST',
-            data: { roomName: newRoom },
-            success: function () {
-                loadRooms(); // reload dropdown list
-                $("#newRoomName").val('');
-            },
-            error: function (xhr, status, error) {
-                console.error("Room creation failed:", error);
-            }
-        });
-    });
-
+    // ==========================
+    // ✅ SEND MESSAGE
+    // ==========================
     $("#sendMessage").on("click", function (event) {
         event.preventDefault();
 
-        var sender = $("#senderEmail").val();
+        var sender = getSenderEmail();
         var message = $("#chatMessage").val();
-        var room = $("#hiddenRoomName").val().trim();
-        var chatId = $("#hiddenRoomid").val();
-        var isroom =  $("#isGroup").val();
+        var room = getHiddenRoomName().trim();
+        var chatId = getHiddenRoomId();
+        var isroom = getIsGroup();
 
         if (!message || !room) return;
 
-        message = ( $("#chatMessage").val().replace(/\n/g, "\\n"));
+        message = ($("#chatMessage").val().replace(/\n/g, "\\n"));
 
         var $btn = $("#sendMessage");
         var originalText = $btn.html();
         $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...');
 
         let promise;
-        if(isroom == "true")
-        {
+        if (isroom == "true") {
             promise = connectionChat.invoke("SendMessageToRoom", room, sender, message);
-        }
-        else
-        {
+        } else {
             promise = connectionChat.invoke("SendMessageToUser", sender, chatId, message);
         }
-        
+
         promise.then(() => {
             $("#chatMessage").val('');
         }).catch(err => {
             console.error("Send failed:", err);
         }).finally(() => {
-             $btn.prop('disabled', false).html(originalText);
-             setTimeout(() => {
-                customFontSize(fontSize);
-            }, 500);
+            $btn.prop('disabled', false).html(originalText);
+            setTimeout(() => customFontSize(fontSize), 300);
         });
     });
 
-    $('#chatMessage').on('keydown', function(e) {
-        if (e.which === 13) { // Enter key
-            if (e.ctrlKey) { // Ctrl+Enter → Insert new line
-                // Get current cursor position
+    // Enter key send + Ctrl+Enter newline
+    $('#chatMessage').on('keydown', function (e) {
+        if (e.which === 13) {
+            if (e.ctrlKey) {
                 var start = this.selectionStart;
                 var end = this.selectionEnd;
 
-                // Insert a new line at cursor position
                 var text = $(this).val();
-                $(this).val(
-                    text.substring(0, start) +
-                    '\n' +
-                    text.substring(end)
-                );
+                $(this).val(text.substring(0, start) + '\n' + text.substring(end));
 
-                // Move cursor to after the new line
                 this.selectionStart = this.selectionEnd = start + 1;
-
-                return false; // Prevent default behavior
-            }
-            else { // Just Enter → Send message
+                return false;
+            } else {
                 e.preventDefault();
                 $('#sendMessage').click();
             }
         }
     });
 
+    // ==========================
+    // ✅ HELPERS
+    // ==========================
+    function capitalizeFirstLetter(string) {
+        if (string != null && string != "") {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        } else {
+            return ".";
+        }
+    }
 
-    // 🟩 Function: Move chat item to the very top of the list
+    // Move chat item to top
     function moveChatToTop(safeId, isRoom) {
-          var groupList = $("#groupList");
-          var chatItem = groupList.find(`li.group-item[data-id='${safeId}']`);
+        var groupList = $("#groupList");
+        var chatItem = groupList.find(`li.group-item[data-id='${safeId}']`);
 
-          if (chatItem.length) {
-              console.log("🔝 Moving chat to top:", safeId);
+        if (chatItem.length) {
+            chatItem.detach();
 
-              // 🧠 Detach the chat item (keeps event bindings intact)
-              chatItem.detach();
+            if (isRoom) {
+                var groupHeader = groupList.find("li.list-separator:contains('Groups')");
+                if (groupHeader.length) chatItem.insertAfter(groupHeader);
+                else groupList.prepend(chatItem);
+            } else {
+                var userHeader = groupList.find("li.list-separator:contains('Users')");
+                if (userHeader.length) {
+                    var firstUser = userHeader.nextAll(".group-item[data-isroom='false']").last();
+                    if (firstUser.length) chatItem.insertAfter(firstUser);
+                    else chatItem.insertAfter(userHeader);
+                } else {
+                    groupList.prepend(chatItem);
+                }
+            }
 
-              if (isRoom) {
-              // 🟢 Move inside "Groups" section
-              var groupHeader = groupList.find("li.list-separator:contains('Groups')");
-              if (groupHeader.length) {
-                  chatItem.insertAfter(groupHeader);
-                  } else {
-                      // Fallback: if no header, put at top
-                      groupList.prepend(chatItem);
-                  }
-              } else {
-                  // 🟣 Move inside "Users" section
-                  var userHeader = groupList.find("li.list-separator:contains('Users')");
-                  if (userHeader.length) {
-                      // Find the first user chat after the header
-                      var firstUser = userHeader.nextAll(".group-item[data-isroom='false']").last();
-                      if (firstUser.length) {
-                          // Insert before the first user chat (top position in user section)
-                          console.log("insertBefore :"+ firstUser)
-                          chatItem.insertAfter(firstUser);
-                      } else {
-                          // If no users yet, place right after the header
-                          console.log("insertAfter :"+ firstUser)
-                          chatItem.insertBefore(userHeader);
-                      }
-                  } else {
-                      // Fallback: if no header, put at top
-                      groupList.prepend(chatItem);
-                  }
-              }
+            chatItem.css({
+                "background-color": "#3e0a18",
+                "transition": "background-color 0.5s"
+            });
 
-              // 💡 Optional: add a short highlight for visual feedback
-              chatItem.css({
-                  "background-color": "#3e0a18",
-                  "transition": "background-color 0.5s"
-              });
-              setTimeout(() => {
-                  chatItem.css("background-color", "");
-              }, 800);
-          } else {
-              console.warn("⚠️ Chat item not found for:", safeId);
-          }
-      }
+            setTimeout(() => {
+                chatItem.css("background-color", "");
+            }, 800);
+        }
+    }
 
-      function sortChatListByUnread() {
-          const groupList = $("#groupList");
-          const groups = [];
-          const users = [];
+    function sortChatListByUnread() {
+        const groupList = $("#groupList");
+        const groups = [];
+        const users = [];
 
-          let currentSection = null;
+        let currentSection = null;
 
-          // 🧩 Separate chats into Groups / Users arrays
-          groupList.children("li").each(function () {
-              const li = $(this);
+        groupList.children("li").each(function () {
+            const li = $(this);
 
-              if (li.hasClass("list-separator")) {
-                  currentSection = li.text().trim();
-                  return;
-              }
+            if (li.hasClass("list-separator")) {
+                currentSection = li.text().trim();
+                return;
+            }
 
-              const badge = li.find(".badge");
-              const count = badge && badge.text() ? parseInt(badge.text()) : 0;
+            const badge = li.find(".badge");
+            const count = badge && badge.text() ? parseInt(badge.text()) : 0;
 
-              const item = { element: li.detach(), count: count };
+            const item = { element: li.detach(), count: count };
 
-              if (currentSection === "Groups") groups.push(item);
-              else if (currentSection === "Users") users.push(item);
-          });
+            if (currentSection === "Groups") groups.push(item);
+            else if (currentSection === "Users") users.push(item);
+        });
 
-          // 🔢 Sort by unread count (descending)
-          groups.sort((a, b) => b.count - a.count);
-          users.sort((a, b) => a.count - b.count);
+        groups.sort((a, b) => b.count - a.count);
+        users.sort((a, b) => b.count - a.count);
 
-          // 🏗️ Find headers
-          const groupHeader = groupList.find("li.list-separator:contains('Groups')");
-          const userHeader = groupList.find("li.list-separator:contains('Users')");
+        const groupHeader = groupList.find("li.list-separator:contains('Groups')");
+        const userHeader = groupList.find("li.list-separator:contains('Users')");
 
-          // 🧱 Re-render sorted Groups section
-          if (groupHeader.length) {
-              // Insert after header in correct order
-              $.each(groups, function (index, item) {
-                  groupHeader.after(item.element);
-              });
-          }
+        if (groupHeader.length) {
+            $.each(groups, function (index, item) {
+                groupHeader.after(item.element);
+            });
+        }
 
-          // 🧱 Re-render sorted Users section
-          if (userHeader.length) {
-              $.each(users, function (index, item) {
-                  userHeader.after(item.element);
-              });
-          }
-
-          console.log("✅ Chat list sorted by unread count");
-      }
-
+        if (userHeader.length) {
+            $.each(users, function (index, item) {
+                userHeader.after(item.element);
+            });
+        }
+    }
 </script>
