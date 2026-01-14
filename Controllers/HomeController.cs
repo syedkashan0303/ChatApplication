@@ -8,25 +8,26 @@
     using SignalRMVC.Areas.Identity.Data;
     using SignalRMVC.CustomClasses;
     using SignalRMVC.Models;
-    using System.Collections.Generic;
     using System.Security.Claims;
+    using System.Threading;
 
     public class HomeController : Controller
     {
         private readonly AppDbContext _db;
-
         private readonly UserManager<ApplicationUser> _userManager;
-
         private readonly IHubContext<BasicChatHub> _basicChatHub;
+        private readonly ILogger<HomeController> _logger;
 
         public HomeController(
-        AppDbContext context,
-        UserManager<ApplicationUser> userManager,
-        IHubContext<BasicChatHub> basicChatHub)
+            AppDbContext context,
+            UserManager<ApplicationUser> userManager,
+            IHubContext<BasicChatHub> basicChatHub,
+            ILogger<HomeController> logger)
         {
             _db = context;
             _userManager = userManager;
             _basicChatHub = basicChatHub;
+            _logger = logger;
         }
 
         [Authorize]
@@ -34,11 +35,9 @@
         {
             var model = new RoleViewModel();
             var user = await _userManager.GetUserAsync(User);
+
             if (user is not null)
             {
-                var roles1 = await _db.UserRoles
-                .Where(ur => ur.UserId == user.Id)
-                .ToListAsync();
                 var roles = await _userManager.GetRolesAsync(user);
                 model.UserRoles = roles;
             }
@@ -46,17 +45,19 @@
             return View(model);
         }
 
+        // =====================================================
+        // Send message to all
+        // =====================================================
         [HttpGet("SendMessageToAll")]
         [Authorize]
         public async Task<IActionResult> SendMessageToAll(string user, string message)
         {
-
             var senderUser = await _userManager.FindByNameAsync(user);
 
             var chatMessage = new ChatMessage
             {
                 SenderId = senderUser?.Id,
-                ReceiverId = null, // for broadcast
+                ReceiverId = null,
                 Message = message,
                 GroupName = null,
                 CreatedOn = DateTime.Now
@@ -69,11 +70,17 @@
             return Ok();
         }
 
+        // =====================================================
+        // Send message to receiver
+        // =====================================================
         [HttpGet("SendMessageToReceiver")]
         [Authorize]
         public async Task<IActionResult> SendMessageToReceiver(string sender, string receiver, string message)
         {
-            var userId = _db.Users.FirstOrDefault(u => u.Email.ToLower() == receiver.ToLower())?.Id;
+            var userId = await _db.Users
+                .Where(u => u.Email.ToLower() == receiver.ToLower())
+                .Select(u => u.Id)
+                .FirstOrDefaultAsync();
 
             if (!string.IsNullOrEmpty(userId))
             {
@@ -86,7 +93,8 @@
                     {
                         SenderId = senderUser?.Id,
                         ReceiverId = receiverUser.Id,
-                        Message = message
+                        Message = message,
+                        CreatedOn = DateTime.Now
                     };
 
                     _db.ChatMessages.Add(chatMessage);
@@ -95,20 +103,25 @@
 
                 await _basicChatHub.Clients.User(userId).SendAsync("MessageReceived", sender, message);
             }
+
             return Ok();
         }
 
+        // =====================================================
+        // Send message to group
+        // =====================================================
         [HttpPost("SendMessageToGroup")]
         [Authorize]
         public async Task<IActionResult> SendMessageToGroup([FromForm] string user, [FromForm] string room, [FromForm] string message)
         {
             var senderUser = await _userManager.FindByNameAsync(user);
+
             if (senderUser != null)
             {
                 var chatMessage = new ChatMessage
                 {
-                    SenderId = senderUser?.Id,
-                    ReceiverId = null, // for group broadcast
+                    SenderId = senderUser.Id,
+                    ReceiverId = null,
                     Message = message,
                     GroupName = room,
                     CreatedOn = DateTime.Now
@@ -116,144 +129,140 @@
 
                 _db.ChatMessages.Add(chatMessage);
                 await _db.SaveChangesAsync();
+
                 await _basicChatHub.Clients.Group(room).SendAsync("MessageReceived", senderUser.UserName, message);
             }
+
             return Ok();
         }
 
-        //[HttpGet]
-        //public async Task<IActionResult> GetMessagesByRoom(string roomName, int skipRecords = 0, int chunkRecords = 10, bool isRoom = false, string receiverId = "")
-        //{
-        //    var now = DateTime.UtcNow;
-        //    var fromDate = skipRecords * chunkRecords;
-        //    var currentUserId = GetUserId();
-        //    if (isRoom)
-        //    {
-        //        var messages = _db.ChatMessages
-        //                     .Where(m => m.GroupName == roomName /*&& !m.IsDelete*/)
-        //                     .OrderByDescending(m => m.Id).Skip(fromDate).Take(chunkRecords)
-        //                     .Join(
-        //                        _db.Users,
-        //                         message => message.SenderId,
-        //                         user => user.Id,
-        //                         (message, user) => new
-        //                         {
-        //                             id = message.Id,
-        //                             sender = user.UserName, // Or use user.UserName or FullName if you have it
-        //                             message = message.IsDelete ? "Message deleted" : message.Message,
-        //                             createdOn = message.CreatedOn,
-        //                             messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt") : DateTime.Now.ToString("dd-MM-yy hh:mm tt")
-        //                         }
-        //                     )
-        //                     .ToList().OrderByDescending(x => x.id);
-        //        return Ok(messages);
-        //    }
-        //    else
-        //    {
-        //        var messages = _db.UsersMessage
-        //         .Where(m => (m.ReceiverId == receiverId && m.SenderId == currentUserId) || m.SenderId == receiverId && m.ReceiverId == currentUserId)
-        //         .OrderByDescending(m => m.Id).Skip(fromDate).Take(chunkRecords)
-        //         .Join(
-        //             _db.Users,
-        //             message => message.SenderId,
-        //             user => user.Id,
-        //             (message, user) => new
-        //             {
-        //                 id = message.Id,
-        //                 sender = user.UserName, // Or use user.UserName or FullName if you have it
-        //                 message = message.IsDelete ? "Message deleted" : message.Message,
-        //                 createdOn = message.CreatedOn,
-        //                 messageTime = message.CreatedOn != null ? message.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt") : DateTime.Now.ToString("dd-MM-yy hh:mm tt")
-        //             }
-        //         )
-        //         .ToList().OrderBy(x => x.id);
-        //        return Ok(messages);
-        //    }
-        //}
-
+        // =====================================================
+        // Get Messages By Room / Personal (with timeout)
+        // =====================================================
         [HttpGet]
+        [Authorize]
         public async Task<IActionResult> GetMessagesByRoom(
             string roomName,
             int skipRecords = 0,
             int chunkRecords = 10,
             bool isRoom = false,
-            string receiverId = "")
+            string receiverId = "",
+            CancellationToken cancellationToken = default)
         {
-            var fromDate = skipRecords * chunkRecords;
-            var currentUserId = GetUserId();
+            // ✅ Linked token + timeout
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(30));
 
-            // ===========================
-            // GROUP / ROOM CHAT
-            // ===========================
-            if (isRoom)
+            try
             {
-                var messages = await _db.ChatMessages
-                    .AsNoTracking()
-                    .Where(m => m.GroupName == roomName)
-                    .OrderByDescending(m => m.Id)
-                    .Skip(fromDate)
-                    .Take(chunkRecords)
-                    .Join(
-                        _db.Users,
-                        m => m.SenderId,
-                        u => u.Id,
-                        (m, u) => new
-                        {
-                            id = m.Id,
-                            sender = u.UserName,
-                            message = m.IsDelete ? "Message deleted" : m.Message,
-                            createdOn = m.CreatedOn,
-                            messageTime = m.CreatedOn.HasValue ? m.CreatedOn.Value.ToString("dd-MM-yy HH:mm") : ""
-                        }
-                    )
-                    .ToListAsync();
+                var fromDate = skipRecords * chunkRecords;
+                var currentUserId = GetUserId();
 
-                // client ko ASC order chahiye
-                return Ok(messages.OrderByDescending(x => x.id));
+                if (string.IsNullOrEmpty(currentUserId))
+                    return Unauthorized("User not authenticated.");
+
+                // ===========================
+                // GROUP / ROOM CHAT
+                // ===========================
+                if (isRoom)
+                {
+                    if (string.IsNullOrWhiteSpace(roomName))
+                        return BadRequest("roomName is required.");
+
+                    var messages = await _db.ChatMessages
+                        .AsNoTracking()
+                        .Where(m => m.GroupName == roomName)
+                        .OrderByDescending(m => m.Id)
+                        .Skip(fromDate)
+                        .Take(chunkRecords)
+                        .Join(
+                            _db.Users.AsNoTracking(),
+                            m => m.SenderId,
+                            u => u.Id,
+                            (m, u) => new
+                            {
+                                id = m.Id,
+                                sender = u.UserName,
+                                message = m.IsDelete ? "Message deleted" : m.Message,
+                                createdOn = m.CreatedOn,
+                                messageTime = m.CreatedOn.HasValue
+                                    ? m.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
+                                    : ""
+                            }
+                        )
+                        .ToListAsync(cts.Token);
+
+                    return Ok(messages.OrderByDescending(x => x.id));
+                }
+
+                // ===========================
+                // PRIVATE / ONE-TO-ONE CHAT
+                // ===========================
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(receiverId))
+                        return BadRequest("receiverId is required.");
+
+                    var messages = await _db.UsersMessage
+                        .AsNoTracking()
+                        .Where(m =>
+                            (m.ReceiverId == receiverId && m.SenderId == currentUserId) ||
+                            (m.SenderId == receiverId && m.ReceiverId == currentUserId)
+                        )
+                        .OrderByDescending(m => m.Id)
+                        .Skip(fromDate)
+                        .Take(chunkRecords)
+                        .Join(
+                            _db.Users.AsNoTracking(),
+                            m => m.SenderId,
+                            u => u.Id,
+                            (m, u) => new
+                            {
+                                id = m.Id,
+                                sender = u.UserName,
+                                message = m.IsDelete ? "Message deleted" : m.Message,
+                                createdOn = m.CreatedOn,
+                                messageTime = m.CreatedOn.HasValue
+                                    ? m.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
+                                    : ""
+                            }
+                        )
+                        .ToListAsync(cts.Token);
+
+                    return Ok(messages.OrderByDescending(x => x.id));
+                }
             }
-
-            // ===========================
-            // PRIVATE / ONE-TO-ONE CHAT
-            // ===========================
-            else
+            catch (OperationCanceledException ex)
             {
-                var messages = await _db.UsersMessage
-                    .AsNoTracking()
-                    .Where(m =>
-                        (m.ReceiverId == receiverId && m.SenderId == currentUserId) ||
-                        (m.SenderId == receiverId && m.ReceiverId == currentUserId)
-                    )
-                    .OrderByDescending(m => m.Id)
-                    .Skip(fromDate)
-                    .Take(chunkRecords)
-                    .Join(
-                        _db.Users,
-                        m => m.SenderId,
-                        u => u.Id,
-                        (m, u) => new
-                        {
-                            id = m.Id,
-                            sender = u.UserName,
-                            message = m.IsDelete ? "Message deleted" : m.Message,
-                            createdOn = m.CreatedOn,
-                            messageTime = m.CreatedOn.HasValue ? m.CreatedOn.Value.ToString("dd-MM-yy hh:mm tt") : ""
-                        }
-                    )
-                    .ToListAsync();
+                // ✅ Timeout / cancelled request
+                _logger.LogWarning(ex,
+                    "⏳ GetMessagesByRoom timeout/cancelled | Room={RoomName} | Skip={Skip} | Chunk={Chunk} | IsRoom={IsRoom} | Receiver={ReceiverId}",
+                    roomName, skipRecords, chunkRecords, isRoom, receiverId);
 
-                return Ok(messages.OrderByDescending(x => x.id));
+                return StatusCode(408, "Request timeout. Please retry.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "❌ Error in GetMessagesByRoom | Room={RoomName} | Skip={Skip} | Chunk={Chunk} | IsRoom={IsRoom} | Receiver={ReceiverId}",
+                    roomName, skipRecords, chunkRecords, isRoom, receiverId);
+
+                return StatusCode(500, "Something went wrong");
             }
         }
 
-
-
+        // =====================================================
+        // Edit Message (Controller)
+        // =====================================================
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> EditMessage(int id, string newContent)
         {
             if (string.IsNullOrWhiteSpace(newContent))
                 return BadRequest("Message cannot be empty.");
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             var message = await _db.ChatMessages.FindAsync(id);
 
             if (message == null)
@@ -268,48 +277,64 @@
             return Ok();
         }
 
+        // =====================================================
+        // Theme
+        // =====================================================
         [HttpGet]
-        public IActionResult GetTheme()
+        [Authorize]
+        public async Task<IActionResult> GetTheme()
         {
             var userId = GetUserId();
 
-            var user = _db.Users.FirstOrDefault(x => x.Id == userId);
+            var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == userId);
             if (user != null)
             {
                 return Ok(user.IsDarkTheme);
             }
-            return Ok("false");
+
+            return Ok(false);
         }
 
         [HttpGet]
-        public IActionResult UpdateTheme()
+        [Authorize]
+        public async Task<IActionResult> UpdateTheme()
         {
             var userId = GetUserId();
 
-            var user = _db.Users.FirstOrDefault(x => x.Id == userId);
+            var user = await _db.Users.FirstOrDefaultAsync(x => x.Id == userId);
             if (user != null)
             {
-                user.IsDarkTheme = user.IsDarkTheme ? false : true;
-                _db.Update(user);
-                _db.SaveChanges();
+                user.IsDarkTheme = !user.IsDarkTheme;
+                await _db.SaveChangesAsync();
             }
+
             return Ok();
         }
 
+        // =====================================================
+        // Get Rooms
+        // =====================================================
         [HttpGet]
+        [Authorize]
         public async Task<IActionResult> GetRooms()
         {
             var userId = GetUserId();
 
             // Get Group IDs for current user
             var groupUserList = await _db.GroupUserMapping
+                .AsNoTracking()
                 .Where(x => x.Active && x.UserId == userId)
                 .Select(x => x.GroupId)
                 .ToListAsync();
-            var users = await _db.Users.Where(x => !x.IsDeleted && x.Id != userId).ToListAsync();
 
-            // Fetch group names and also generate encoded ID-safe names
-            List<Room> rooms = await _db.ChatRoom
+            var users = await _db.Users
+                .AsNoTracking()
+                .Where(x => !x.IsDeleted && x.Id != userId)
+                .Select(x => new { x.Id, x.UserName })
+                .ToListAsync();
+
+            var rooms = await _db.ChatRoom
+                .AsNoTracking()
                 .Where(x => !x.isDelete && groupUserList.Contains(x.Id))
                 .Select(r => new Room
                 {
@@ -320,29 +345,29 @@
                 .ToListAsync();
 
             rooms.AddRange(
-                users.Select(r => new Room
+                users.Select(u => new Room
                 {
-                    Name = r.UserName,
-                    SafeId = r.Id,
+                    Name = u.UserName,
+                    SafeId = u.Id,
                     IsRoom = false
                 })
             );
 
-            rooms.OrderBy(x => x.IsRoom);
+            // ✅ Fix: OrderBy must assign result
+            rooms = rooms
+                .OrderByDescending(x => x.IsRoom) // Groups first
+                .ThenBy(x => x.Name)
+                .ToList();
+
             return Json(rooms);
         }
 
+        // =====================================================
+        // Helpers
+        // =====================================================
         private string GetUserId()
         {
-            var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            return userId;
-        }
-
-        private async Task<IList<string>> GetUserRoles(string userId)
-        {
-            var user = await _userManager.FindByIdAsync(userId);
-            var roles = await _userManager.GetRolesAsync(user);
-            return roles;
+            return HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         }
 
         [HttpGet("/Home/ping")]
@@ -355,7 +380,7 @@
                 return StatusCode(500, "App is idle or frozen");
             }
 
-            return Ok("Healthy" + idleTime);
+            return Ok("Healthy " + idleTime);
         }
 
         public class Room

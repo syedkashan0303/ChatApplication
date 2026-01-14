@@ -13,104 +13,115 @@ namespace SignalRMVC.Controllers
     {
         private readonly AppDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ILogger<GroupController> _logger;
 
-        public GroupController(AppDbContext context, UserManager<ApplicationUser> userManager)
+        public GroupController(AppDbContext context, UserManager<ApplicationUser> userManager, ILogger<GroupController> logger)
         {
             _context = context;
             _userManager = userManager;
+            _logger = logger;
         }
 
         #region Group
+
         // GET: Group
         [AdminOnly]
         public async Task<IActionResult> Index()
         {
-            return View(await _context.ChatRoom.Where(x => !x.isDelete).ToListAsync());
+            var groups = await _context.ChatRoom
+                .AsNoTracking()
+                .Where(x => !x.isDelete)
+                .ToListAsync();
+
+            return View(groups);
         }
 
         [AdminOnly]
         [HttpGet]
         public async Task<JsonResult> Details(int id)
         {
-            var chatRoom = await _context.ChatRoom.FindAsync(id);
-            if (chatRoom == null)
-            {
-                return Json(new { success = false, message = "Chat room not found." });
-            }
+            var chatRoom = await _context.ChatRoom.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
 
-            return Json(new
-            {
-                success = true,
-                Name = chatRoom.Name
-                // Add other fields if needed
-            });
+            if (chatRoom == null)
+                return Json(new { success = false, message = "Chat room not found." });
+
+            return Json(new { success = true, Name = chatRoom.Name });
         }
 
         [HttpPost]
+        [AdminOnly]
         public async Task<JsonResult> EditInline([FromBody] ChatRoom model)
         {
             try
             {
-                var chatRoom = await _context.ChatRoom.FindAsync(model.Id);
-                if (chatRoom == null)
-                {
-                    return Json(new { success = false, message = "Chat room not found." });
-                }
+                if (model == null || model.Id <= 0 || string.IsNullOrWhiteSpace(model.Name))
+                    return Json(new { success = false, message = "Invalid group data." });
 
-                var chatsByRoomName = _context.ChatMessages
-                    .Where(x => !string.IsNullOrEmpty(x.GroupName))
-                    .Where(x => x.GroupName == chatRoom.Name)
-                    .ToList(); if (chatsByRoomName != null && chatsByRoomName.Any())
+                var chatRoom = await _context.ChatRoom.FirstOrDefaultAsync(x => x.Id == model.Id);
+
+                if (chatRoom == null)
+                    return Json(new { success = false, message = "Chat room not found." });
+
+                // ✅ Rename group messages also (Async)
+                var chatsByRoomName = await _context.ChatMessages
+                    .Where(x => !string.IsNullOrEmpty(x.GroupName) && x.GroupName == chatRoom.Name)
+                    .ToListAsync();
+
+                if (chatsByRoomName.Any())
                 {
                     chatsByRoomName.ForEach(x => x.GroupName = model.Name);
-                    await _context.SaveChangesAsync();
                 }
-                // Update only the fields that should be editable
+
                 chatRoom.Name = model.Name;
-                _context.Update(chatRoom);
                 await _context.SaveChangesAsync();
 
                 return Json(new { success = true, message = "Changes saved successfully." });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "❌ EditInline failed | GroupId={GroupId}", model?.Id);
                 return Json(new { success = false, message = "Error saving changes: " + ex.Message });
             }
         }
 
         [AdminOnly]
+        [HttpPost]
         public async Task<IActionResult> CreateGroup([FromBody] ChatRoom model)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(model.Name))
+                if (model == null || string.IsNullOrWhiteSpace(model.Name))
                     return BadRequest(new { success = false, message = "Group name is required." });
+
+                // ✅ Duplicate group name check
+                var alreadyExists = await _context.ChatRoom.AnyAsync(x => !x.isDelete && x.Name == model.Name);
+                if (alreadyExists)
+                    return BadRequest(new { success = false, message = "Group name already exists." });
 
                 var group = new ChatRoom
                 {
-                    Name = model.Name,
+                    Name = model.Name.Trim(),
                     isDelete = false,
                     CreatedOn = DateTime.Now
                 };
 
                 _context.ChatRoom.Add(group);
                 await _context.SaveChangesAsync();
-                var user = GetUserId();
+
+                var userId = GetUserId();
 
                 var groupUserMapping = new GroupUserMapping
                 {
-                    UserId = user,
+                    UserId = userId,
                     GroupId = group.Id,
                     Active = true,
-                    AddedBy = user,
+                    AddedBy = userId,
                     RemovedBy = "0",
                     CreatedOn = DateTime.Now
                 };
 
                 _context.GroupUserMapping.Add(groupUserMapping);
                 await _context.SaveChangesAsync();
-
-
 
                 return Ok(new
                 {
@@ -121,40 +132,40 @@ namespace SignalRMVC.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = $"Error creating group: {ex.Message}"
-                });
+                _logger.LogError(ex, "❌ CreateGroup failed");
+                return StatusCode(500, new { success = false, message = $"Error creating group: {ex.Message}" });
             }
         }
 
         [HttpPost]
+        [AdminOnly]
         public async Task<IActionResult> Delete(int id)
         {
             try
             {
-                var chatRoom = await _context.ChatRoom.FindAsync(id);
+                var chatRoom = await _context.ChatRoom.FirstOrDefaultAsync(x => x.Id == id);
+
                 if (chatRoom == null)
-                {
                     return Json(new { success = false, message = "Chat room not found." });
-                }
-                var chatsByRoomName = _context.ChatMessages
-                   .Where(x => !string.IsNullOrEmpty(x.GroupName))
-                   .Where(x => x.GroupName == chatRoom.Name)
-                   .ToList(); if (chatsByRoomName != null && chatsByRoomName.Any())
+
+                // ✅ Mark all messages deleted (Async)
+                var chatsByRoomName = await _context.ChatMessages
+                    .Where(x => !string.IsNullOrEmpty(x.GroupName) && x.GroupName == chatRoom.Name)
+                    .ToListAsync();
+
+                if (chatsByRoomName.Any())
                 {
                     chatsByRoomName.ForEach(x => x.IsDelete = true);
-                    await _context.SaveChangesAsync();
                 }
+
                 chatRoom.isDelete = true;
-                _context.ChatRoom.Update(chatRoom);
                 await _context.SaveChangesAsync();
 
                 return Json(new { success = true, message = "Chat room deleted successfully." });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "❌ Delete group failed | GroupId={GroupId}", id);
                 return Json(new { success = false, message = "Error deleting chat room: " + ex.Message });
             }
         }
@@ -164,26 +175,32 @@ namespace SignalRMVC.Controllers
         public async Task<IActionResult> UserChatHistory(string id)
         {
             var chatList = new List<ChatHistory>();
+
             try
             {
-                var user = _context.Users.FirstOrDefault(x => x.Id == id);
+                var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+
                 if (user != null)
                 {
-                    chatList = await _context.ChatMessages.Where(x => x.SenderId == id).OrderByDescending(x => x.CreatedOn)
-                    .Select(u => new ChatHistory
-                    {
-                        Id = u.Id,
-                        Chat = u.Message,
-                        GroupName = u.GroupName,
-                        Date = u.CreatedOn.Value.ToString("dd-MM-yyyy")
-                    }).ToListAsync();
-
+                    chatList = await _context.ChatMessages
+                        .AsNoTracking()
+                        .Where(x => x.SenderId == id)
+                        .OrderByDescending(x => x.CreatedOn)
+                        .Select(u => new ChatHistory
+                        {
+                            Id = u.Id,
+                            Chat = u.Message,
+                            GroupName = u.GroupName,
+                            Date = u.CreatedOn.HasValue ? u.CreatedOn.Value.ToString("dd-MM-yyyy") : ""
+                        })
+                        .ToListAsync();
                 }
 
                 return Json(chatList);
             }
-            catch (Exception es)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "❌ UserChatHistory failed | UserId={UserId}", id);
                 return Json(chatList);
             }
         }
@@ -195,137 +212,111 @@ namespace SignalRMVC.Controllers
         [AdminOnly]
         public async Task<IActionResult> UserList()
         {
-            var user = GetUserId();
-            var userListabc = _userManager.Users;
+            var currentUserId = GetUserId();
 
             var userRoles = from role in _context.Roles
                             join userRole in _context.UserRoles on role.Id equals userRole.RoleId
                             select new
                             {
-                                Role = role,
                                 UserId = userRole.UserId,
                                 RoleName = role.Name
                             };
 
-            var userList = await _userManager.Users.Where(x => !x.IsDeleted)
+            var userList = await _userManager.Users
+                .AsNoTracking()
+                .Where(x => !x.IsDeleted)
                 .Select(u => new UserViewModel
                 {
                     Id = u.Id,
                     UserName = u.FullName,
                     Email = u.Email,
                     LoginName = u.UserName,
-                    RoleName = userRoles != null && userRoles.Any() ? userRoles.FirstOrDefault(x => x.UserId == u.Id).RoleName : "",
-                    IsCurrentUser = (user == u.Id ? true : false),
+                    RoleName = userRoles.Any() ? userRoles.FirstOrDefault(x => x.UserId == u.Id).RoleName : "",
+                    IsCurrentUser = (currentUserId == u.Id),
                     PhoneNumber = u.PhoneNumber,
                     LockoutEnd = u.LockoutEnd,
                     LockoutEnabled = u.LockoutEnabled,
                     AccessFailedCount = u.AccessFailedCount
                 })
                 .ToListAsync();
+
             return View(userList);
         }
 
         [HttpPost]
+        [AdminOnly]
         public async Task<IActionResult> LockUser(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
-            {
                 return Json(new { success = false, message = "User not found." });
-            }
 
             user.LockoutEnabled = true;
             user.LockoutEnd = DateTimeOffset.Now.AddYears(10);
-            //var result = await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.Now.AddYears(10));
-            _context.SaveChanges();
-            return Json(new
-            {
-                success = true,
-                message = "User locked"
-            });
+
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, message = "User locked" });
         }
 
         [HttpPost]
+        [AdminOnly]
         public async Task<IActionResult> UnlockUser(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
-            {
                 return Json(new { success = false, message = "User not found." });
-            }
-
-            //var result = await _userManager.SetLockoutEndDateAsync(user, null);
-
-            //return Json(new
-            //{
-            //    success = result.Succeeded,
-            //    message = result.Succeeded ? "User unlocked" : string.Join(", ", result.Errors.Select(e => e.Description))
-            //});
 
             user.LockoutEnabled = false;
             user.LockoutEnd = null;
-            //var result = await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.Now.AddYears(10));
-            _context.SaveChanges();
-            return Json(new
-            {
-                success = true,
-                message = "User locked"
-            });
+
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, message = "User unlocked" });
         }
 
         [HttpPost]
+        [AdminOnly]
         public async Task<IActionResult> DeleteUser(string id)
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user == null)
-            {
                 return Json(new { success = false, message = "User not found." });
-            }
+
             user.IsDeleted = true;
             _context.Update(user);
-            _context.SaveChanges();
-            return Json(new
-            {
-                success = true,
-                message = "User deleted"
-            });
-        }
 
-        private string GetUserId()
-        {
-            var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            return userId;
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, message = "User deleted" });
         }
 
         [AdminOnly]
         public async Task<IActionResult> AddUser()
         {
+            var model = new UserModal();
 
-            //await DelayResponse();
-            var user = new UserModal();
-
-            var role = _context.Roles.ToList();
-            foreach (var item in role)
+            var roles = await _context.Roles.AsNoTracking().ToListAsync();
+            foreach (var item in roles)
             {
-                user.UserRoles.Add(new SelectListItem { Text = item.Name, Value = item.Id });
+                model.UserRoles.Add(new SelectListItem { Text = item.Name, Value = item.Id });
             }
 
-            return View(user);
+            return View(model);
         }
 
         [HttpPost]
+        [AdminOnly]
         public async Task<IActionResult> AddUser(UserModal model)
         {
             ModelState.Remove("Id");
 
             if (!ModelState.IsValid)
             {
-                // Repopulate UserRoles if validation fails
-                model.UserRoles = await GetUserRoles(); // Implement this method to fetch roles
+                model.UserRoles = await GetUserRoles();
                 return View(model);
             }
 
-            // Check if email already exists
             var existingUser = await _userManager.FindByEmailAsync(model.Email);
             if (existingUser != null)
             {
@@ -337,19 +328,18 @@ namespace SignalRMVC.Controllers
             var existingUserName = await _userManager.FindByNameAsync(model.NormalizedUserName);
             if (existingUserName != null)
             {
-                ModelState.AddModelError("NormalizedUserName", "User Name is already Exists");
+                ModelState.AddModelError("NormalizedUserName", "User Name already exists");
                 model.UserRoles = await GetUserRoles();
                 return View(model);
             }
 
-            // Create new ApplicationUser
             var user = new ApplicationUser
             {
                 FullName = model.UserName,
                 UserName = model.NormalizedUserName,
                 NormalizedUserName = model.Email,
                 Email = model.Email,
-                EmailConfirmed = true, // Set to true if you're not implementing email confirmation
+                EmailConfirmed = true,
                 NormalizedEmail = model.Email,
                 PhoneNumber = "",
                 TwoFactorEnabled = false,
@@ -357,7 +347,6 @@ namespace SignalRMVC.Controllers
                 IsDeleted = false
             };
 
-            // Create the user with password
             var result = await _userManager.CreateAsync(user, model.PasswordHash);
 
             if (!result.Succeeded)
@@ -366,118 +355,115 @@ namespace SignalRMVC.Controllers
                 {
                     ModelState.AddModelError(string.Empty, error.Description);
                 }
+
                 model.UserRoles = await GetUserRoles();
                 return View(model);
             }
 
-            // Assign selected role to the user
             if (!string.IsNullOrEmpty(model.RoleId))
             {
-                var role = _context.Roles.FirstOrDefault(x => x.Id == model.RoleId);
+                var role = await _context.Roles.FirstOrDefaultAsync(x => x.Id == model.RoleId);
                 if (role != null)
                 {
                     var roleResult = await _userManager.AddToRoleAsync(user, role.Name);
+
                     if (!roleResult.Succeeded)
                     {
-                        // Log role assignment errors if needed
                         foreach (var error in roleResult.Errors)
                         {
                             ModelState.AddModelError(string.Empty, $"Role assignment failed: {error.Description}");
                         }
+
                         model.UserRoles = await GetUserRoles();
                         return View(model);
                     }
                 }
             }
+
             TempData["SuccessMessage"] = "User created successfully";
             return RedirectToAction("UserList");
         }
 
-        // GET: EditUser/{id}
         [AdminOnly]
         [HttpGet]
         public async Task<IActionResult> EditUser(string id)
         {
-            var user = _context.Users.FirstOrDefault(u => u.Id == id);
-            if (user == null)
-            {
-                return NotFound();
-            }
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
+            if (user == null) return NotFound();
 
-            var userRole = _context.UserRoles.FirstOrDefault(x => x.UserId == user.Id);
-            var model = new UserModal();
-            model.Id = user.Id;
-            model.UserName = user.FullName;
-            model.PhoneNumber = user.PhoneNumber;
-            model.Email = user.Email;
-            model.RoleId = userRole != null ? userRole.RoleId : "";
-            model.UserRoles.AddRange(GetUserRoles().Result);
+            var userRole = await _context.UserRoles.FirstOrDefaultAsync(x => x.UserId == user.Id);
+
+            var model = new UserModal
+            {
+                Id = user.Id,
+                UserName = user.FullName,
+                PhoneNumber = user.PhoneNumber,
+                Email = user.Email,
+                RoleId = userRole != null ? userRole.RoleId : ""
+            };
+
+            // ❌ Removed .Result (deadlock)
+            model.UserRoles.AddRange(await GetUserRoles());
 
             return View(model);
         }
 
-        // POST: EditUser
         [HttpPost]
-        public IActionResult EditUser(UserModal model)
+        [AdminOnly]
+        public async Task<IActionResult> EditUser(UserModal model)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                var user = _context.Users.FirstOrDefault(u => u.Id == model.Id);
-                if (user == null)
-                {
-                    return NotFound();
-                }
-
-                user.FullName = model.UserName;
-                user.PhoneNumber = model.PhoneNumber;
-
-                // Update password if provided
-                if (!string.IsNullOrEmpty(model.PasswordHash))
-                {
-                    user.PasswordHash = model.PasswordHash;
-
-                    var token = _userManager.GeneratePasswordResetTokenAsync(user).Result;
-                    var passwordResult = _userManager.ResetPasswordAsync(user, token, user.PasswordHash).Result;
-                    if (!passwordResult.Succeeded)
-                    {
-                        foreach (var error in passwordResult.Errors)
-                        {
-                            ModelState.AddModelError("", error.Description);
-                        }
-                        model.UserRoles = GetUserRoles().Result;
-                        return View(model);
-                    }
-                }
-                var userRole = _context.UserRoles.FirstOrDefault(x => x.UserId == user.Id && x.RoleId != model.RoleId);
-                if (userRole != null)
-                {
-                    _context.UserRoles.Remove(userRole);
-                    var role = _context.Roles.FirstOrDefault(x => x.Id == model.RoleId);
-                    if (role != null)
-                    {
-                        var roleResult = _userManager.AddToRoleAsync(user, role.Name).Result;
-                    }
-                }
-                else
-                {
-                    var role = _context.Roles.FirstOrDefault(x => x.Id == model.RoleId);
-                    if (role != null)
-                    {
-                        var roleResult = _userManager.AddToRoleAsync(user, role.Name).Result;
-                    }
-                }
-                _context.SaveChanges();
-                return RedirectToAction("UserList");
+                model.UserRoles = await GetUserRoles();
+                return View(model);
             }
 
-            model.UserRoles = GetUserRoles().Result;
-            return View(model);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == model.Id);
+            if (user == null) return NotFound();
+
+            user.FullName = model.UserName;
+            user.PhoneNumber = model.PhoneNumber;
+
+            // ✅ Password update properly (NO .Result)
+            if (!string.IsNullOrEmpty(model.PasswordHash))
+            {
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var passwordResult = await _userManager.ResetPasswordAsync(user, token, model.PasswordHash);
+
+                if (!passwordResult.Succeeded)
+                {
+                    foreach (var error in passwordResult.Errors)
+                        ModelState.AddModelError("", error.Description);
+
+                    model.UserRoles = await GetUserRoles();
+                    return View(model);
+                }
+            }
+
+            // Update role mapping
+            var oldRole = await _context.UserRoles.FirstOrDefaultAsync(x => x.UserId == user.Id);
+
+            if (oldRole != null && oldRole.RoleId != model.RoleId)
+            {
+                _context.UserRoles.Remove(oldRole);
+            }
+
+            var roleEntity = await _context.Roles.FirstOrDefaultAsync(x => x.Id == model.RoleId);
+            if (roleEntity != null)
+            {
+                var alreadyHasRole = await _userManager.IsInRoleAsync(user, roleEntity.Name);
+                if (!alreadyHasRole)
+                    await _userManager.AddToRoleAsync(user, roleEntity.Name);
+            }
+
+            await _context.SaveChangesAsync();
+            return RedirectToAction("UserList");
         }
 
-        // Helper method to get roles for dropdown
         private async Task<List<SelectListItem>> GetUserRoles()
         {
-            var roles = await _context.Roles.ToListAsync();
+            var roles = await _context.Roles.AsNoTracking().ToListAsync();
+
             return roles.Select(r => new SelectListItem
             {
                 Value = r.Id,
@@ -495,60 +481,68 @@ namespace SignalRMVC.Controllers
         {
             try
             {
-                var user = GetUserId();
-                var groupUserList = await _context.GroupUserMapping.Where(x => x.Active && x.GroupId == id).Select(x => x.UserId).ToListAsync();
+                var currentUserId = GetUserId();
+
+                var groupUserList = await _context.GroupUserMapping
+                    .AsNoTracking()
+                    .Where(x => x.Active && x.GroupId == id)
+                    .Select(x => x.UserId)
+                    .ToListAsync();
 
                 var userRoles = from role in _context.Roles
                                 join userRole in _context.UserRoles on role.Id equals userRole.RoleId
                                 select new
                                 {
-                                    Role = role,
                                     UserId = userRole.UserId,
                                     RoleName = role.Name
                                 };
 
                 var userList = await _context.Users
+                    .AsNoTracking()
                     .Select(u => new UserViewModel
                     {
                         Id = u.Id,
                         UserName = u.FullName,
                         Email = u.Email,
-                        RoleName = userRoles != null && userRoles.Any() ? userRoles.FirstOrDefault(x => x.UserId == u.Id).RoleName : "",
-                        IsCurrentUser = (user == u.Id ? true : false),
+                        RoleName = userRoles.Any() ? userRoles.FirstOrDefault(x => x.UserId == u.Id).RoleName : "",
+                        IsCurrentUser = (currentUserId == u.Id),
                         PhoneNumber = u.PhoneNumber,
-                        IsAlreadyInGroup = (groupUserList.Contains(u.Id) ? true : false)
-                    }).ToListAsync();
+                        IsAlreadyInGroup = groupUserList.Contains(u.Id)
+                    })
+                    .ToListAsync();
 
                 return Json(userList);
             }
-            catch (Exception es)
+            catch (Exception ex)
             {
-                return Json(es);
+                _logger.LogError(ex, "❌ UserListInGroup failed | GroupId={GroupId}", id);
+                return Json(new { success = false, message = ex.Message });
             }
         }
 
         [HttpPost]
+        [AdminOnly]
         public async Task<IActionResult> CreateUserGroupMapping([FromForm] string userId, [FromForm] int GroupId)
         {
             try
             {
                 if (string.IsNullOrEmpty(userId) || GroupId <= 0)
                     return BadRequest(new { success = false, message = "Group And User is required." });
-                var user = GetUserId();
 
-                var userGroupMapping = _context.GroupUserMapping.FirstOrDefault(x => x.GroupId == GroupId && x.UserId == userId);
+                var currentUserId = GetUserId();
+
+                var userGroupMapping = await _context.GroupUserMapping
+                    .FirstOrDefaultAsync(x => x.GroupId == GroupId && x.UserId == userId);
+
                 if (userGroupMapping != null)
                 {
                     userGroupMapping.Active = true;
-                    userGroupMapping.AddedBy = user;
+                    userGroupMapping.AddedBy = currentUserId;
                     userGroupMapping.CreatedOn = DateTime.Now;
-                    _context.GroupUserMapping.Update(userGroupMapping);
+
                     await _context.SaveChangesAsync();
-                    return Ok(new
-                    {
-                        success = true,
-                        message = "User Add in Group successfully!",
-                    });
+
+                    return Ok(new { success = true, message = "User added in group successfully!" });
                 }
 
                 var groupUserMapping = new GroupUserMapping
@@ -556,7 +550,7 @@ namespace SignalRMVC.Controllers
                     UserId = userId,
                     GroupId = GroupId,
                     Active = true,
-                    AddedBy = user,
+                    AddedBy = currentUserId,
                     RemovedBy = "0",
                     CreatedOn = DateTime.Now
                 };
@@ -564,70 +558,61 @@ namespace SignalRMVC.Controllers
                 _context.GroupUserMapping.Add(groupUserMapping);
                 await _context.SaveChangesAsync();
 
-                return Ok(new
-                {
-                    success = true,
-                    message = "User Add in Group successfully!",
-                });
+                return Ok(new { success = true, message = "User added in group successfully!" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = $"Error User Mapping with group: {ex.Message}"
-                });
+                _logger.LogError(ex, "❌ CreateUserGroupMapping failed | UserId={UserId} | GroupId={GroupId}", userId, GroupId);
+                return StatusCode(500, new { success = false, message = $"Error User Mapping with group: {ex.Message}" });
             }
         }
 
         [HttpPost]
+        [AdminOnly]
         public async Task<IActionResult> RemoveUserGroupMapping([FromForm] string userId, [FromForm] int GroupId)
         {
             try
             {
                 if (string.IsNullOrEmpty(userId) || GroupId <= 0)
                     return BadRequest(new { success = false, message = "Group And User is required." });
-                var user = GetUserId();
-                var userGroupMapping = _context.GroupUserMapping.FirstOrDefault(x => x.GroupId == GroupId && x.UserId == userId);
+
+                var currentUserId = GetUserId();
+
+                var userGroupMapping = await _context.GroupUserMapping
+                    .FirstOrDefaultAsync(x => x.GroupId == GroupId && x.UserId == userId);
+
                 if (userGroupMapping != null)
                 {
                     userGroupMapping.Active = false;
-                    userGroupMapping.RemovedBy = user;
-                    _context.GroupUserMapping.Update(userGroupMapping);
+                    userGroupMapping.RemovedBy = currentUserId;
+
                     await _context.SaveChangesAsync();
-                    return Ok(new
-                    {
-                        success = true,
-                        message = "User Add in Group successfully!",
-                    });
+
+                    return Ok(new { success = true, message = "User removed from group successfully!" });
                 }
-                return BadRequest(new
-                {
-                    success = false,
-                    message = "Some thing is wrong Please try again!",
-                });
+
+                return BadRequest(new { success = false, message = "Something is wrong, please try again!" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = $"Error User Mapping with group: {ex.Message}"
-                });
+                _logger.LogError(ex, "❌ RemoveUserGroupMapping failed | UserId={UserId} | GroupId={GroupId}", userId, GroupId);
+                return StatusCode(500, new { success = false, message = $"Error User Mapping with group: {ex.Message}" });
             }
         }
 
         #endregion
 
-
-        public async Task<string> DelayResponse()
+        private string GetUserId()
         {
-            // Do NOT update last activity – simulate app hang or long task
-            await Task.Delay(TimeSpan.FromMinutes(1)); // 2 minutes delay
-
-            //Thread.Sleep(1000);
-            return ("This response was intentionally delayed for testing.");
+            return HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         }
 
+        // ⚠️ NOTE: This method can block threads if called anywhere
+        // Keep only for testing, DO NOT use in production
+        public async Task<string> DelayResponse()
+        {
+            await Task.Delay(TimeSpan.FromMinutes(1));
+            return "This response was intentionally delayed for testing.";
+        }
     }
 }
