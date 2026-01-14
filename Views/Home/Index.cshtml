@@ -933,8 +933,11 @@
                 // ✅ Better timeout handling
                 if (status === "timeout") {
                     console.warn("⚠️ GetMessagesByRoom timeout (10s). Request aborted.");
+                    toastr.error("⚠️ GetMessagesByRoom timeout (10s). Request aborted.", "Oops");
+
                 } else {
                     console.error("Error loading messages:", error);
+                    toastr.error("⚠️ Error loading messages.", "Oops");
                 }
 
                 isLoading = false;
