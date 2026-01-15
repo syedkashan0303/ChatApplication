@@ -10,6 +10,9 @@
         public string? GroupName { get; set; } = string.Empty;
         public bool IsDelete { get; set; }
 
+        // Optional idempotency key from client to prevent duplicate inserts on retry/reconnect
+        public string? ClientMessageId { get; set; }
+
         public DateTime? CreatedOn { get; set; }
     }
 

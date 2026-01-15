@@ -13,18 +13,18 @@
 
     public class HomeController : Controller
     {
-        private readonly AppDbContext _db;
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHubContext<BasicChatHub> _basicChatHub;
         private readonly ILogger<HomeController> _logger;
 
         public HomeController(
-            AppDbContext context,
+            IServiceScopeFactory scopeFactory,
             UserManager<ApplicationUser> userManager,
             IHubContext<BasicChatHub> basicChatHub,
             ILogger<HomeController> logger)
         {
-            _db = context;
+            _scopeFactory = scopeFactory;
             _userManager = userManager;
             _basicChatHub = basicChatHub;
             _logger = logger;
@@ -52,6 +52,9 @@
         [Authorize]
         public async Task<IActionResult> SendMessageToAll(string user, string message)
         {
+            using var scope = _scopeFactory.CreateScope();
+            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
             var senderUser = await _userManager.FindByNameAsync(user);
 
             var chatMessage = new ChatMessage
@@ -77,6 +80,9 @@
         [Authorize]
         public async Task<IActionResult> SendMessageToReceiver(string sender, string receiver, string message)
         {
+            using var scope = _scopeFactory.CreateScope();
+            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
             var userId = await _db.Users
                 .Where(u => u.Email.ToLower() == receiver.ToLower())
                 .Select(u => u.Id)
@@ -114,6 +120,9 @@
         [Authorize]
         public async Task<IActionResult> SendMessageToGroup([FromForm] string user, [FromForm] string room, [FromForm] string message)
         {
+            using var scope = _scopeFactory.CreateScope();
+            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
             var senderUser = await _userManager.FindByNameAsync(user);
 
             if (senderUser != null)
@@ -149,9 +158,11 @@
             string receiverId = "",
             CancellationToken cancellationToken = default)
         {
-            // ✅ Linked token + timeout
+            using var scope = _scopeFactory.CreateScope();
+            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(30));
+            cts.CancelAfter(TimeSpan.FromSeconds(15));
 
             try
             {
@@ -169,30 +180,29 @@
                     if (string.IsNullOrWhiteSpace(roomName))
                         return BadRequest("roomName is required.");
 
-                    var messages = await _db.ChatMessages
-                        .AsNoTracking()
-                        .Where(m => m.GroupName == roomName)
-                        .OrderByDescending(m => m.Id)
+                    var messages = await (
+                        from m in _db.ChatMessages.AsNoTracking()
+                        join u in _db.Users.AsNoTracking()
+                            on m.SenderId equals u.Id into gj
+                        from u in gj.DefaultIfEmpty()
+                        where m.GroupName == roomName
+                        orderby m.Id descending
+                        select new
+                        {
+                            id = m.Id,
+                            senderId = m.SenderId,
+                            senderName = u != null ? u.UserName : string.Empty,
+                            message = m.IsDelete ? "Message deleted" : m.Message,
+                            createdOn = m.CreatedOn,
+                            messageTime = m.CreatedOn.HasValue
+                                ? m.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
+                                : ""
+                        })
                         .Skip(fromDate)
                         .Take(chunkRecords)
-                        .Join(
-                            _db.Users.AsNoTracking(),
-                            m => m.SenderId,
-                            u => u.Id,
-                            (m, u) => new
-                            {
-                                id = m.Id,
-                                sender = u.UserName,
-                                message = m.IsDelete ? "Message deleted" : m.Message,
-                                createdOn = m.CreatedOn,
-                                messageTime = m.CreatedOn.HasValue
-                                    ? m.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
-                                    : ""
-                            }
-                        )
                         .ToListAsync(cts.Token);
 
-                    return Ok(messages.OrderByDescending(x => x.id));
+                    return Ok(messages);
                 }
 
                 // ===========================
@@ -203,38 +213,35 @@
                     if (string.IsNullOrWhiteSpace(receiverId))
                         return BadRequest("receiverId is required.");
 
-                    var messages = await _db.UsersMessage
-                        .AsNoTracking()
-                        .Where(m =>
-                            (m.ReceiverId == receiverId && m.SenderId == currentUserId) ||
-                            (m.SenderId == receiverId && m.ReceiverId == currentUserId)
-                        )
-                        .OrderByDescending(m => m.Id)
+                    var messages = await (
+                        from m in _db.UsersMessage.AsNoTracking()
+                        join u in _db.Users.AsNoTracking()
+                            on m.SenderId equals u.Id into gj
+                        from u in gj.DefaultIfEmpty()
+                        where (m.ReceiverId == receiverId && m.SenderId == currentUserId)
+                              || (m.SenderId == receiverId && m.ReceiverId == currentUserId)
+                        orderby m.Id descending
+                        select new
+                        {
+                            id = m.Id,
+                            senderId = m.SenderId,
+                            receiverId = m.ReceiverId,
+                            senderName = u != null ? u.UserName : string.Empty,
+                            message = m.IsDelete ? "Message deleted" : m.Message,
+                            createdOn = m.CreatedOn,
+                            messageTime = m.CreatedOn.HasValue
+                                ? m.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
+                                : ""
+                        })
                         .Skip(fromDate)
                         .Take(chunkRecords)
-                        .Join(
-                            _db.Users.AsNoTracking(),
-                            m => m.SenderId,
-                            u => u.Id,
-                            (m, u) => new
-                            {
-                                id = m.Id,
-                                sender = u.UserName,
-                                message = m.IsDelete ? "Message deleted" : m.Message,
-                                createdOn = m.CreatedOn,
-                                messageTime = m.CreatedOn.HasValue
-                                    ? m.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
-                                    : ""
-                            }
-                        )
                         .ToListAsync(cts.Token);
 
-                    return Ok(messages.OrderByDescending(x => x.id));
+                    return Ok(messages);
                 }
             }
             catch (OperationCanceledException ex)
             {
-                // ✅ Timeout / cancelled request
                 _logger.LogWarning(ex,
                     "⏳ GetMessagesByRoom timeout/cancelled | Room={RoomName} | Skip={Skip} | Chunk={Chunk} | IsRoom={IsRoom} | Receiver={ReceiverId}",
                     roomName, skipRecords, chunkRecords, isRoom, receiverId);
@@ -258,6 +265,9 @@
         [Authorize]
         public async Task<IActionResult> EditMessage(int id, string newContent)
         {
+            using var scope = _scopeFactory.CreateScope();
+            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
             if (string.IsNullOrWhiteSpace(newContent))
                 return BadRequest("Message cannot be empty.");
 
@@ -284,6 +294,9 @@
         [Authorize]
         public async Task<IActionResult> GetTheme()
         {
+            using var scope = _scopeFactory.CreateScope();
+            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
             var userId = GetUserId();
 
             var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == userId);
@@ -299,6 +312,9 @@
         [Authorize]
         public async Task<IActionResult> UpdateTheme()
         {
+            using var scope = _scopeFactory.CreateScope();
+            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
             var userId = GetUserId();
 
             var user = await _db.Users.FirstOrDefaultAsync(x => x.Id == userId);
@@ -318,9 +334,11 @@
         [Authorize]
         public async Task<IActionResult> GetRooms()
         {
+            using var scope = _scopeFactory.CreateScope();
+            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
             var userId = GetUserId();
 
-            // Get Group IDs for current user
             var groupUserList = await _db.GroupUserMapping
                 .AsNoTracking()
                 .Where(x => x.Active && x.UserId == userId)
@@ -353,9 +371,8 @@
                 })
             );
 
-            // ✅ Fix: OrderBy must assign result
             rooms = rooms
-                .OrderByDescending(x => x.IsRoom) // Groups first
+                .OrderByDescending(x => x.IsRoom)
                 .ThenBy(x => x.Name)
                 .ToList();
 

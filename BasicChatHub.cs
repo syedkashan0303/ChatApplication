@@ -6,6 +6,7 @@ using SignalRMVC.Areas.Identity.Data;
 using SignalRMVC.CustomClasses;
 using SignalRMVC.Models;
 using System.Security.Claims;
+using System.Collections.Concurrent;
 
 namespace SignalRMVC
 {
@@ -38,7 +39,8 @@ namespace SignalRMVC
                 AppHealthTracker.UpdateActivity();
 
                 var userId = GetUserId();
-                var roles = await GetUserRoles(userId);
+                // Ensure role-based group join is re-applied after reconnect/new connectionId
+                await JoinRoleGroupIfAny(userId);
 
                 await base.OnConnectedAsync();
             }
@@ -48,6 +50,32 @@ namespace SignalRMVC
                 // ✅ Now: log it (server pe debugging easy)
                 _logger.LogError(ex, "❌ OnConnectedAsync failed");
                 await base.OnConnectedAsync();
+            }
+        }
+
+        public override async Task OnDisconnectedAsync(Exception? exception)
+        {
+            try
+            {
+                AppHealthTracker.UpdateActivity();
+
+                // Cleanup any per-connection bookkeeping to avoid memory leaks
+                _joinedGroupsByConnection.TryRemove(Context.ConnectionId, out _);
+
+                if (exception != null)
+                {
+                    _logger.LogWarning(exception,
+                        "SignalR disconnected with error | ConnectionId={ConnectionId}",
+                        Context.ConnectionId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ OnDisconnectedAsync cleanup failed");
+            }
+            finally
+            {
+                await base.OnDisconnectedAsync(exception);
             }
         }
 
@@ -249,24 +277,14 @@ namespace SignalRMVC
         // GROUP / ROOM WORKING
         // =====================================================
 
-        // ⚠️ NOTE: static list is shared between all users + all connections
-        // I kept it because it was in your code (not removed)
-        public static List<string> GroupsJoined { get; set; } = new List<string>();
+        // Track groups joined per connection (bounded + cleaned up on disconnect)
+        private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _joinedGroupsByConnection = new();
 
         [Authorize]
         public async Task JoinGroup(string sender)
         {
-            var user = GetUserId();
-            var role = (await GetUserRoles(user)).FirstOrDefault();
-
-            if (!string.IsNullOrEmpty(role))
-            {
-                if (!GroupsJoined.Contains(Context.ConnectionId + ":" + role))
-                {
-                    GroupsJoined.Add(Context.ConnectionId + ":" + role);
-                    await Groups.AddToGroupAsync(Context.ConnectionId, role);
-                }
-            }
+            var userId = GetUserId();
+            await JoinRoleGroupIfAny(userId);
         }
 
         public async Task JoinRoom(string roomName)
@@ -282,7 +300,7 @@ namespace SignalRMVC
         // =====================================================
         // Send Message to Room
         // =====================================================
-        public async Task SendMessageToRoom(string roomName, string user, string message)
+        public async Task SendMessageToRoom(string roomName, string user, string message, string? clientMessageId = null)
         {
             var userId = GetUserId();
 
@@ -293,22 +311,28 @@ namespace SignalRMVC
                 using var scope = _scopeFactory.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+                if (!string.IsNullOrWhiteSpace(clientMessageId))
+                {
+                    // Idempotency guard (prevents duplicates on reconnect/retry)
+                    var exists = await context.ChatMessages
+                        .AsNoTracking()
+                        .AnyAsync(m => m.SenderId == userId && m.ClientMessageId == clientMessageId);
+                    if (exists)
+                    {
+                        _logger.LogInformation("Duplicate room message suppressed | SenderId={SenderId} | ClientMessageId={ClientMessageId}", userId, clientMessageId);
+                        return;
+                    }
+                }
+
                 var chatMessage = new ChatMessage
                 {
                     SenderId = userId,
                     ReceiverId = null,
                     Message = message,
                     GroupName = roomName,
-                    CreatedOn = DateTime.Now
+                    CreatedOn = DateTime.Now,
+                    ClientMessageId = clientMessageId
                 };
-
-                context.ChatMessages.Add(chatMessage);
-                await context.SaveChangesAsync();
-
-                var messageId = chatMessage.Id;
-                var messageTime = chatMessage.CreatedOn.HasValue
-                    ? chatMessage.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
-                    : "";
 
                 // Create unread status entries for other users in group
                 var room = await context.ChatRoom.FirstOrDefaultAsync(r => r.Name == roomName);
@@ -321,15 +345,22 @@ namespace SignalRMVC
 
                     var readStatuses = groupUsers.Select(recipientId => new ChatMessageReadStatus
                     {
-                        ChatMessageId = chatMessage.Id,
+                        ChatMessage = chatMessage, // ✅ lets us SaveChanges once (EF will insert message then statuses)
                         UserId = recipientId,
                         IsRead = false,
-                        CreatedOn = DateTime.UtcNow
+                        CreatedOn = DateTime.Now
                     }).ToList();
 
                     context.ChatMessageReadStatuses.AddRange(readStatuses);
-                    await context.SaveChangesAsync();
                 }
+
+                context.ChatMessages.Add(chatMessage);
+                await context.SaveChangesAsync();
+
+                var messageId = chatMessage.Id;
+                var messageTime = chatMessage.CreatedOn.HasValue
+                    ? chatMessage.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
+                    : "";
 
                 //await Clients.Group(roomName).SendAsync(
                 //    "MessageReceived",
@@ -352,8 +383,21 @@ namespace SignalRMVC
                     true      // isGroup
                 );
 
+                // ✅ Avoid DB group-by storms: push deltas only to affected recipients (no DB counts here)
+                if (room != null)
+                {
+                    var recipientIds = await context.GroupUserMapping
+                        .AsNoTracking()
+                        .Where(g => g.GroupId == room.Id && g.UserId != userId && g.Active)
+                        .Select(g => g.UserId)
+                        .ToListAsync();
 
-                await BroadcastUnreadCount(roomName: roomName);
+                    foreach (var recipientId in recipientIds)
+                    {
+                        await Clients.User(recipientId)
+                            .SendAsync("ReceiveUnreadDelta", room.Id.ToString(), roomName, 1, true);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -364,7 +408,7 @@ namespace SignalRMVC
         // =====================================================
         // Send Message to User
         // =====================================================
-        public async Task SendMessageToUser(string user, string receiver, string message)
+        public async Task SendMessageToUser(string user, string receiver, string message, string? clientMessageId = null)
         {
             var userId = GetUserId();
             string senderId = userId;
@@ -379,15 +423,38 @@ namespace SignalRMVC
                 if (receiverUser == null)
                     return;
 
+                if (!string.IsNullOrWhiteSpace(clientMessageId))
+                {
+                    // Idempotency guard (prevents duplicates on reconnect/retry)
+                    var exists = await context.UsersMessage
+                        .AsNoTracking()
+                        .AnyAsync(m => m.SenderId == userId && m.ClientMessageId == clientMessageId);
+                    if (exists)
+                    {
+                        _logger.LogInformation("Duplicate user message suppressed | SenderId={SenderId} | ClientMessageId={ClientMessageId}", userId, clientMessageId);
+                        return;
+                    }
+                }
+
                 var chatMessage = new UsersMessage
                 {
                     SenderId = userId,
                     ReceiverId = receiver,
                     Message = message,
+                    CreatedOn = DateTime.Now,
+                    ClientMessageId = clientMessageId
+                };
+
+                var readStatuses = new UsersMessageReadStatus
+                {
+                    ChatMessage = chatMessage, // ✅ lets us SaveChanges once (EF will insert message then status)
+                    SenderId = userId,
+                    ReceiverId = receiver,
+                    IsRead = false,
                     CreatedOn = DateTime.Now
                 };
 
-                context.UsersMessage.Add(chatMessage);
+                context.UsersMessageReadStatus.Add(readStatuses);
                 await context.SaveChangesAsync();
 
                 var messageId = chatMessage.Id;
@@ -395,22 +462,11 @@ namespace SignalRMVC
                     ? chatMessage.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
                     : "";
 
-                var readStatuses = new UsersMessageReadStatus
-                {
-                    ChatMessageId = chatMessage.Id,
-                    SenderId = userId,
-                    ReceiverId = receiver,
-                    IsRead = false,
-                    CreatedOn = DateTime.UtcNow
-                };
-
-                context.UsersMessageReadStatus.Add(readStatuses);
-                await context.SaveChangesAsync();
-
                 await Clients.User(receiver).SendAsync("MessageReceived", messageId, user, message, messageTime, senderId, receiver, false);
                 await Clients.User(userId).SendAsync("SendMessageUser", messageId, user, message, messageTime, senderId, receiver, false);
 
-                await BroadcastUnreadCount(SenderId: userId);
+                // ✅ Avoid DB group-by storms: push delta only to affected receiver
+                await Clients.User(receiver).SendAsync("ReceiveUnreadDelta", senderId, user, 1, false);
             }
             catch (Exception ex)
             {
@@ -438,16 +494,10 @@ namespace SignalRMVC
             if (roomName == null)
                 return;
 
-            var unreadMessages = await context.ChatMessageReadStatuses
+            // ✅ EF Core 8 bulk delete (no load into memory)
+            await context.ChatMessageReadStatuses
                 .Where(s => s.UserId == userId && s.ChatMessage.GroupName == roomName)
-                .ToListAsync();
-
-            foreach (var status in unreadMessages)
-            {
-                context.Remove(status);
-            }
-
-            await context.SaveChangesAsync();
+                .ExecuteDeleteAsync();
         }
 
         // =====================================================
@@ -460,23 +510,10 @@ namespace SignalRMVC
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var roomUser = await context.Users
-                .Where(r => r.Id == UserId)
-                .FirstOrDefaultAsync();
-
-            if (roomUser == null)
-                return;
-
-            var unreadMessages = await context.UsersMessageReadStatus
+            // ✅ EF Core 8 bulk delete (no load into memory)
+            await context.UsersMessageReadStatus
                 .Where(s => s.SenderId == UserId && s.ReceiverId == receiver)
-                .ToListAsync();
-
-            foreach (var status in unreadMessages)
-            {
-                context.Remove(status);
-            }
-
-            await context.SaveChangesAsync();
+                .ExecuteDeleteAsync();
         }
 
         // =====================================================
@@ -587,6 +624,19 @@ namespace SignalRMVC
                 // ✅ FIX: roomName was wrong before
                 await Clients.User(userUnread.userId)
                     .SendAsync("ReceiveUnreadCount", userUnread.roomId, userUnread.roomName, userUnread.count, userUnread.isroom);
+            }
+        }
+
+        private async Task JoinRoleGroupIfAny(string userId)
+        {
+            var role = (await GetUserRoles(userId)).FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(role))
+                return;
+
+            var groups = _joinedGroupsByConnection.GetOrAdd(Context.ConnectionId, _ => new ConcurrentDictionary<string, byte>());
+            if (groups.TryAdd(role, 0))
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, role);
             }
         }
 

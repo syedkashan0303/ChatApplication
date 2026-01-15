@@ -419,6 +419,11 @@
     // ✅ to avoid duplicate marker insertion
     let unreadMarkerInserted = false;
 
+    // Generate lightweight client-side id for idempotent sends (prevents duplicates on retry/reconnect)
+    function generateClientMessageId() {
+        return Date.now().toString() + "-" + Math.random().toString(36).substring(2, 10);
+    }
+
     // hidden inputs
     function getSenderEmail() { return $("#senderEmail").val(); }
     function getHiddenRoomName() { return $("#hiddenRoomName").val(); }
@@ -572,6 +577,29 @@
         if (count > 0) {
             const isRoomLocal = $(`li.group-item[data-id='${roomId}']`).data("isroom");
             moveChatToTop(roomId, isRoomLocal);
+            sortChatListByUnread();
+        }
+    });
+
+    // 🔹 Lightweight unread delta (used when a single message is sent)
+    connectionChat.on("ReceiveUnreadDelta", function (roomId, roomName, delta, isRoom) {
+        const badge = document.getElementById(`unread-count-${roomId}`);
+        let current = 0;
+
+        if (badge && badge.textContent) {
+            current = parseInt(badge.textContent, 10) || 0;
+        }
+
+        let next = current + delta;
+        if (next < 0) next = 0;
+
+        if (badge) {
+            badge.textContent = next > 0 ? next : '';
+            badge.style.display = next > 0 ? 'inline-block' : 'none';
+        }
+
+        if (next > 0) {
+            moveChatToTop(roomId, isRoom);
             sortChatListByUnread();
         }
     });
@@ -908,7 +936,11 @@
                         unreadMarkerInserted = true;
                     }
 
-                    const messageHtml = renderMessage(msg.sender, msg.message, msg.id, true, false, false, msg.messageTime);
+                    // Backend now returns both senderId and senderName:
+                    // - Use senderName for display
+                    // - senderId is still available in msg.senderId for any logic if needed
+                    const displayName = msg.senderName || msg.senderId;
+                    const messageHtml = renderMessage(displayName, msg.message, msg.id, true, false, false, msg.messageTime);
 
                     // prepend older messages
                     if (prepend) {
@@ -1132,11 +1164,13 @@
         var originalText = $btn.html();
         $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...');
 
+        const clientMessageId = generateClientMessageId();
+
         let promise;
         if (isroom == "true") {
-            promise = connectionChat.invoke("SendMessageToRoom", room, sender, message);
+            promise = connectionChat.invoke("SendMessageToRoom", room, sender, message, clientMessageId);
         } else {
-            promise = connectionChat.invoke("SendMessageToUser", sender, chatId, message);
+            promise = connectionChat.invoke("SendMessageToUser", sender, chatId, message, clientMessageId);
         }
 
         promise.then(() => {

@@ -62,18 +62,22 @@ namespace SignalRMVC.Controllers
                 if (chatRoom == null)
                     return Json(new { success = false, message = "Chat room not found." });
 
-                // ✅ Rename group messages also (Async)
-                var chatsByRoomName = await _context.ChatMessages
-                    .Where(x => !string.IsNullOrEmpty(x.GroupName) && x.GroupName == chatRoom.Name)
-                    .ToListAsync();
+                var oldName = chatRoom.Name?.Trim();
+                var newName = model.Name.Trim();
 
-                if (chatsByRoomName.Any())
+                if (string.IsNullOrWhiteSpace(oldName))
+                    return Json(new { success = false, message = "Invalid existing group name." });
+
+                if (!string.Equals(oldName, newName, StringComparison.Ordinal))
                 {
-                    chatsByRoomName.ForEach(x => x.GroupName = model.Name);
-                }
+                    // ✅ FAST: bulk rename messages without loading into memory
+                    await _context.ChatMessages
+                        .Where(m => m.GroupName == oldName)
+                        .ExecuteUpdateAsync(s => s.SetProperty(m => m.GroupName, newName));
 
-                chatRoom.Name = model.Name;
-                await _context.SaveChangesAsync();
+                    chatRoom.Name = newName;
+                    await _context.SaveChangesAsync();
+                }
 
                 return Json(new { success = true, message = "Changes saved successfully." });
             }
@@ -105,10 +109,9 @@ namespace SignalRMVC.Controllers
                     CreatedOn = DateTime.Now
                 };
 
-                _context.ChatRoom.Add(group);
-                await _context.SaveChangesAsync();
-
                 var userId = GetUserId();
+                _context.ChatRoom.Add(group);
+                await _context.SaveChangesAsync(); // 👈 pehle save
 
                 var groupUserMapping = new GroupUserMapping
                 {
@@ -148,14 +151,13 @@ namespace SignalRMVC.Controllers
                 if (chatRoom == null)
                     return Json(new { success = false, message = "Chat room not found." });
 
-                // ✅ Mark all messages deleted (Async)
-                var chatsByRoomName = await _context.ChatMessages
-                    .Where(x => !string.IsNullOrEmpty(x.GroupName) && x.GroupName == chatRoom.Name)
-                    .ToListAsync();
-
-                if (chatsByRoomName.Any())
+                var roomName = chatRoom.Name;
+                if (!string.IsNullOrWhiteSpace(roomName))
                 {
-                    chatsByRoomName.ForEach(x => x.IsDelete = true);
+                    // ✅ FAST: mark messages deleted without loading into memory
+                    await _context.ChatMessages
+                        .Where(m => m.GroupName == roomName)
+                        .ExecuteUpdateAsync(s => s.SetProperty(m => m.IsDelete, true));
                 }
 
                 chatRoom.isDelete = true;
