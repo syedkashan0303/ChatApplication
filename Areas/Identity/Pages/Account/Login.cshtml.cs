@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using SignalRMVC.Areas.Identity.Data;
 using SignalRMVC.Models;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
@@ -17,13 +19,18 @@ namespace SignalRMVC.Areas.Identity.Pages.Account
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ILogger<LoginModel> _logger;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-
-        public LoginModel(SignInManager<ApplicationUser> signInManager, ILogger<LoginModel> logger, UserManager<ApplicationUser> userManager)
+        public LoginModel(
+            SignInManager<ApplicationUser> signInManager,
+            ILogger<LoginModel> logger,
+            UserManager<ApplicationUser> userManager,
+            IServiceScopeFactory scopeFactory)
         {
             _signInManager = signInManager;
             _logger = logger;
             _userManager = userManager;
+            _scopeFactory = scopeFactory;
         }
 
         /// <summary>
@@ -109,7 +116,7 @@ namespace SignalRMVC.Areas.Identity.Pages.Account
             {
                 // This doesn't count login failures towards account lockout
                 // To enable password failures to trigger account lockout, set lockoutOnFailure: true
-                var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+                var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, false, lockoutOnFailure: false);
                 if (result.Succeeded)
                 {
                     var userId = GetUserId();
@@ -134,6 +141,10 @@ namespace SignalRMVC.Areas.Identity.Pages.Account
                         //_userManager.AddClaimAsync(userName, new Claim("LoginName", userName.FullName));
 
                         _logger.LogInformation("User logged in.");
+
+                        // Log user login to UserLoginLogs table
+                        await LogUserLoginAsync(userId);
+
                         return LocalRedirect(returnUrl);
                     }
                 }
@@ -163,6 +174,30 @@ namespace SignalRMVC.Areas.Identity.Pages.Account
             return userId;
         }
 
+        private async Task LogUserLoginAsync(string userId)
+        {
+            if (string.IsNullOrEmpty(userId))
+                return;
 
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var loginLog = new UserLoginLog
+                {
+                    UserId = userId,
+                    LoginDateTime = DateTime.UtcNow
+                };
+
+                dbContext.UserLoginLogs.Add(loginLog);
+                await dbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't fail login
+                _logger.LogError(ex, "Failed to log user login for UserId: {UserId}", userId);
+            }
+        }
     }
 }

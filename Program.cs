@@ -65,6 +65,15 @@ builder.Services.AddSignalR(options =>
 });
 
 
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.IsEssential = true;
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+    options.SlidingExpiration = false;
+    options.Cookie.Expiration = null; // session cookie
+});
+
+
 // Serilog setup moved to Host.UseSerilog
 // Log.Logger setup removed
 
