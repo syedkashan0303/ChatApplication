@@ -412,6 +412,43 @@ namespace SignalRMVC.Migrations
                     b.ToTable("GroupUserMapping");
                 });
 
+            modelBuilder.Entity("SignalRMVC.Models.MessageReply", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ParentMessageId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReplyText")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("UpdatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentMessageId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("MessageReplies");
+                });
+
             modelBuilder.Entity("SignalRMVC.Models.UserLoginLog", b =>
                 {
                     b.Property<long>("Id")
@@ -555,6 +592,23 @@ namespace SignalRMVC.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("SignalRMVC.Models.MessageReply", b =>
+                {
+                    b.HasOne("SignalRMVC.Models.ChatMessage", "ParentMessage")
+                        .WithMany()
+                        .HasForeignKey("ParentMessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SignalRMVC.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId");
+
+                    b.Navigation("ParentMessage");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SignalRMVC.Models.ChatMessageReadStatus", b =>

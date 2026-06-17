@@ -201,7 +201,8 @@
                             createdOn = m.CreatedOn,
                             messageTime = m.CreatedOn.HasValue
                                 ? m.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
-                                : ""
+                                : "",
+                            replyCount = _db.MessageReplies.Count(r => r.ParentMessageId == m.Id && !r.IsDeleted)
                         })
                         .Skip(fromDate)
                         .Take(chunkRecords)
@@ -264,6 +265,60 @@
             finally
             { 
                 _db.Dispose();  
+            }
+        }
+
+        // =====================================================
+        // Get Replies for a Group Message
+        // =====================================================
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetReplies(
+            int parentMessageId,
+            int page = 1,
+            int pageSize = 50,
+            CancellationToken cancellationToken = default)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(15));
+
+            try
+            {
+                if (pageSize > 50) pageSize = 50;
+
+                var replies = await (
+                    from r in _db.MessageReplies.AsNoTracking()
+                    join u in _db.Users.AsNoTracking()
+                        on r.UserId equals u.Id into gj
+                    from u in gj.DefaultIfEmpty()
+                    where r.ParentMessageId == parentMessageId && !r.IsDeleted
+                    orderby r.CreatedOn ascending
+                    select new
+                    {
+                        id = r.Id,
+                        userId = r.UserId,
+                        userName = u != null ? (u.FullName ?? u.UserName) : string.Empty,
+                        replyText = r.ReplyText,
+                        createdOn = r.CreatedOn.ToString("dd-MMM-yyyy hh:mm tt")
+                    })
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync(cts.Token);
+
+                return Ok(replies);
+            }
+            catch (OperationCanceledException ex)
+            {
+                _logger.LogWarning(ex, "⏳ GetReplies timeout | ParentMessageId={ParentMessageId}", parentMessageId);
+                return StatusCode(408, "Request timeout. Please retry.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error in GetReplies | ParentMessageId={ParentMessageId}", parentMessageId);
+                return StatusCode(500, "Something went wrong");
             }
         }
 

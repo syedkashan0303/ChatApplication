@@ -13,6 +13,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
         base.OnModelCreating(builder);
 
+        // UserId is nullable; use NO ACTION to avoid multiple cascade path errors in SQL Server
+        builder.Entity<MessageReply>(entity =>
+        {
+            entity.HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
         // Configure UserLoginLogs table
         builder.Entity<UserLoginLog>(entity =>
         {
@@ -36,6 +45,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ChatMessageReadStatus> ChatMessageReadStatuses { get; set; }
     public DbSet<UsersMessageReadStatus> UsersMessageReadStatus { get; set; }
     public DbSet<UserLoginLog> UserLoginLogs { get; set; }
+    public DbSet<MessageReply> MessageReplies { get; set; }
 
     //public DbSet<UserRole> AspNetRoles { get; set; }
     //public DbSet<AspNetUsers> AspNetUsers { get; set; }
