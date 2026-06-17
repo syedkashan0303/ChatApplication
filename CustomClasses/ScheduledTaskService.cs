@@ -1,9 +1,8 @@
-﻿namespace SignalRMVC.CustomClasses
+namespace SignalRMVC.CustomClasses
 {
     public class ScheduledTaskService : BackgroundService
     {
         private readonly IServiceScopeFactory _scopeFactory;
-
         private readonly IHostApplicationLifetime _appLifetime;
         private readonly ILogger<ScheduledTaskService> _logger;
 
@@ -19,19 +18,43 @@
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _logger.LogInformation("ScheduledTaskService started.");
+
             while (!stoppingToken.IsCancellationRequested)
             {
-                using (var scope = _scopeFactory.CreateScope())
+                _logger.LogInformation("Starting scheduled cleanup job.");
+
+                try
                 {
+                    using var scope = _scopeFactory.CreateScope();
                     var jobService = scope.ServiceProvider.GetRequiredService<DatabaseJobService>();
-                    jobService.RunStoredProcedure();
+                    await jobService.RunStoredProcedureAsync(stoppingToken);
+                    _logger.LogInformation("Scheduled cleanup job finished successfully.");
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    // App is shutting down — expected, exit cleanly
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    // Log and continue — previously this exception escaped the while loop
+                    // and permanently killed the background service until app restart.
+                    _logger.LogError(ex,
+                        "Scheduled cleanup job failed. Will retry after 2 hours.");
                 }
 
-                // Wait 15 hours
-                await Task.Delay(TimeSpan.FromHours(2), stoppingToken);
-                //await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromHours(2), stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
+
+            _logger.LogInformation("ScheduledTaskService stopped.");
         }
     }
-
 }

@@ -374,3 +374,269 @@ The following items were requested during review but no clear implementation evi
 - The scheduled cleanup job depends on the database stored procedure being present and correctly configured.
 - The logging setup writes files, so log rotation and storage path planning are important for production.
 
+---
+
+## 15. Group Message Reply Thread Feature
+
+Added: 2026-06-17
+
+This feature allows multiple users to reply to a single group message in a threaded view without cluttering the main chat window. Reply threads are available on group chat messages only. Private (one-to-one) chat does not support replies.
+
+### How it works
+
+- Every group message displays a reply icon below the bubble.
+- If replies exist the icon shows a count badge: `↩ Reply 5`.
+- Clicking the icon opens a Bootstrap modal showing the original message preview, the full reply thread, and a reply input.
+- Replies are loaded on demand via HTTP GET when the modal opens — they are not preloaded for all messages.
+- Sending a reply invokes the SignalR hub method `SendReply`. The hub saves the reply and broadcasts a `ReplyReceived` event to every connected user in that group.
+- All connected users receive the updated reply count in real time. If any user has the modal open for that same message, the new reply appears live without a refresh.
+
+### New database table
+
+Table: `MessageReplies`
+
+| Column | Type | Notes |
+|---|---|---|
+| `Id` | `bigint IDENTITY` | Primary key |
+| `ParentMessageId` | `int NOT NULL` | FK → `ChatMessages.Id` (CASCADE DELETE) |
+| `ReplyText` | `nvarchar(1000)` | Max 1000 characters |
+| `UserId` | `nvarchar(450)` | FK → `AspNetUsers.Id` (NO ACTION) |
+| `CreatedOn` | `datetime2` | Set on insert |
+| `UpdatedOn` | `datetime2` | Nullable |
+| `IsDeleted` | `bit` | Soft delete flag |
+
+Migration file: [Migrations/20260617000000_AddMessageReplies.cs](Migrations/20260617000000_AddMessageReplies.cs)
+
+Apply with:
+```bash
+dotnet ef database update
+```
+
+### New and modified files
+
+| File | Change |
+|---|---|
+| [Models/MessageReply.cs](Models/MessageReply.cs) | New entity |
+| [Areas/Identity/Data/AppDbContext.cs](Areas/Identity/Data/AppDbContext.cs) | Added `DbSet<MessageReply> MessageReplies`; FK configured with `NoAction` on user delete |
+| [Migrations/AppDbContextModelSnapshot.cs](Migrations/AppDbContextModelSnapshot.cs) | Updated snapshot to include `MessageReply` |
+| [BasicChatHub.cs](BasicChatHub.cs) | Added `SendReply(int parentMessageId, string replyText)` hub method |
+| [Controllers/HomeController.cs](Controllers/HomeController.cs) | Added `GET /Home/GetReplies`; updated `GetMessagesByRoom` to include `replyCount` per message |
+| [Views/Home/Index.cshtml](Views/Home/Index.cshtml) | Added reply modal, reply button in message renderer, `ReplyReceived` SignalR event, reply JS functions |
+
+### New SignalR hub method
+
+`SendReply(int parentMessageId, string replyText)`
+- Validates text is non-empty and ≤ 1000 characters.
+- Verifies the parent message exists and is not deleted.
+- Saves the reply to `MessageReplies`.
+- Broadcasts `ReplyReceived(replyDto, replyCount)` to `Clients.Group(groupName)`.
+
+### New client SignalR event
+
+`ReplyReceived(reply, replyCount)`
+- Updates the reply count badge on the parent message bubble.
+- If the reply modal is open for that message, appends the new reply live.
+
+### New HTTP endpoint
+
+`GET /Home/GetReplies?parentMessageId={id}&page={n}&pageSize={n}`
+- Requires authentication.
+- Returns replies sorted oldest-first.
+- Page size is capped at 50.
+- Used by the modal on open to load existing replies.
+
+### Security notes
+
+- Reply text is rendered with `.text()` in jQuery — XSS is not possible.
+- Maximum reply length is enforced on both client (character counter) and server (validation in hub).
+- Only authenticated users can invoke `SendReply`.
+
+---
+
+## 16. Production Bug Investigation — Thread Pool Starvation
+
+Investigated and fixed: 2026-06-17
+
+### Symptoms
+
+- 8–10 simultaneous users in active group chats.
+- Randomly, all users experience a complete application freeze.
+- Chat stops updating, AJAX requests receive no response, SignalR messages stop arriving.
+- No visible frontend error.
+- The freeze lasts several minutes then recovers automatically or after a browser refresh.
+- Occurs intermittently and is difficult to reproduce locally.
+
+---
+
+### Root Cause
+
+**Primary cause: synchronous blocking ADO.NET inside a `BackgroundService`, causing ThreadPool starvation.**
+
+The exact causal chain:
+
+**Step 1** — `ScheduledTaskService` fires every 2 hours and calls `DatabaseJobService.RunStoredProcedure()`.
+
+**Step 2** — `RunStoredProcedure()` was a synchronous `void` method using `conn.Open()` and `cmd.ExecuteNonQuery()`. These are blocking synchronous calls that hold a .NET ThreadPool worker thread for the entire duration of the stored procedure.
+
+**Step 3** — The stored procedure `DeleteOldReadMappingRecord` performs a bulk `DELETE` on the `ChatMessageReadStatuses` table, acquiring row-level or page-level SQL locks.
+
+**Step 4** — Active users are simultaneously sending messages (`SendMessageToRoom` inserts to `ChatMessageReadStatuses`) and opening rooms (`MarkMessagesAsRead` deletes from `ChatMessageReadStatuses`). These operations wait on the lock held by the stored procedure.
+
+**Step 5** — Each waiting database operation holds its own ThreadPool thread while waiting for the lock. With 8–10 active users the ThreadPool fills up entirely.
+
+**Step 6** — ThreadPool starvation: no threads are available to process new HTTP requests or SignalR message delivery. All incoming requests queue. AJAX calls time out. SignalR stops delivering messages.
+
+**Step 7** — After 30 seconds the default `SqlCommand.CommandTimeout` fires. `cmd.ExecuteNonQuery()` throws a `SqlException`. Because there was **no `try/catch`** in `ScheduledTaskService.ExecuteAsync`, the exception propagated out of the `while` loop and **permanently terminated the background service**. The cleanup job never ran again until the next application restart.
+
+**Step 8** — With the blocking thread freed, the ThreadPool recovers and the application becomes responsive again.
+
+This explains every observed symptom:
+
+| Symptom | Explanation |
+|---|---|
+| Intermittent | Fires at 2-hour intervals; worse under active load |
+| All users affected simultaneously | ThreadPool starvation is process-wide |
+| Several minutes freeze | 30-second command timeout + ThreadPool drain time |
+| No frontend error | Requests are queued, not rejected with an error code |
+| Automatic recovery | After `CommandTimeout` fires, threads free up |
+| Hard to reproduce locally | Requires concurrent load + exact 2-hour timing |
+
+---
+
+### Secondary issues found
+
+| # | Location | Issue | Severity |
+|---|---|---|---|
+| 1 | [CustomClasses/ScheduledTaskService.cs](CustomClasses/ScheduledTaskService.cs) | No `try/catch` around `RunStoredProcedure()` — one SP failure permanently killed the `while` loop and stopped all future cleanup runs until app restart | High |
+| 2 | [CustomClasses/DatabaseJobService.cs](CustomClasses/DatabaseJobService.cs) | `void` method using synchronous `conn.Open()` and `cmd.ExecuteNonQuery()` — blocks a ThreadPool thread for the full SP duration | Critical |
+| 3 | [CustomClasses/DatabaseJobService.cs](CustomClasses/DatabaseJobService.cs) | No `CommandTimeout` set on `SqlCommand` — the default 30 seconds is the only thing that eventually frees the thread | High |
+| 4 | [CustomClasses/DatabaseJobService.cs](CustomClasses/DatabaseJobService.cs) | No logging — impossible to know in Serilog output when the SP started, finished, or how long it took | Medium |
+| 5 | [CustomClasses/LoggingHubFilter.cs](CustomClasses/LoggingHubFilter.cs) | All hub calls logged at `Information` level with no slow-method threshold — slow operations during a freeze are indistinguishable from normal calls in logs | Medium |
+| 6 | [CustomClasses/AppHealthTracker.cs](CustomClasses/AppHealthTracker.cs) | No active connection count — the Ping endpoint had no visibility into how many SignalR clients were connected | Medium |
+| 7 | [Controllers/HomeController.cs](Controllers/HomeController.cs) | `GET /Home/ping` returned only idle time as plain text — no ThreadPool or connection data to detect starvation remotely | Medium |
+| 8 | [BasicChatHub.cs](BasicChatHub.cs) | `OnConnectedAsync` and `OnDisconnectedAsync` did not log `UserId` or `ConnectionId` — impossible to trace which user was connected during a freeze | Low |
+
+---
+
+### Files changed
+
+| File | What changed |
+|---|---|
+| [CustomClasses/DatabaseJobService.cs](CustomClasses/DatabaseJobService.cs) | `void RunStoredProcedure()` replaced with `async Task RunStoredProcedureAsync()` using `OpenAsync()` and `ExecuteNonQueryAsync()`. Added explicit `CommandTimeout = 120`. Added `ILogger<DatabaseJobService>` with start/finish/error timing. |
+| [CustomClasses/ScheduledTaskService.cs](CustomClasses/ScheduledTaskService.cs) | Calls `await RunStoredProcedureAsync()` instead of the synchronous version. Wrapped in `try/catch` so a failure logs the error and retries after 2 hours instead of permanently terminating the service. Added start/stop/error logging. |
+| [CustomClasses/LoggingHubFilter.cs](CustomClasses/LoggingHubFilter.cs) | Added 2-second slow-method threshold. Methods exceeding it are logged at `Warning` level with `ConnectionId`. Normal calls remain at `Information`. |
+| [CustomClasses/AppHealthTracker.cs](CustomClasses/AppHealthTracker.cs) | Added thread-safe `ActiveConnections` counter using `Interlocked.Increment` / `Interlocked.Decrement`. |
+| [BasicChatHub.cs](BasicChatHub.cs) | `OnConnectedAsync` calls `AppHealthTracker.TrackConnect()` and logs `UserId` + `ConnectionId` + current connection count. `OnDisconnectedAsync` calls `AppHealthTracker.TrackDisconnect()` and logs clean vs error disconnect reason. |
+| [Controllers/HomeController.cs](Controllers/HomeController.cs) | `GET /Home/ping` now returns a JSON object with `status`, `idleSeconds`, `activeSignalRConnections`, and a `threadPool` block containing `workerAvailable`, `workerInUse`, `workerMax`, `iocpAvailable`, `iocpInUse`, `iocpMax`. |
+
+---
+
+### What the Ping endpoint now returns
+
+`GET /Home/ping` — sample healthy response:
+
+```json
+{
+  "status": "healthy",
+  "idleSeconds": 3,
+  "activeSignalRConnections": 9,
+  "threadPool": {
+    "workerAvailable": 32755,
+    "workerInUse": 5,
+    "workerMax": 32767,
+    "workerMin": 8,
+    "iocpAvailable": 1000,
+    "iocpInUse": 0,
+    "iocpMax": 1000,
+    "iocpMin": 8
+  },
+  "timestamp": "2026-06-17T14:22:10Z"
+}
+```
+
+During a ThreadPool starvation event `workerInUse` will be close to `workerMax` and the response itself will be delayed or will not arrive.
+
+---
+
+### SQL scripts for production investigation
+
+Run these in SSMS to diagnose the issue if it recurs.
+
+**1 — Active blocking chains**
+```sql
+SELECT
+    blocking.session_id  AS blocking_session,
+    blocked.session_id   AS blocked_session,
+    blocked.wait_type,
+    blocked.wait_time / 1000.0 AS wait_seconds,
+    sq_blocked.text      AS blocked_sql,
+    sq_blocking.text     AS blocking_sql
+FROM sys.dm_exec_sessions blocked
+JOIN sys.dm_exec_sessions blocking
+    ON blocked.blocking_session_id = blocking.session_id
+CROSS APPLY sys.dm_exec_sql_text(blocked.most_recent_sql_handle)  sq_blocked
+CROSS APPLY sys.dm_exec_sql_text(blocking.most_recent_sql_handle) sq_blocking
+ORDER BY blocked.wait_time DESC;
+```
+
+**2 — Long-running queries right now**
+```sql
+SELECT
+    r.session_id,
+    r.status,
+    r.wait_type,
+    r.wait_time / 1000.0          AS wait_seconds,
+    r.total_elapsed_time / 1000.0 AS elapsed_seconds,
+    t.text                        AS sql_text,
+    s.login_name
+FROM sys.dm_exec_requests r
+JOIN sys.dm_exec_sessions s ON r.session_id = s.session_id
+CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) t
+WHERE r.session_id <> @@SPID
+ORDER BY r.total_elapsed_time DESC;
+```
+
+**3 — Lock contention on ChatMessageReadStatuses**
+```sql
+SELECT
+    tl.request_session_id,
+    tl.resource_type,
+    tl.resource_description,
+    tl.request_mode,
+    tl.request_status,
+    t.text AS sql_text
+FROM sys.dm_tran_locks tl
+JOIN sys.dm_exec_requests r
+    ON tl.request_session_id = r.session_id
+CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) t
+WHERE tl.resource_database_id = DB_ID()
+  AND tl.request_status = 'WAIT'
+ORDER BY tl.request_session_id;
+```
+
+**4 — Connection pool usage by login**
+```sql
+SELECT
+    login_name,
+    COUNT(*)                                                  AS connection_count,
+    SUM(CASE WHEN status = 'running'  THEN 1 ELSE 0 END)     AS active,
+    SUM(CASE WHEN status = 'sleeping' THEN 1 ELSE 0 END)     AS idle
+FROM sys.dm_exec_sessions
+WHERE is_user_process = 1
+GROUP BY login_name
+ORDER BY connection_count DESC;
+```
+
+---
+
+### Verification steps after deployment
+
+1. Deploy the updated build.
+2. Watch Serilog output for the first scheduled run at the 2-hour mark. Expect to see:
+   - `Starting scheduled cleanup job.`
+   - `DeleteOldReadMappingRecord completed in Xms`
+   - `Scheduled cleanup job finished successfully.`
+3. Poll `GET /Home/ping` during and after the SP execution. `threadPool.workerInUse` should remain low (single digits) throughout.
+4. Confirm the service continues to log cleanup attempts every 2 hours without stopping — this confirms the `try/catch` fix is working.
+5. If a failure occurs, Serilog will log `Scheduled cleanup job failed. Will retry after 2 hours.` and the service will continue — previously the service would silently die with no log entry after the first failure.
+

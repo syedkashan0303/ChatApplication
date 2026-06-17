@@ -456,12 +456,33 @@
         {
             var idleTime = DateTime.UtcNow - AppHealthTracker.LastActivityTime;
 
-            if (idleTime > TimeSpan.FromMinutes(1))
-            {
-                return StatusCode(500, "App is idle or frozen");
-            }
+            ThreadPool.GetAvailableThreads(out int availWorker, out int availIocp);
+            ThreadPool.GetMaxThreads(out int maxWorker, out int maxIocp);
+            ThreadPool.GetMinThreads(out int minWorker, out int minIocp);
 
-            return Ok("Healthy " + idleTime);
+            var diagnostics = new
+            {
+                status = idleTime > TimeSpan.FromMinutes(1) ? "degraded" : "healthy",
+                idleSeconds = (int)idleTime.TotalSeconds,
+                activeSignalRConnections = AppHealthTracker.ActiveConnections,
+                threadPool = new
+                {
+                    workerAvailable = availWorker,
+                    workerInUse = maxWorker - availWorker,
+                    workerMax = maxWorker,
+                    workerMin = minWorker,
+                    iocpAvailable = availIocp,
+                    iocpInUse = maxIocp - availIocp,
+                    iocpMax = maxIocp,
+                    iocpMin = minIocp
+                },
+                timestamp = DateTime.UtcNow
+            };
+
+            if (idleTime > TimeSpan.FromMinutes(1))
+                return StatusCode(500, diagnostics);
+
+            return Ok(diagnostics);
         }
 
         public class Room

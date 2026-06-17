@@ -37,18 +37,19 @@ namespace SignalRMVC
             try
             {
                 AppHealthTracker.UpdateActivity();
+                AppHealthTracker.TrackConnect();
 
                 var userId = GetUserId();
-                // Ensure role-based group join is re-applied after reconnect/new connectionId
-                await JoinRoleGroupIfAny(userId);
+                _logger.LogInformation(
+                    "SignalR Connected | UserId={UserId} | ConnId={ConnId} | ActiveConns={Active}",
+                    userId, Context.ConnectionId, AppHealthTracker.ActiveConnections);
 
+                await JoinRoleGroupIfAny(userId);
                 await base.OnConnectedAsync();
             }
             catch (Exception ex)
             {
-                // ❌ Before: empty catch (silently ignored)
-                // ✅ Now: log it (server pe debugging easy)
-                _logger.LogError(ex, "❌ OnConnectedAsync failed");
+                _logger.LogError(ex, "OnConnectedAsync failed | ConnId={ConnId}", Context.ConnectionId);
                 await base.OnConnectedAsync();
             }
         }
@@ -58,20 +59,22 @@ namespace SignalRMVC
             try
             {
                 AppHealthTracker.UpdateActivity();
+                AppHealthTracker.TrackDisconnect();
 
-                // Cleanup any per-connection bookkeeping to avoid memory leaks
                 _joinedGroupsByConnection.TryRemove(Context.ConnectionId, out _);
 
                 if (exception != null)
-                {
                     _logger.LogWarning(exception,
-                        "SignalR disconnected with error | ConnectionId={ConnectionId}",
-                        Context.ConnectionId);
-                }
+                        "SignalR Disconnected (error) | ConnId={ConnId} | ActiveConns={Active}",
+                        Context.ConnectionId, AppHealthTracker.ActiveConnections);
+                else
+                    _logger.LogInformation(
+                        "SignalR Disconnected (clean) | ConnId={ConnId} | ActiveConns={Active}",
+                        Context.ConnectionId, AppHealthTracker.ActiveConnections);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ OnDisconnectedAsync cleanup failed");
+                _logger.LogError(ex, "OnDisconnectedAsync cleanup failed | ConnId={ConnId}", Context.ConnectionId);
             }
             finally
             {
