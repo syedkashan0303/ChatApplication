@@ -187,7 +187,7 @@ namespace SignalRMVC.Areas.Identity.Pages.Account
                 var loginLog = new UserLoginLog
                 {
                     UserId = userId,
-                    LoginDateTime = DateTime.UtcNow
+                    LoginDateTime = DateTime.Now
                 };
 
                 dbContext.UserLoginLogs.Add(loginLog);

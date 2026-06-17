@@ -33,6 +33,9 @@
         [Authorize]
         public async Task<IActionResult> Index()
         {
+            using var scope = _scopeFactory.CreateScope();
+            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
             var model = new RoleViewModel();
             var user = await _userManager.GetUserAsync(User);
 
@@ -175,6 +178,8 @@
                 // ===========================
                 // GROUP / ROOM CHAT
                 // ===========================
+
+
                 if (isRoom)
                 {
                     if (string.IsNullOrWhiteSpace(roomName))
@@ -255,6 +260,10 @@
                     roomName, skipRecords, chunkRecords, isRoom, receiverId);
 
                 return StatusCode(500, "Something went wrong");
+            }
+            finally
+            { 
+                _db.Dispose();  
             }
         }
 
