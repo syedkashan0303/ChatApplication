@@ -303,7 +303,7 @@ namespace SignalRMVC
         // =====================================================
         // Send Message to Room
         // =====================================================
-        public async Task SendMessageToRoom(string roomName, string user, string message, string? clientMessageId = null)
+        public async Task SendMessageToRoom(string roomName, string user, string message, string? clientMessageId = null, int? replyToMessageId = null)
         {
             var userId = GetUserId();
 
@@ -327,12 +327,35 @@ namespace SignalRMVC
                     }
                 }
 
+                string replyToMessageSender = string.Empty;
+                string? replyToMessageText = null;
+                bool replyToMessageDeleted = false;
+
+                if (replyToMessageId.HasValue)
+                {
+                    var replyMessage = await context.ChatMessages
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(m => m.Id == replyToMessageId.Value && m.GroupName == roomName);
+
+                    if (replyMessage == null)
+                    {
+                        await Clients.Caller.SendAsync("Error", "Reply target not found.");
+                        return;
+                    }
+
+                    var replySender = await _userManager.FindByIdAsync(replyMessage.SenderId ?? string.Empty);
+                    replyToMessageSender = replySender?.UserName ?? replySender?.FullName ?? string.Empty;
+                    replyToMessageText = replyMessage.IsDelete ? "Message deleted" : replyMessage.Message;
+                    replyToMessageDeleted = replyMessage.IsDelete;
+                }
+
                 var chatMessage = new ChatMessage
                 {
                     SenderId = userId,
                     ReceiverId = null,
                     Message = message,
                     GroupName = roomName,
+                    ReplyToMessageId = replyToMessageId,
                     CreatedOn = DateTime.Now,
                     ClientMessageId = clientMessageId
                 };
@@ -377,13 +400,20 @@ namespace SignalRMVC
                 //);
                 await Clients.Group(roomName).SendAsync(
                     "MessageReceived",
-                    messageId,
-                    user,
-                    message,
-                    messageTime,
-                    userId,   // senderId
-                    "",       // receiver
-                    true      // isGroup
+                    new object?[]
+                    {
+                        messageId,
+                        user,
+                        message,
+                        messageTime,
+                        userId,   // senderId
+                        "",       // receiver
+                        true,     // isGroup
+                        replyToMessageId,
+                        replyToMessageSender,
+                        replyToMessageText,
+                        replyToMessageDeleted
+                    }
                 );
 
                 // ✅ Avoid DB group-by storms: push deltas only to affected recipients (no DB counts here)
@@ -465,8 +495,12 @@ namespace SignalRMVC
                     ? chatMessage.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
                     : "";
 
-                await Clients.User(receiver).SendAsync("MessageReceived", messageId, user, message, messageTime, senderId, receiver, false);
-                await Clients.User(userId).SendAsync("SendMessageUser", messageId, user, message, messageTime, senderId, receiver, false);
+                await Clients.User(receiver).SendAsync(
+                    "MessageReceived",
+                    new object?[] { messageId, user, message, messageTime, senderId, receiver, false, null, null, null, false });
+                await Clients.User(userId).SendAsync(
+                    "SendMessageUser",
+                    new object?[] { messageId, user, message, messageTime, senderId, receiver, false, null, null, null, false });
 
                 // ✅ Avoid DB group-by storms: push delta only to affected receiver
                 await Clients.User(receiver).SendAsync("ReceiveUnreadDelta", senderId, user, 1, false);
@@ -474,75 +508,6 @@ namespace SignalRMVC
             catch (Exception ex)
             {
                 await LogAsync(userId, "SendMessageToUser", ex.Message + " InnerException " + (ex.InnerException?.Message ?? ""));
-            }
-        }
-
-        // =====================================================
-        // Send Reply to Group Message
-        // =====================================================
-        public async Task SendReply(int parentMessageId, string replyText)
-        {
-            var userId = GetUserId();
-
-            try
-            {
-                AppHealthTracker.UpdateActivity();
-
-                if (string.IsNullOrWhiteSpace(replyText) || replyText.Length > 1000)
-                {
-                    await Clients.Caller.SendAsync("Error", "Reply text is required and must be under 1000 characters.");
-                    return;
-                }
-
-                using var scope = _scopeFactory.CreateScope();
-                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-                var parentMessage = await context.ChatMessages
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(m => m.Id == parentMessageId && !m.IsDelete);
-
-                if (parentMessage == null)
-                {
-                    await Clients.Caller.SendAsync("Error", "Message not found.");
-                    return;
-                }
-
-                var user = await _userManager.FindByIdAsync(userId);
-
-                var reply = new MessageReply
-                {
-                    ParentMessageId = parentMessageId,
-                    ReplyText = replyText,
-                    UserId = userId,
-                    CreatedOn = DateTime.Now
-                };
-
-                context.MessageReplies.Add(reply);
-                await context.SaveChangesAsync();
-
-                var replyCount = await context.MessageReplies
-                    .CountAsync(r => r.ParentMessageId == parentMessageId && !r.IsDeleted);
-
-                var groupName = parentMessage.GroupName ?? string.Empty;
-
-                var replyDto = new
-                {
-                    id = reply.Id,
-                    parentMessageId = parentMessageId,
-                    replyText = replyText,
-                    userId = userId,
-                    userName = user?.FullName ?? user?.UserName ?? string.Empty,
-                    createdOn = reply.CreatedOn.ToString("dd-MMM-yyyy hh:mm tt")
-                };
-
-                await Clients.Group(groupName).SendAsync("ReplyReceived", replyDto, replyCount);
-
-                await LogAsync(userId, "SendReply", $"Reply to message {parentMessageId} in room {groupName}");
-            }
-            catch (Exception ex)
-            {
-                await LogAsync(userId, "SendReply", ex.Message + " InnerException " + (ex.InnerException?.Message ?? ""));
-                await Clients.Caller.SendAsync("Error", $"Server error: {ex.Message}");
             }
         }
 

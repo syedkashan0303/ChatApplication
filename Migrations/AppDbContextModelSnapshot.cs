@@ -281,6 +281,9 @@ namespace SignalRMVC.Migrations
                     b.Property<bool>("IsDelete")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("ReplyToMessageId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Message")
                         .HasColumnType("nvarchar(max)");
 
@@ -291,6 +294,9 @@ namespace SignalRMVC.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ReplyToMessageId")
+                        .HasDatabaseName("IX_ChatMessages_ReplyToMessageId");
 
                     b.ToTable("ChatMessages");
                 });
@@ -410,43 +416,6 @@ namespace SignalRMVC.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("GroupUserMapping");
-                });
-
-            modelBuilder.Entity("SignalRMVC.Models.MessageReply", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedOn")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("ParentMessageId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ReplyText")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime?>("UpdatedOn")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ParentMessageId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("MessageReplies");
                 });
 
             modelBuilder.Entity("SignalRMVC.Models.UserLoginLog", b =>
@@ -594,23 +563,6 @@ namespace SignalRMVC.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("SignalRMVC.Models.MessageReply", b =>
-                {
-                    b.HasOne("SignalRMVC.Models.ChatMessage", "ParentMessage")
-                        .WithMany()
-                        .HasForeignKey("ParentMessageId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SignalRMVC.Models.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId");
-
-                    b.Navigation("ParentMessage");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("SignalRMVC.Models.ChatMessageReadStatus", b =>
                 {
                     b.HasOne("SignalRMVC.Models.ChatMessage", "ChatMessage")
@@ -628,6 +580,16 @@ namespace SignalRMVC.Migrations
                     b.Navigation("ChatMessage");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SignalRMVC.Models.ChatMessage", b =>
+                {
+                    b.HasOne("SignalRMVC.Models.ChatMessage", "ReplyToMessage")
+                        .WithMany()
+                        .HasForeignKey("ReplyToMessageId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("ReplyToMessage");
                 });
 
             modelBuilder.Entity("SignalRMVC.Models.UsersMessageReadStatus", b =>

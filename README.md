@@ -376,80 +376,31 @@ The following items were requested during review but no clear implementation evi
 
 ---
 
-## 15. Group Message Reply Thread Feature
+## 15. WhatsApp-Style Message Replies
 
-Added: 2026-06-17
+Added: 2026-06-23
 
-This feature allows multiple users to reply to a single group message in a threaded view without cluttering the main chat window. Reply threads are available on group chat messages only. Private (one-to-one) chat does not support replies.
+Group chat replies now use a self-referencing `ChatMessages.ReplyToMessageId` relationship instead of a separate reply thread system.
 
 ### How it works
 
-- Every group message displays a reply icon below the bubble.
-- If replies exist the icon shows a count badge: `↩ Reply 5`.
-- Clicking the icon opens a Bootstrap modal showing the original message preview, the full reply thread, and a reply input.
-- Replies are loaded on demand via HTTP GET when the modal opens — they are not preloaded for all messages.
-- Sending a reply invokes the SignalR hub method `SendReply`. The hub saves the reply and broadcasts a `ReplyReceived` event to every connected user in that group.
-- All connected users receive the updated reply count in real time. If any user has the modal open for that same message, the new reply appears live without a refresh.
+- Clicking Reply on a group message shows a reply preview above the composer.
+- Sending a message includes `replyToMessageId` when a reply target is selected.
+- Messages with `ReplyToMessageId` render an inline reply preview inside the bubble.
+- Clicking the inline preview scrolls to the original message and highlights it briefly.
+- Private chat does not support replies.
 
-### New database table
+### Database shape
 
-Table: `MessageReplies`
+- `ChatMessages.ReplyToMessageId` is nullable and references `ChatMessages.Id`.
+- The old `MessageReplies` table is removed by migration.
+- The separate reply count UI and APIs are removed.
 
-| Column | Type | Notes |
-|---|---|---|
-| `Id` | `bigint IDENTITY` | Primary key |
-| `ParentMessageId` | `int NOT NULL` | FK → `ChatMessages.Id` (CASCADE DELETE) |
-| `ReplyText` | `nvarchar(1000)` | Max 1000 characters |
-| `UserId` | `nvarchar(450)` | FK → `AspNetUsers.Id` (NO ACTION) |
-| `CreatedOn` | `datetime2` | Set on insert |
-| `UpdatedOn` | `datetime2` | Nullable |
-| `IsDeleted` | `bit` | Soft delete flag |
+### Implementation notes
 
-Migration file: [Migrations/20260617000000_AddMessageReplies.cs](Migrations/20260617000000_AddMessageReplies.cs)
-
-Apply with:
-```bash
-dotnet ef database update
-```
-
-### New and modified files
-
-| File | Change |
-|---|---|
-| [Models/MessageReply.cs](Models/MessageReply.cs) | New entity |
-| [Areas/Identity/Data/AppDbContext.cs](Areas/Identity/Data/AppDbContext.cs) | Added `DbSet<MessageReply> MessageReplies`; FK configured with `NoAction` on user delete |
-| [Migrations/AppDbContextModelSnapshot.cs](Migrations/AppDbContextModelSnapshot.cs) | Updated snapshot to include `MessageReply` |
-| [BasicChatHub.cs](BasicChatHub.cs) | Added `SendReply(int parentMessageId, string replyText)` hub method |
-| [Controllers/HomeController.cs](Controllers/HomeController.cs) | Added `GET /Home/GetReplies`; updated `GetMessagesByRoom` to include `replyCount` per message |
-| [Views/Home/Index.cshtml](Views/Home/Index.cshtml) | Added reply modal, reply button in message renderer, `ReplyReceived` SignalR event, reply JS functions |
-
-### New SignalR hub method
-
-`SendReply(int parentMessageId, string replyText)`
-- Validates text is non-empty and ≤ 1000 characters.
-- Verifies the parent message exists and is not deleted.
-- Saves the reply to `MessageReplies`.
-- Broadcasts `ReplyReceived(replyDto, replyCount)` to `Clients.Group(groupName)`.
-
-### New client SignalR event
-
-`ReplyReceived(reply, replyCount)`
-- Updates the reply count badge on the parent message bubble.
-- If the reply modal is open for that message, appends the new reply live.
-
-### New HTTP endpoint
-
-`GET /Home/GetReplies?parentMessageId={id}&page={n}&pageSize={n}`
-- Requires authentication.
-- Returns replies sorted oldest-first.
-- Page size is capped at 50.
-- Used by the modal on open to load existing replies.
-
-### Security notes
-
-- Reply text is rendered with `.text()` in jQuery — XSS is not possible.
-- Maximum reply length is enforced on both client (character counter) and server (validation in hub).
-- Only authenticated users can invoke `SendReply`.
+- Message history now projects reply metadata in the same query that loads chat messages.
+- SignalR group sends include the reply metadata so live messages render consistently.
+- The reply composer is inline, so there is no modal or separate thread view.
 
 ---
 

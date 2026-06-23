@@ -121,7 +121,7 @@
         // =====================================================
         [HttpPost("SendMessageToGroup")]
         [Authorize]
-        public async Task<IActionResult> SendMessageToGroup([FromForm] string user, [FromForm] string room, [FromForm] string message)
+        public async Task<IActionResult> SendMessageToGroup([FromForm] string user, [FromForm] string room, [FromForm] string message, [FromForm] int? replyToMessageId = null)
         {
             using var scope = _scopeFactory.CreateScope();
             var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -130,19 +130,61 @@
 
             if (senderUser != null)
             {
+                string replyToMessageSender = string.Empty;
+                string? replyToMessageText = null;
+                bool replyToMessageDeleted = false;
+
+                if (replyToMessageId.HasValue)
+                {
+                    var replyMessage = await _db.ChatMessages
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(m => m.Id == replyToMessageId.Value && m.GroupName == room);
+
+                    if (replyMessage == null)
+                    {
+                        return BadRequest("Reply target not found.");
+                    }
+
+                    var replySender = await _userManager.FindByIdAsync(replyMessage.SenderId ?? string.Empty);
+                    replyToMessageSender = replySender?.UserName ?? replySender?.FullName ?? string.Empty;
+                    replyToMessageText = replyMessage.IsDelete ? "Message deleted" : replyMessage.Message;
+                    replyToMessageDeleted = replyMessage.IsDelete;
+                }
+
                 var chatMessage = new ChatMessage
                 {
                     SenderId = senderUser.Id,
                     ReceiverId = null,
                     Message = message,
                     GroupName = room,
+                    ReplyToMessageId = replyToMessageId,
                     CreatedOn = DateTime.Now
                 };
 
                 _db.ChatMessages.Add(chatMessage);
                 await _db.SaveChangesAsync();
 
-                await _basicChatHub.Clients.Group(room).SendAsync("MessageReceived", senderUser.UserName, message);
+                var messageId = chatMessage.Id;
+                var messageTime = chatMessage.CreatedOn.HasValue
+                    ? chatMessage.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
+                    : "";
+
+                await _basicChatHub.Clients.Group(room).SendAsync(
+                    "MessageReceived",
+                    new object?[]
+                    {
+                        messageId,
+                        senderUser.UserName ?? user,
+                        message,
+                        messageTime,
+                        senderUser.Id,
+                        "",
+                        true,
+                        replyToMessageId,
+                        replyToMessageSender,
+                        replyToMessageText,
+                        replyToMessageDeleted
+                    });
             }
 
             return Ok();
@@ -190,6 +232,12 @@
                         join u in _db.Users.AsNoTracking()
                             on m.SenderId equals u.Id into gj
                         from u in gj.DefaultIfEmpty()
+                        join reply in _db.ChatMessages.AsNoTracking()
+                            on m.ReplyToMessageId equals reply.Id into replyJoin
+                        from reply in replyJoin.DefaultIfEmpty()
+                        join replySender in _db.Users.AsNoTracking()
+                            on reply.SenderId equals replySender.Id into replySenderJoin
+                        from replySender in replySenderJoin.DefaultIfEmpty()
                         where m.GroupName == roomName
                         orderby m.Id descending
                         select new
@@ -202,7 +250,14 @@
                             messageTime = m.CreatedOn.HasValue
                                 ? m.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
                                 : "",
-                            replyCount = _db.MessageReplies.Count(r => r.ParentMessageId == m.Id && !r.IsDeleted)
+                            replyToMessageId = m.ReplyToMessageId,
+                            replyToMessageSender = reply == null
+                                ? string.Empty
+                                : (replySender != null ? (replySender.UserName ?? replySender.FullName ?? string.Empty) : string.Empty),
+                            replyToMessageText = reply == null
+                                ? null
+                                : (reply.IsDelete ? "Message deleted" : reply.Message),
+                            replyToMessageDeleted = reply == null || reply.IsDelete
                         })
                         .Skip(fromDate)
                         .Take(chunkRecords)
@@ -265,60 +320,6 @@
             finally
             { 
                 _db.Dispose();  
-            }
-        }
-
-        // =====================================================
-        // Get Replies for a Group Message
-        // =====================================================
-        [HttpGet]
-        [Authorize]
-        public async Task<IActionResult> GetReplies(
-            int parentMessageId,
-            int page = 1,
-            int pageSize = 50,
-            CancellationToken cancellationToken = default)
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(15));
-
-            try
-            {
-                if (pageSize > 50) pageSize = 50;
-
-                var replies = await (
-                    from r in _db.MessageReplies.AsNoTracking()
-                    join u in _db.Users.AsNoTracking()
-                        on r.UserId equals u.Id into gj
-                    from u in gj.DefaultIfEmpty()
-                    where r.ParentMessageId == parentMessageId && !r.IsDeleted
-                    orderby r.CreatedOn ascending
-                    select new
-                    {
-                        id = r.Id,
-                        userId = r.UserId,
-                        userName = u != null ? (u.FullName ?? u.UserName) : string.Empty,
-                        replyText = r.ReplyText,
-                        createdOn = r.CreatedOn.ToString("dd-MMM-yyyy hh:mm tt")
-                    })
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync(cts.Token);
-
-                return Ok(replies);
-            }
-            catch (OperationCanceledException ex)
-            {
-                _logger.LogWarning(ex, "⏳ GetReplies timeout | ParentMessageId={ParentMessageId}", parentMessageId);
-                return StatusCode(408, "Request timeout. Please retry.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Error in GetReplies | ParentMessageId={ParentMessageId}", parentMessageId);
-                return StatusCode(500, "Something went wrong");
             }
         }
 

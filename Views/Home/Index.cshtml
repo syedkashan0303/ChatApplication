@@ -36,7 +36,7 @@
         line-height: 30px
     }
 
-    .chatMessage, .editMessageText, #replyTextInput, #replyOriginalText, .reply-text {
+    .chatMessage, .editMessageText, .reply-composer-text, .reply-preview-text {
         font-family: 'Alvi Nastaleeq';
     }
 
@@ -290,49 +290,144 @@
         border-radius: 4px;
     }
 
-    /* Reply thread */
+    .reply-composer {
+        margin-bottom: 12px;
+    }
+
+    .reply-composer-card {
+        background: #fff7df;
+        border-left: 4px solid #f0b429;
+        border-radius: 12px;
+        padding: 10px 12px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    }
+
+    .reply-composer-label {
+        color: #7a5b00;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+    }
+
+    .reply-composer-user {
+        color: #303d4f;
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .reply-composer-text {
+        color: #4b4b4b;
+        font-size: 0.9rem;
+        line-height: 1.35;
+        margin-top: 2px;
+        max-height: 3.1em;
+        overflow: hidden;
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+
+    .reply-composer-close {
+        background: transparent;
+        border: none;
+        color: #7a5b00;
+        font-size: 1.1rem;
+        line-height: 1;
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    .reply-action-row {
+        margin-top: 4px;
+        margin-bottom: 4px;
+        display: flex;
+    }
+
     .reply-btn {
-        font-size: 0.75rem;
+        font-size: 0.8rem;
         text-decoration: none;
-        color: #6c757d;
-        padding: 1px 4px;
+        color: #cfd6df;
+        padding: 0;
         border: none;
         background: none;
     }
 
         .reply-btn:hover {
-            color: #466695;
+            color: #f0b429;
         }
 
-    .reply-bar {
-        margin-top: -3px;
-        margin-bottom: 4px;
+    .reply-preview {
+        background: rgba(255, 255, 255, 0.08);
+        border-left: 4px solid rgba(255, 255, 255, 0.45);
+        border-radius: 10px;
+        padding: 8px 10px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s ease, transform 0.2s ease;
     }
 
-    .reply-item {
-        border-left: 3px solid #dee2e6;
-        padding-left: 10px;
+        .reply-preview:hover {
+            background: rgba(255, 255, 255, 0.18);
+            transform: translateY(-1px);
+        }
+
+    .justify-content-end .msg-custom .reply-preview {
+        background: rgba(48, 61, 79, 0.06);
+        border-left-color: rgba(48, 61, 79, 0.24);
+        color: #303d4f;
     }
 
-    .reply-item .reply-text {
+        .justify-content-end .msg-custom .reply-preview:hover {
+            background: rgba(48, 61, 79, 0.1);
+        }
+
+    .justify-content-end .msg-custom .reply-preview-user,
+    .justify-content-end .msg-custom .reply-preview-text {
+        color: #303d4f;
+    }
+
+    .reply-preview-user {
+        font-size: 0.78rem;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-bottom: 2px;
+        opacity: 0.95;
+    }
+
+    .reply-preview-text {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        font-size: 0.78rem;
+        line-height: 1.25;
         word-break: break-word;
         white-space: pre-wrap;
-        font-size: larger;
     }
 
-    #repliesList .letter-avatar {
-        background-color: #303d4f;
-        color: #fff;
-        width: 30px;
-        height: 30px;
-        font-size: 13px;
-        flex-shrink: 0;
+    .reply-highlight {
+        animation: replyHighlightFade 3s ease;
     }
 
-    #replyOriginalCard {
-        background: #192243;
-        border-left: 4px solid #466695;
-        color: white;
+    @@keyframes replyHighlightFade {
+        0% {
+            box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.95);
+            transform: scale(1);
+        }
+
+        20% {
+            box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.9), 0 0 18px rgba(255, 193, 7, 0.55);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+        }
     }
 
 </style>
@@ -402,6 +497,19 @@
                 <div class="card-body row">
 
                     <div class="col-md-11">
+                        <div id="replyComposer" class="reply-composer d-none">
+                            <div class="reply-composer-label">Replying to</div>
+                            <div class="reply-composer-card">
+                                <div class="flex-grow-1">
+                                    <div class="reply-composer-user" id="replyPreviewUser"></div>
+                                    <div class="reply-composer-text" id="replyPreviewText"></div>
+                                </div>
+                                <button type="button" class="reply-composer-close" id="cancelReplyBtn" aria-label="Cancel reply">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="col-sm-12 TextareaBox">
                             <textarea class="form-control chatMessage" id="chatMessage" rows="2" placeholder="Type your message here..." style="height: 50px;"></textarea>
                             <i class="fa-solid fa-align-right" id="alignRight"></i>
@@ -445,44 +553,6 @@
     </div>
 </div>
 
-
-<!-- Reply Thread Modal -->
-<div class="modal fade" id="replyThreadModal" tabindex="-1" aria-labelledby="replyThreadModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="replyThreadModalLabel">
-                    <i class="fa-solid fa-reply me-2"></i>Reply Thread
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="replyParentMessageId" />
-
-                <!-- Original message preview -->
-                <div id="replyOriginalCard" class="rounded p-3 mb-3">
-                    <div class="fw-bold mb-1" id="replyOriginalSender"></div>
-                    <div id="replyOriginalText" style="white-space:pre-wrap; word-break:break-word;"></div>
-                    <small class="text-muted mt-1 d-block" id="replyOriginalTime"></small>
-                </div>
-
-                <!-- Replies list -->
-                <div id="repliesList" class="mb-3 custom-scroll" style="max-height:350px; overflow-y:auto; min-height:60px;"></div>
-
-                <!-- Reply input -->
-                <div class="input-group">
-                    <textarea class="form-control" id="replyTextInput" rows="2" maxlength="1000"
-                              placeholder="Write a reply..." style="resize:none;"></textarea>
-                    <button class="btn btn-primary" id="sendReplyBtn" type="button">Send Reply</button>
-                </div>
-                <div class="text-end mt-1">
-                    <small class="text-muted"><span id="replyCharCount">0</span>/1000</small>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script src="~/js/jquery-3.6.4.min.js"></script>
 <link href="~/css/toastr.min.css" rel="stylesheet" />
 <script src="~/js/toastr.min.js"></script>
@@ -498,6 +568,7 @@
     let allMessagesLoaded = false; // ✅ FIX: start false, not true
     let currentRoom = null;
     let fontSize = 18;
+    let currentReplyTarget = null;
 
     // ✅ to avoid duplicate marker insertion
     let unreadMarkerInserted = false;
@@ -512,6 +583,52 @@
     function getHiddenRoomName() { return $("#hiddenRoomName").val(); }
     function getHiddenRoomId() { return $("#hiddenRoomid").val(); }
     function getIsGroup() { return $("#isGroup").val(); }
+
+    function decodeMessageText(text) {
+        return (text || "").replace(/\\n/g, "\n");
+    }
+
+    function clearReplyTarget() {
+        currentReplyTarget = null;
+        $("#replyComposer").addClass("d-none");
+        $("#replyPreviewUser").text("");
+        $("#replyPreviewText").text("");
+    }
+
+    function setReplyTarget(replyTarget) {
+        if (!replyTarget || !replyTarget.id) {
+            clearReplyTarget();
+            return;
+        }
+
+        currentReplyTarget = replyTarget;
+        $("#replyPreviewUser").text(replyTarget.senderName || "Unknown");
+        $("#replyPreviewText").text(replyTarget.messageText || "Message deleted");
+        $("#replyComposer").removeClass("d-none");
+        $("#chatMessage").trigger("focus");
+    }
+
+    function highlightMessage(messageId) {
+        const $message = $("#msg_" + messageId);
+        if (!$message.length) {
+            toastr.info("Original message is not loaded yet.");
+            return;
+        }
+
+        const element = $message.get(0);
+        if (element && typeof element.scrollIntoView === "function") {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+
+        $message.addClass("reply-highlight");
+        window.setTimeout(() => {
+            $message.removeClass("reply-highlight");
+        }, 3000);
+    }
+
+    function scrollToMessage(messageId) {
+        highlightMessage(messageId);
+    }
 
     // ==========================
     // ✅ SIGNALR CONNECTION (Only One Instance)
@@ -585,7 +702,7 @@
     // 🔹 Message Edited
     connectionChat.on("MessageEdited", function (messageId, newContent) {
         newContent = (newContent.replace(/\\n/g, "<br>"));
-        const $msg = $("#message-" + messageId);
+        const $msg = $("#msg_" + messageId);
 
         if ($msg.length) {
             $msg.find(".message-text").html(newContent + " <i>(edited)</i>");
@@ -594,7 +711,7 @@
     });
 
     // 🔹 Message Received (Group + Personal)
-    connectionChat.on("MessageReceived", function (messageId, user, message, messageTime, senderId, receiver, isGroup) {
+    connectionChat.on("MessageReceived", function (messageId, user, message, messageTime, senderId, receiver, isGroup, replyToMessageId, replyToMessageSender, replyToMessageText, replyToMessageDeleted) {
 
         var myUserEmail = getHiddenRoomId();
         const currentChatUserEmail = getHiddenRoomName();
@@ -609,7 +726,12 @@
         }
 
         // ✅ IMPORTANT: if unread marker exists, new message should appear BELOW marker (top side)
-        renderMessage(user, message, messageId, false, false, false, messageTime);
+        renderMessage(user, message, messageId, false, false, false, messageTime, {
+            replyToMessageId: replyToMessageId,
+            replyToMessageSender: replyToMessageSender,
+            replyToMessageText: replyToMessageText,
+            replyToMessageDeleted: replyToMessageDeleted
+        });
 
         moveChatToTop(isGroup ? receiver : senderId, isGroup);
 
@@ -618,7 +740,7 @@
     });
 
     // 🔹 Personal message sent event (your custom)
-    connectionChat.on("SendMessageUser", function (messageId, user, message, messageTime, senderId, receiver, isGroup) {
+    connectionChat.on("SendMessageUser", function (messageId, user, message, messageTime, senderId, receiver, isGroup, replyToMessageId, replyToMessageSender, replyToMessageText, replyToMessageDeleted) {
 
         var myUserEmail = getHiddenRoomId();
 
@@ -627,7 +749,12 @@
             if (!isRelevantToMe) return;
         }
 
-        renderMessage(user, message, messageId, false, false, false, messageTime);
+        renderMessage(user, message, messageId, false, false, false, messageTime, {
+            replyToMessageId: replyToMessageId,
+            replyToMessageSender: replyToMessageSender,
+            replyToMessageText: replyToMessageText,
+            replyToMessageDeleted: replyToMessageDeleted
+        });
         setTimeout(() => customFontSize(fontSize), 100);
     });
 
@@ -684,26 +811,6 @@
         if (next > 0) {
             moveChatToTop(roomId, isRoom);
             sortChatListByUnread();
-        }
-    });
-
-    // ==========================
-    // ✅ SIGNALR: REPLY RECEIVED
-    // ==========================
-    connectionChat.on("ReplyReceived", function (reply, replyCount) {
-        // Update badge on the parent message bubble
-        var $badge = $("#reply-count-" + reply.parentMessageId);
-        if ($badge.length) {
-            $badge.text(replyCount);
-            $badge.css("display", "inline-block");
-        }
-
-        // If the reply modal is open for this exact message, append the new reply live
-        var openId = parseInt($("#replyParentMessageId").val());
-        if (openId === reply.parentMessageId && $("#replyThreadModal").hasClass("show")) {
-            appendReplyToModal(reply);
-            var $list = $("#repliesList");
-            $list.scrollTop($list[0].scrollHeight);
         }
     });
 
@@ -950,6 +1057,7 @@
             allMessagesLoaded = false;
 
             unreadMarkerInserted = false; // ✅ reset marker for new chat
+            clearReplyTarget();
             $("#messagesList").empty();
             $("#messagesList").append('<div id="chat-loader" class="d-flex justify-content-center align-items-center w-100" style="height: 100%;"><div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>');
 
@@ -1043,7 +1151,13 @@
                     // - Use senderName for display
                     // - senderId is still available in msg.senderId for any logic if needed
                     const displayName = msg.senderName || msg.senderId;
-                    const messageHtml = renderMessage(displayName, msg.message, msg.id, true, false, false, msg.messageTime, msg.replyCount || 0);
+                    const replyInfo = msg.replyToMessageId ? {
+                        replyToMessageId: msg.replyToMessageId,
+                        replyToMessageSender: msg.replyToMessageSender,
+                        replyToMessageText: msg.replyToMessageText,
+                        replyToMessageDeleted: msg.replyToMessageDeleted
+                    } : null;
+                    const messageHtml = renderMessage(displayName, msg.message, msg.id, true, false, false, msg.messageTime, replyInfo);
 
                     // prepend older messages
                     if (prepend) {
@@ -1084,13 +1198,14 @@
     // ==========================
     // ✅ RENDER MESSAGE
     // ==========================
-    function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false, messagetime, initialReplyCount = 0) {
+    function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false, messagetime, replyInfo = null) {
 
         var senderEmail = getSenderEmail();
         var isOwnMessage = user === senderEmail;
-
-        let timeStr = messagetime;
         var userName = capitalizeFirstLetter(user);
+        var decodedMessage = decodeMessageText(message);
+        var isDeletedMessage = isDeleted || decodedMessage === "Message deleted";
+        var mainMessageText = isDeletedMessage ? "Message deleted" : decodedMessage;
 
         var userInfo = $("<div>")
             .addClass("d-flex ms-2")
@@ -1106,11 +1221,8 @@
                 $("<span>").addClass("fw-semibold UserIcon").text(userName[0]),
                 $("<span>").addClass("fw-semibold UserName").text(userName),
                 $("<small>").addClass("text-muted").text(userName),
-                $("<small>").addClass("text-muted").text(timeStr)
+                $("<small>").addClass("text-muted").text(messagetime)
             );
-
-        let messageText = (message || "").replace(/\\n/g, "<br>");
-        if (isEdited && !isDeleted) messageText += " <i>(edited)</i>";
 
         var bubble = $("<div>")
             .addClass("msg-custom rounded px-3 py-2 position-relative")
@@ -1120,10 +1232,33 @@
                 "min-width": "40%",
                 "background-color": isOwnMessage ? "#f5f5f5" : "#303d4f"
             })
-            .attr("id", `message-${messageId}`)
-            .append($("<div>").addClass("message-text content").html(messageText));
+            .attr("data-message-id", messageId);
 
-        if (messageText === "Message deleted") {
+        if (replyInfo && replyInfo.replyToMessageId) {
+            var replyPreviewText = replyInfo.replyToMessageDeleted ? "Message deleted" : decodeMessageText(replyInfo.replyToMessageText);
+
+            var replyPreview = $("<div>")
+                .addClass("reply-preview")
+                .attr("data-reply-to-message-id", replyInfo.replyToMessageId)
+                .append(
+                    $("<div>").addClass("reply-preview-user").text(replyInfo.replyToMessageSender || "Unknown"),
+                    $("<div>").addClass("reply-preview-text").text(replyPreviewText || "Message deleted")
+                );
+
+            bubble.append(replyPreview);
+        }
+
+        var messageBody = $("<div>")
+            .addClass("message-text content")
+            .html(mainMessageText.replace(/\n/g, "<br>"));
+
+        if (isEdited && !isDeletedMessage) {
+            messageBody.append(" <i>(edited)</i>");
+        }
+
+        bubble.append(messageBody);
+
+        if (isDeletedMessage) {
             bubble.css({
                 "opacity": ".7",
                 "cursor": "not-allowed",
@@ -1137,7 +1272,7 @@
             );
         }
 
-        if (isOwnMessage && messageText !== "Message deleted") {
+        if (isOwnMessage && !isDeletedMessage) {
             bubble.append(
                 $("<div>").addClass("mt-2 d-flex gap-2 justify-content-end")
                     .append(
@@ -1162,30 +1297,24 @@
 
         var li = $("<li>")
             .addClass("list-group-item border-0 d-flex flex-wrap")
+            .attr("id", "msg_" + messageId)
             .addClass(isOwnMessage ? "justify-content-end" : "justify-content-start")
             .append(contentWrapper);
 
-        // Reply button — group chat only, non-deleted messages
         var isGroupCtx = getIsGroup() === "true";
-        if (isGroupCtx && messageText !== "Message deleted") {
-            var replyCountBadge = $("<span>")
-                .addClass("badge bg-primary ms-1 reply-count-badge")
-                .attr("id", "reply-count-" + messageId)
-                .text(initialReplyCount > 0 ? initialReplyCount : "")
-                .css("display", initialReplyCount > 0 ? "inline-block" : "none");
-
+        if (isGroupCtx && !isDeletedMessage) {
             var replyBtn = $("<button>")
                 .addClass("reply-btn")
+                .attr("type", "button")
                 .attr("data-id", messageId)
                 .attr("data-sender", user)
                 .attr("data-message", message)
                 .attr("data-time", messagetime)
-                .html('<i class="fa-solid fa-reply"></i> Reply')
-                .append(replyCountBadge);
+                .html('<i class="fa-solid fa-reply me-1"></i>Reply');
 
             var replyBar = $("<div>")
-                .addClass("reply-bar w-100")
-                .addClass(isOwnMessage ? "text-end pe-2" : "text-start ps-2")
+                .addClass("reply-action-row w-100")
+                .addClass(isOwnMessage ? "justify-content-end pe-2" : "justify-content-start ps-2")
                 .append(replyBtn);
 
             li.append(replyBar);
@@ -1211,7 +1340,7 @@
     $("#saveEditMessage").on("click", function () {
         var messageId = $("#editMessageId").val();
         var newContent = $("#editMessageText").val();
-        var $msg = $("#message-" + messageId);
+        var $msg = $("#msg_" + messageId);
 
         newContent = ($("#editMessageText").val().replace(/\n/g, "\\n"));
         var oldContent = $msg.find(".edit-btn").attr("data-content");
@@ -1258,12 +1387,13 @@
     });
 
     function markMessageDeletedUI(messageId) {
-        const $messageBubble = $("#message-" + messageId);
+        const $messageBubble = $("#msg_" + messageId);
 
         if ($messageBubble.length) {
             $messageBubble.find(".fa-trash").remove();
             $messageBubble.find(".edit-btn").remove();
             $messageBubble.find(".copy-btn").remove();
+            $messageBubble.siblings(".reply-action-row").remove();
             $messageBubble.find(".message-text").html('Message deleted');
             $messageBubble.css({
                 "opacity": ".7",
@@ -1294,16 +1424,20 @@
         $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...');
 
         const clientMessageId = generateClientMessageId();
+        const replyToMessageId = (isroom == "true" && currentReplyTarget && currentReplyTarget.id)
+            ? currentReplyTarget.id
+            : null;
 
         let promise;
         if (isroom == "true") {
-            promise = connectionChat.invoke("SendMessageToRoom", room, sender, message, clientMessageId);
+            promise = connectionChat.invoke("SendMessageToRoom", room, sender, message, clientMessageId, replyToMessageId);
         } else {
             promise = connectionChat.invoke("SendMessageToUser", sender, chatId, message, clientMessageId);
         }
 
         promise.then(() => {
             $("#chatMessage").val('');
+            clearReplyTarget();
         }).catch(err => {
             console.error("Send failed:", err);
         }).finally(() => {
@@ -1384,147 +1518,36 @@
 
 
     // ==========================
-    // ✅ REPLY THREAD: OPEN MODAL
+    // ✅ REPLY COMPOSER
     // ==========================
     $(document).on("click", ".reply-btn", function () {
-        var messageId = parseInt($(this).data("id"));
-        var senderName = $(this).data("sender") || "";
-        var messageText = $(this).data("message") || "";
-        var messageTime = $(this).data("time") || "";
+        if (getIsGroup() !== "true") {
+            return;
+        }
 
-        $("#replyParentMessageId").val(messageId);
+        var messageId = parseInt($(this).data("id"), 10);
+        if (Number.isNaN(messageId)) {
+            return;
+        }
 
-        // Populate original message preview
-        $("#replyOriginalSender").text(capitalizeFirstLetter(senderName));
-        $("#replyOriginalText").text(messageText.replace(/\\n/g, "\n"));
-        $("#replyOriginalTime").text(messageTime);
-
-        // Reset input
-        $("#replyTextInput").val("");
-        $("#replyCharCount").text("0");
-
-        // Show spinner while loading
-        $("#repliesList").html(
-            '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>'
-        );
-
-        $("#replyThreadModal").modal("show");
-        loadRepliesForMessage(messageId);
-    });
-
-    // ==========================
-    // ✅ REPLY THREAD: LOAD REPLIES (AJAX)
-    // ==========================
-    function loadRepliesForMessage(parentMessageId, page) {
-        page = page || 1;
-
-        $.ajax({
-            url: "/Home/GetReplies",
-            type: "GET",
-            timeout: 15000,
-            data: { parentMessageId: parentMessageId, page: page, pageSize: 50 },
-            success: function (replies) {
-                var $list = $("#repliesList");
-                $list.empty();
-
-                if (!replies || replies.length === 0) {
-                    $list.html('<p class="text-center text-muted py-2 mb-0">No replies yet. Be the first to reply!</p>');
-                    return;
-                }
-
-                $.each(replies, function (i, reply) {
-                    appendReplyToModal(reply);
-                });
-
-                $list.scrollTop($list[0].scrollHeight);
-            },
-            error: function () {
-                $("#repliesList").html('<p class="text-center text-danger py-2 mb-0">Failed to load replies.</p>');
-            }
+        setReplyTarget({
+            id: messageId,
+            senderName: $(this).data("sender") || "",
+            messageText: decodeMessageText($(this).data("message") || "")
         });
-    }
-
-    // ==========================
-    // ✅ REPLY THREAD: RENDER A SINGLE REPLY
-    // ==========================
-    function appendReplyToModal(reply) {
-        var initial = (reply.userName || "?").charAt(0).toUpperCase();
-
-        var $avatar = $("<div>")
-            .addClass("letter-avatar me-2 flex-shrink-0")
-            .text(initial);
-
-        var $header = $("<div>")
-            .addClass("d-flex align-items-center gap-2 mb-1")
-            .append(
-                $("<strong>").text(reply.userName || "Unknown"),
-                $("<small>").addClass("text-muted").text(reply.createdOn)
-            );
-
-        var $text = $("<div>")
-            .addClass("reply-text")
-            .text(reply.replyText || "");
-
-        var $body = $("<div>")
-            .addClass("flex-grow-1")
-            .append($header, $text);
-
-        var $item = $("<div>")
-            .addClass("reply-item d-flex align-items-start mb-3")
-            .append($avatar, $body);
-
-        $("#repliesList").append($item);
-    }
-
-    // ==========================
-    // ✅ REPLY THREAD: SEND REPLY
-    // ==========================
-    $("#sendReplyBtn").on("click", function () {
-        var parentMessageId = parseInt($("#replyParentMessageId").val());
-        var replyText = $.trim($("#replyTextInput").val());
-
-        if (!replyText) {
-            toastr.warning("Please enter a reply.");
-            return;
-        }
-
-        if (replyText.length > 1000) {
-            toastr.warning("Reply must be under 1000 characters.");
-            return;
-        }
-
-        var $btn = $(this);
-        $btn.prop("disabled", true).html('<span class="spinner-border spinner-border-sm" role="status"></span>');
-
-        connectionChat.invoke("SendReply", parentMessageId, replyText)
-            .then(function () {
-                $("#replyTextInput").val("");
-                $("#replyCharCount").text("0");
-            })
-            .catch(function (err) {
-                console.error("SendReply failed:", err);
-                toastr.error("Failed to send reply.");
-            })
-            .finally(function () {
-                $btn.prop("disabled", false).html("Send Reply");
-            });
     });
 
-    // Reply textarea character counter + Enter to send
-    $("#replyTextInput").on("input", function () {
-        var len = $(this).val().length;
-        if (len > 1000) {
-            $(this).val($(this).val().substring(0, 1000));
-            len = 1000;
+    $(document).on("click", ".reply-preview", function (event) {
+        event.preventDefault();
+
+        var replyToMessageId = parseInt($(this).attr("data-reply-to-message-id"), 10);
+        if (!Number.isNaN(replyToMessageId)) {
+            scrollToMessage(replyToMessageId);
         }
-        $("#replyCharCount").text(len);
     });
 
-    $("#replyTextInput").on("keydown", function (e) {
-        if (e.which === 13 && !e.ctrlKey && !e.shiftKey) {
-            e.preventDefault();
-            $("#sendReplyBtn").click();
-        }
+    $("#cancelReplyBtn").on("click", function () {
+        clearReplyTarget();
     });
 
         function sortChatListByUnread() {
