@@ -136,19 +136,19 @@
 
                 if (replyToMessageId.HasValue)
                 {
-                    var replyMessage = await _db.ChatMessages
+                    var parentReplyMessage = await _db.ChatMessages
                         .AsNoTracking()
                         .FirstOrDefaultAsync(m => m.Id == replyToMessageId.Value && m.GroupName == room);
 
-                    if (replyMessage == null)
+                    if (parentReplyMessage == null)
                     {
                         return BadRequest("Reply target not found.");
                     }
 
-                    var replySender = await _userManager.FindByIdAsync(replyMessage.SenderId ?? string.Empty);
+                    var replySender = await _userManager.FindByIdAsync(parentReplyMessage.SenderId ?? string.Empty);
                     replyToMessageSender = replySender?.UserName ?? replySender?.FullName ?? string.Empty;
-                    replyToMessageText = replyMessage.IsDelete ? "Message deleted" : replyMessage.Message;
-                    replyToMessageDeleted = replyMessage.IsDelete;
+                    replyToMessageText = parentReplyMessage.IsDelete ? "Message deleted" : parentReplyMessage.Message;
+                    replyToMessageDeleted = parentReplyMessage.IsDelete;
                 }
 
                 var chatMessage = new ChatMessage
@@ -169,22 +169,32 @@
                     ? chatMessage.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
                     : "";
 
-                await _basicChatHub.Clients.Group(room).SendAsync(
-                    "MessageReceived",
-                    new object?[]
+                object? replyMessageDto = replyToMessageId.HasValue
+                    ? new
                     {
-                        messageId,
-                        senderUser.UserName ?? user,
-                        message,
-                        messageTime,
-                        senderUser.Id,
-                        "",
-                        true,
-                        replyToMessageId,
-                        replyToMessageSender,
-                        replyToMessageText,
-                        replyToMessageDeleted
-                    });
+                        id = replyToMessageId.Value,
+                        message = replyToMessageText,
+                        senderName = replyToMessageSender
+                    }
+                    : null;
+
+                var messageDto = new
+                {
+                    id = messageId,
+                    senderId = senderUser.Id,
+                    senderName = senderUser.UserName ?? user,
+                    message,
+                    messageTime,
+                    receiver = string.Empty,
+                    isGroup = true,
+                    replyToMessageId,
+                    replyToMessageSender,
+                    replyToMessageText,
+                    replyToMessageDeleted,
+                    replyMessage = replyMessageDto
+                };
+
+                await _basicChatHub.Clients.Group(room).SendAsync("MessageReceived", messageDto);
             }
 
             return Ok();
@@ -257,7 +267,15 @@
                             replyToMessageText = reply == null
                                 ? null
                                 : (reply.IsDelete ? "Message deleted" : reply.Message),
-                            replyToMessageDeleted = reply == null || reply.IsDelete
+                            replyToMessageDeleted = reply == null || reply.IsDelete,
+                            replyMessage = reply == null
+                                ? null
+                                : new
+                                {
+                                    id = reply.Id,
+                                    message = reply.IsDelete ? "Message deleted" : reply.Message,
+                                    senderName = replySender != null ? (replySender.UserName ?? replySender.FullName ?? string.Empty) : string.Empty
+                                }
                         })
                         .Skip(fromDate)
                         .Take(chunkRecords)

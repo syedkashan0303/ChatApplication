@@ -333,20 +333,20 @@ namespace SignalRMVC
 
                 if (replyToMessageId.HasValue)
                 {
-                    var replyMessage = await context.ChatMessages
+                    var parentReplyMessage = await context.ChatMessages
                         .AsNoTracking()
                         .FirstOrDefaultAsync(m => m.Id == replyToMessageId.Value && m.GroupName == roomName);
 
-                    if (replyMessage == null)
+                    if (parentReplyMessage == null)
                     {
                         await Clients.Caller.SendAsync("Error", "Reply target not found.");
                         return;
                     }
 
-                    var replySender = await _userManager.FindByIdAsync(replyMessage.SenderId ?? string.Empty);
+                    var replySender = await _userManager.FindByIdAsync(parentReplyMessage.SenderId ?? string.Empty);
                     replyToMessageSender = replySender?.UserName ?? replySender?.FullName ?? string.Empty;
-                    replyToMessageText = replyMessage.IsDelete ? "Message deleted" : replyMessage.Message;
-                    replyToMessageDeleted = replyMessage.IsDelete;
+                    replyToMessageText = parentReplyMessage.IsDelete ? "Message deleted" : parentReplyMessage.Message;
+                    replyToMessageDeleted = parentReplyMessage.IsDelete;
                 }
 
                 var chatMessage = new ChatMessage
@@ -398,23 +398,32 @@ namespace SignalRMVC
                 //    receiver: "",
                 //    isGroup: true
                 //);
-                await Clients.Group(roomName).SendAsync(
-                    "MessageReceived",
-                    new object?[]
+                object? replyMessageDto = replyToMessageId.HasValue
+                    ? new
                     {
-                        messageId,
-                        user,
-                        message,
-                        messageTime,
-                        userId,   // senderId
-                        "",       // receiver
-                        true,     // isGroup
-                        replyToMessageId,
-                        replyToMessageSender,
-                        replyToMessageText,
-                        replyToMessageDeleted
+                        id = replyToMessageId.Value,
+                        message = replyToMessageText,
+                        senderName = replyToMessageSender
                     }
-                );
+                    : null;
+
+                var messageDto = new
+                {
+                    id = messageId,
+                    senderId = userId,
+                    senderName = user,
+                    message,
+                    messageTime,
+                    receiver = string.Empty,
+                    isGroup = true,
+                    replyToMessageId,
+                    replyToMessageSender,
+                    replyToMessageText,
+                    replyToMessageDeleted,
+                    replyMessage = replyMessageDto
+                };
+
+                await Clients.Group(roomName).SendAsync("MessageReceived", messageDto);
 
                 // ✅ Avoid DB group-by storms: push deltas only to affected recipients (no DB counts here)
                 if (room != null)

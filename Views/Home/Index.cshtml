@@ -630,6 +630,62 @@
         highlightMessage(messageId);
     }
 
+    function normalizeReplyInfo(messageDto) {
+        if (!messageDto) {
+            return null;
+        }
+
+        const replyMessage = messageDto.replyMessage || messageDto.ReplyMessage || null;
+        const replyToMessageId = messageDto.replyToMessageId || messageDto.ReplyToMessageId || (replyMessage ? replyMessage.id || replyMessage.Id : null);
+
+        if (!replyToMessageId) {
+            return null;
+        }
+
+        return {
+            replyToMessageId: replyToMessageId,
+            replyToMessageSender: (replyMessage && (replyMessage.senderName || replyMessage.SenderName)) || messageDto.replyToMessageSender || messageDto.replySenderName || "",
+            replyToMessageText: (replyMessage && (replyMessage.message || replyMessage.Message)) || messageDto.replyToMessageText || messageDto.replyMessageText || null,
+            replyToMessageDeleted: messageDto.replyToMessageDeleted || false
+        };
+    }
+
+    function normalizeMessagePayload(messageOrId, user, message, messageTime, senderId, receiver, isGroup, replyToMessageId, replyToMessageSender, replyToMessageText, replyToMessageDeleted) {
+        if (Array.isArray(messageOrId)) {
+            return normalizeMessagePayload.apply(null, messageOrId);
+        }
+
+        if (messageOrId && typeof messageOrId === "object") {
+            const dto = messageOrId;
+            return {
+                id: dto.id || dto.messageId || dto.Id,
+                senderName: dto.senderName || dto.user || dto.senderId || "",
+                message: dto.message || "",
+                messageTime: dto.messageTime || "",
+                senderId: dto.senderId || "",
+                receiver: dto.receiver || "",
+                isGroup: dto.isGroup === true || dto.isRoom === true,
+                replyInfo: normalizeReplyInfo(dto)
+            };
+        }
+
+        return {
+            id: messageOrId,
+            senderName: user || "",
+            message: message || "",
+            messageTime: messageTime || "",
+            senderId: senderId || "",
+            receiver: receiver || "",
+            isGroup: isGroup === true,
+            replyInfo: normalizeReplyInfo({
+                replyToMessageId: replyToMessageId,
+                replyToMessageSender: replyToMessageSender,
+                replyToMessageText: replyToMessageText,
+                replyToMessageDeleted: replyToMessageDeleted
+            })
+        };
+    }
+
     // ==========================
     // ✅ SIGNALR CONNECTION (Only One Instance)
     // ==========================
@@ -711,50 +767,42 @@
     });
 
     // 🔹 Message Received (Group + Personal)
-    connectionChat.on("MessageReceived", function (messageId, user, message, messageTime, senderId, receiver, isGroup, replyToMessageId, replyToMessageSender, replyToMessageText, replyToMessageDeleted) {
+    connectionChat.on("MessageReceived", function () {
 
+        const incoming = normalizeMessagePayload.apply(null, arguments);
         var myUserEmail = getHiddenRoomId();
         const currentChatUserEmail = getHiddenRoomName();
 
         // ✅ For personal chat: only render if message belongs to current open chat
-        if (isGroup == false) {
+        if (incoming.isGroup == false) {
             const isRelevantToMe =
-                (user === currentChatUserEmail && senderId === myUserEmail) ||
-                (receiver === currentChatUserEmail && user === myUserEmail);
+                (incoming.senderName === currentChatUserEmail && incoming.senderId === myUserEmail) ||
+                (incoming.receiver === currentChatUserEmail && incoming.senderName === myUserEmail);
 
             if (!isRelevantToMe) return;
         }
 
         // ✅ IMPORTANT: if unread marker exists, new message should appear BELOW marker (top side)
-        renderMessage(user, message, messageId, false, false, false, messageTime, {
-            replyToMessageId: replyToMessageId,
-            replyToMessageSender: replyToMessageSender,
-            replyToMessageText: replyToMessageText,
-            replyToMessageDeleted: replyToMessageDeleted
-        });
+        renderMessage(incoming.senderName, incoming.message, incoming.id, false, false, false, incoming.messageTime, incoming.replyInfo);
 
-        moveChatToTop(isGroup ? receiver : senderId, isGroup);
+        moveChatToTop(incoming.isGroup ? incoming.receiver : incoming.senderId, incoming.isGroup);
 
         // optional: apply font size after new message
         setTimeout(() => customFontSize(fontSize), 100);
     });
 
     // 🔹 Personal message sent event (your custom)
-    connectionChat.on("SendMessageUser", function (messageId, user, message, messageTime, senderId, receiver, isGroup, replyToMessageId, replyToMessageSender, replyToMessageText, replyToMessageDeleted) {
+    connectionChat.on("SendMessageUser", function () {
 
+        const incoming = normalizeMessagePayload.apply(null, arguments);
         var myUserEmail = getHiddenRoomId();
 
-        if (isGroup == false) {
-            const isRelevantToMe = (receiver === myUserEmail);
+        if (incoming.isGroup == false) {
+            const isRelevantToMe = (incoming.receiver === myUserEmail);
             if (!isRelevantToMe) return;
         }
 
-        renderMessage(user, message, messageId, false, false, false, messageTime, {
-            replyToMessageId: replyToMessageId,
-            replyToMessageSender: replyToMessageSender,
-            replyToMessageText: replyToMessageText,
-            replyToMessageDeleted: replyToMessageDeleted
-        });
+        renderMessage(incoming.senderName, incoming.message, incoming.id, false, false, false, incoming.messageTime, incoming.replyInfo);
         setTimeout(() => customFontSize(fontSize), 100);
     });
 
@@ -1147,17 +1195,8 @@
                         unreadMarkerInserted = true;
                     }
 
-                    // Backend now returns both senderId and senderName:
-                    // - Use senderName for display
-                    // - senderId is still available in msg.senderId for any logic if needed
-                    const displayName = msg.senderName || msg.senderId;
-                    const replyInfo = msg.replyToMessageId ? {
-                        replyToMessageId: msg.replyToMessageId,
-                        replyToMessageSender: msg.replyToMessageSender,
-                        replyToMessageText: msg.replyToMessageText,
-                        replyToMessageDeleted: msg.replyToMessageDeleted
-                    } : null;
-                    const messageHtml = renderMessage(displayName, msg.message, msg.id, true, false, false, msg.messageTime, replyInfo);
+                    const incoming = normalizeMessagePayload(msg);
+                    const messageHtml = renderMessage(incoming.senderName, incoming.message, incoming.id, true, false, false, incoming.messageTime, incoming.replyInfo);
 
                     // prepend older messages
                     if (prepend) {
