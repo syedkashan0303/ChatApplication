@@ -31,3 +31,114 @@ ALTER TABLE ChatMessages
 ADD ReplyCount INT NOT NULL DEFAULT(0);
 
 ----------------- MessageReplies Working ------------------------
+
+
+
+
+/* ==========================================
+   Remove Old Reply Thread System
+   ========================================== */
+
+-- Drop FKs from MessageReplies first (if exists)
+
+IF OBJECT_ID('dbo.MessageReplies', 'U') IS NOT NULL
+BEGIN
+
+    DECLARE @sql NVARCHAR(MAX) = '';
+
+    SELECT @sql +=
+        'ALTER TABLE dbo.MessageReplies DROP CONSTRAINT [' + fk.name + '];'
+    FROM sys.foreign_keys fk
+    WHERE fk.parent_object_id = OBJECT_ID('dbo.MessageReplies');
+
+    EXEC sp_executesql @sql;
+
+END
+GO
+
+
+/* ==========================================
+   Remove ReplyCount
+   ========================================== */
+
+IF COL_LENGTH('dbo.ChatMessages', 'ReplyCount') IS NOT NULL
+BEGIN
+    
+    ALTER TABLE ChatMessages
+    DROP CONSTRAINT DF__ChatMessa__Reply__6DCC4D03;
+    GO
+
+    ALTER TABLE ChatMessages
+    DROP COLUMN ReplyCount;
+    GO
+
+END
+GO
+
+
+
+
+
+/* ==========================================
+   Remove MessageReplies Table
+   ========================================== */
+
+IF OBJECT_ID('dbo.MessageReplies', 'U') IS NOT NULL
+BEGIN
+    DROP TABLE dbo.MessageReplies;
+END
+GO
+
+
+/* ==========================================
+   Add ReplyToMessageId
+   ========================================== */
+
+IF COL_LENGTH('dbo.ChatMessages', 'ReplyToMessageId') IS NULL
+BEGIN
+    ALTER TABLE dbo.ChatMessages
+    ADD ReplyToMessageId  INT not null default 0;
+END
+GO
+
+
+/* ==========================================
+   Create Index
+   ========================================== */
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_ChatMessages_ReplyToMessageId'
+      AND object_id = OBJECT_ID('dbo.ChatMessages')
+)
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_ChatMessages_ReplyToMessageId
+    ON dbo.ChatMessages(ReplyToMessageId);
+END
+GO
+
+
+/* ==========================================
+   Create Self Referencing FK
+   ========================================== */
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = 'FK_ChatMessages_ReplyMessage'
+)
+BEGIN
+    ALTER TABLE dbo.ChatMessages
+    ADD CONSTRAINT FK_ChatMessages_ReplyMessage
+        FOREIGN KEY (ReplyToMessageId)
+        REFERENCES dbo.ChatMessages(Id)
+        ON DELETE NO ACTION;
+END
+GO
+
+
+
+select * from ChatMessages order by 1 desc
