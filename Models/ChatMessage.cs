@@ -12,7 +12,7 @@ namespace SignalRMVC.Models
         public string? GroupName { get; set; } = string.Empty;
         public bool IsDelete { get; set; }
 
-        public int? ReplyToMessageId { get; set; }
+        public int ReplyToMessageId { get; set; }
 
         [ForeignKey(nameof(ReplyToMessageId))]
         public ChatMessage? ReplyToMessage { get; set; }

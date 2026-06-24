@@ -612,10 +612,11 @@
     function getIsGroup() { return $("#isGroup").val(); }
 
     function decodeMessageText(text) {
-        return (text || "").replace(/\\n/g, "\n");
+        var inputtext = String(text ?? "");
+        return inputtext.replace(/\\n/g, "\n");
     }
 
-    function clearReplyTarget() {
+        function clearReplyTarget() {
         currentReplyTarget = null;
         $("#replyComposer").addClass("d-none");
         $("#replyPreviewUser").text("");
@@ -1492,7 +1493,7 @@
         const clientMessageId = generateClientMessageId();
         const replyToMessageId = (isroom == "true" && currentReplyTarget && currentReplyTarget.id)
             ? currentReplyTarget.id
-            : null;
+            : 0;
 
         let promise;
         if (isroom == "true") {

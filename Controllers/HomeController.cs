@@ -121,7 +121,7 @@
         // =====================================================
         [HttpPost("SendMessageToGroup")]
         [Authorize]
-        public async Task<IActionResult> SendMessageToGroup([FromForm] string user, [FromForm] string room, [FromForm] string message, [FromForm] int? replyToMessageId = null)
+        public async Task<IActionResult> SendMessageToGroup([FromForm] string user, [FromForm] string room, [FromForm] string message, [FromForm] int replyToMessageId = 0)
         {
             using var scope = _scopeFactory.CreateScope();
             var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -134,11 +134,11 @@
                 string? replyToMessageText = null;
                 bool replyToMessageDeleted = false;
 
-                if (replyToMessageId.HasValue)
+                if (replyToMessageId > 0)
                 {
                     var parentReplyMessage = await _db.ChatMessages
                         .AsNoTracking()
-                        .FirstOrDefaultAsync(m => m.Id == replyToMessageId.Value && m.GroupName == room);
+                        .FirstOrDefaultAsync(m => m.Id == replyToMessageId && m.GroupName == room);
 
                     if (parentReplyMessage == null)
                     {
@@ -169,10 +169,10 @@
                     ? chatMessage.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
                     : "";
 
-                object? replyMessageDto = replyToMessageId.HasValue
+                object? replyMessageDto = replyToMessageId > 0
                     ? new
                     {
-                        id = replyToMessageId.Value,
+                        id = replyToMessageId,
                         message = replyToMessageText,
                         senderName = replyToMessageSender
                     }

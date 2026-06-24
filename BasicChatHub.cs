@@ -303,7 +303,7 @@ namespace SignalRMVC
         // =====================================================
         // Send Message to Room
         // =====================================================
-        public async Task SendMessageToRoom(string roomName, string user, string message, string? clientMessageId = null, int? replyToMessageId = null)
+        public async Task SendMessageToRoom(string roomName, string user, string message, string? clientMessageId = null, int replyToMessageId = 0)
         {
             var userId = GetUserId();
 
@@ -331,11 +331,11 @@ namespace SignalRMVC
                 string? replyToMessageText = null;
                 bool replyToMessageDeleted = false;
 
-                if (replyToMessageId.HasValue)
+                if (replyToMessageId > 0)
                 {
                     var parentReplyMessage = await context.ChatMessages
                         .AsNoTracking()
-                        .FirstOrDefaultAsync(m => m.Id == replyToMessageId.Value && m.GroupName == roomName);
+                        .FirstOrDefaultAsync(m => m.Id == replyToMessageId && m.GroupName == roomName);
 
                     if (parentReplyMessage == null)
                     {
@@ -398,10 +398,10 @@ namespace SignalRMVC
                 //    receiver: "",
                 //    isGroup: true
                 //);
-                object? replyMessageDto = replyToMessageId.HasValue
+                object? replyMessageDto = replyToMessageId > 0
                     ? new
                     {
-                        id = replyToMessageId.Value,
+                        id = replyToMessageId,
                         message = replyToMessageText,
                         senderName = replyToMessageSender
                     }
