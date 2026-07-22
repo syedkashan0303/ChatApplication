@@ -45,6 +45,7 @@ namespace SignalRMVC
                     userId, Context.ConnectionId, AppHealthTracker.ActiveConnections);
 
                 await JoinRoleGroupIfAny(userId);
+                await JoinAllUserMappedGroups(userId);
                 await base.OnConnectedAsync();
             }
             catch (Exception ex)
@@ -362,14 +363,17 @@ namespace SignalRMVC
 
                 // Create unread status entries for other users in group
                 var room = await context.ChatRoom.FirstOrDefaultAsync(r => r.Name == roomName);
+                var recipientIds = new List<string>();
+
                 if (room != null)
                 {
-                    var groupUsers = await context.GroupUserMapping
-                        .Where(g => g.GroupId == room.Id && g.UserId != userId)
+                    recipientIds = await context.GroupUserMapping
+                        .AsNoTracking()
+                        .Where(g => g.GroupId == room.Id && g.UserId != userId && g.Active)
                         .Select(g => g.UserId)
                         .ToListAsync();
 
-                    var readStatuses = groupUsers.Select(recipientId => new ChatMessageReadStatus
+                    var readStatuses = recipientIds.Select(recipientId => new ChatMessageReadStatus
                     {
                         ChatMessage = chatMessage, // ✅ lets us SaveChanges once (EF will insert message then statuses)
                         UserId = recipientId,
@@ -388,16 +392,6 @@ namespace SignalRMVC
                     ? chatMessage.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
                     : "";
 
-                //await Clients.Group(roomName).SendAsync(
-                //    "MessageReceived",
-                //    messageId,
-                //    user,
-                //    message,
-                //    messageTime,
-                //    senderId: userId,
-                //    receiver: "",
-                //    isGroup: true
-                //);
                 object? replyMessageDto = replyToMessageId > 0
                     ? new
                     {
@@ -423,17 +417,14 @@ namespace SignalRMVC
                     replyMessage = replyMessageDto
                 };
 
+                // ✅ Send MessageReceived to ALL group members via user IDs as well as SignalR group name
+                var allTargetUserIds = new List<string>(recipientIds) { userId };
+                await Clients.Users(allTargetUserIds).SendAsync("MessageReceived", messageDto);
                 await Clients.Group(roomName).SendAsync("MessageReceived", messageDto);
 
-                // ✅ Avoid DB group-by storms: push deltas only to affected recipients (no DB counts here)
+                // ✅ Push unread deltas to all affected recipients
                 if (room != null)
                 {
-                    var recipientIds = await context.GroupUserMapping
-                        .AsNoTracking()
-                        .Where(g => g.GroupId == room.Id && g.UserId != userId && g.Active)
-                        .Select(g => g.UserId)
-                        .ToListAsync();
-
                     foreach (var recipientId in recipientIds)
                     {
                         await Clients.User(recipientId)
@@ -683,6 +674,34 @@ namespace SignalRMVC
             if (groups.TryAdd(role, 0))
             {
                 await Groups.AddToGroupAsync(Context.ConnectionId, role);
+            }
+        }
+
+        private async Task JoinAllUserMappedGroups(string userId)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var userGroupNames = await (
+                    from mapping in context.GroupUserMapping
+                    join room in context.ChatRoom on mapping.GroupId equals room.Id
+                    where mapping.UserId == userId && mapping.Active
+                    select room.Name
+                ).ToListAsync();
+
+                foreach (var groupName in userGroupNames)
+                {
+                    if (!string.IsNullOrWhiteSpace(groupName))
+                    {
+                        await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to join user mapped groups for UserId={UserId}", userId);
             }
         }
 
