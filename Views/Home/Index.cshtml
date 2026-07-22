@@ -617,6 +617,69 @@
         return inputtext.replace(/\\n/g, "\n");
     }
 
+    // 🔹 Truncate text to max 15 words
+    function truncateWords(text, maxWords = 15) {
+        if (!text) return "";
+        let cleanText = String(text)
+            .replace(/\\n/g, " ")
+            .replace(/<br\s*\/?>/gi, " ")
+            .replace(/<i>\(edited\)<\/i>/gi, "")
+            .trim();
+
+        let words = cleanText.split(/\s+/).filter(Boolean);
+        if (words.length <= maxWords) {
+            return cleanText;
+        }
+        return words.slice(0, maxWords).join(" ") + " ...";
+    }
+
+    // 🔹 Request browser notification permission
+    function requestNotificationPermission() {
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
+    }
+
+    // 🔹 Show WhatsApp style notification (Desktop native only)
+    function showWhatsAppNotification(title, messageText, targetRoomName, targetId, isGroup) {
+        const formattedMsg = truncateWords(messageText, 15);
+
+        const openChat = () => {
+            if (window.focus) window.focus();
+
+            let chatItem = null;
+            if (targetId) {
+                chatItem = $(`#groupList li.group-item[data-id='${targetId}']`);
+            }
+            if ((!chatItem || !chatItem.length) && targetRoomName) {
+                chatItem = $(`#groupList li.group-item[data-room='${targetRoomName}']`);
+            }
+
+            if (chatItem && chatItem.length) {
+                chatItem.trigger("click");
+            }
+        };
+
+        // Desktop Browser Web Notification (outside browser)
+        if ("Notification" in window && Notification.permission === "granted") {
+            try {
+                const notif = new Notification(title, {
+                    body: formattedMsg,
+                    icon: '/Images/arynewslogo.png',
+                    tag: 'chat-msg-' + (targetId || targetRoomName),
+                    renotify: true
+                });
+                notif.onclick = function (event) {
+                    event.preventDefault();
+                    openChat();
+                    notif.close();
+                };
+            } catch (e) {
+                console.error("Desktop Notification error:", e);
+            }
+        }
+    }
+
         function clearReplyTarget() {
         currentReplyTarget = null;
         $("#replyComposer").addClass("d-none");
@@ -692,7 +755,7 @@
                 message: dto.message || "",
                 messageTime: dto.messageTime || "",
                 senderId: dto.senderId || "",
-                receiver: dto.receiver || "",
+                receiver: dto.receiver || dto.groupName || dto.roomName || dto.room || "",
                 isGroup: dto.isGroup === true || dto.isRoom === true,
                 replyInfo: normalizeReplyInfo(dto)
             };
@@ -799,16 +862,47 @@
     connectionChat.on("MessageReceived", function () {
 
         const incoming = normalizeMessagePayload.apply(null, arguments);
-        var myUserEmail = getHiddenRoomId();
+        const myUserEmail = getHiddenRoomId();
         const currentChatUserEmail = getHiddenRoomName();
+        const myEmail = getSenderEmail();
+        const activeIsGroup = (getIsGroup() === "true" || getIsGroup() === true);
 
-        // ✅ For personal chat: only render if message belongs to current open chat
-        if (incoming.isGroup == false) {
-            const isRelevantToMe =
-                (incoming.senderName === currentChatUserEmail && incoming.senderId === myUserEmail) ||
-                (incoming.receiver === currentChatUserEmail && incoming.senderName === myUserEmail);
+        if (incoming.isGroup) {
+            const isCurrentGroupOpen = activeIsGroup && (currentChatUserEmail === incoming.receiver);
 
-            if (!isRelevantToMe) return;
+            if (incoming.senderName !== myEmail && (!isCurrentGroupOpen || document.hidden)) {
+                showWhatsAppNotification(
+                    `${incoming.senderName} (${incoming.receiver})`,
+                    incoming.message,
+                    incoming.receiver,
+                    null,
+                    true
+                );
+            }
+
+            if (!isCurrentGroupOpen) {
+                moveChatToTop(incoming.receiver, true);
+                return;
+            }
+        } else {
+            const isCurrentPersonalOpen = !activeIsGroup &&
+                ((incoming.senderName === currentChatUserEmail && incoming.senderId === myUserEmail) ||
+                 (incoming.receiver === currentChatUserEmail && incoming.senderName === myUserEmail));
+
+            if (incoming.senderName !== myEmail && (!isCurrentPersonalOpen || document.hidden)) {
+                showWhatsAppNotification(
+                    incoming.senderName,
+                    incoming.message,
+                    incoming.senderName,
+                    incoming.senderId,
+                    false
+                );
+            }
+
+            if (!isCurrentPersonalOpen) {
+                moveChatToTop(incoming.senderId, false);
+                return;
+            }
         }
 
         // ✅ IMPORTANT: if unread marker exists, new message should appear BELOW marker (top side)
@@ -866,7 +960,7 @@
     // 🔹 Server Error
     connectionChat.on("Error", function (message) {
         console.error("SignalR Error from server:", message);
-        alert(message);
+        toastr.error(message);
     });
 
     // 🔹 Unread count update realtime
@@ -999,6 +1093,8 @@
     // ✅ DOCUMENT READY
     // ==========================
     $(document).ready(function () {
+
+        requestNotificationPermission();
 
         $('#chatMessage').css('direction', 'rtl');
 
@@ -1647,6 +1743,9 @@
 
             var groupList = $("#groupList");
             var chatItem = groupList.find(`li.group-item[data-id='${safeId}']`);
+            if (!chatItem.length) {
+                chatItem = groupList.find(`li.group-item[data-room='${safeId}']`);
+            }
 
             if (!chatItem.length) return;
 

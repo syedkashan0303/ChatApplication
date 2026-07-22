@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -414,7 +414,7 @@ namespace SignalRMVC
                     senderName = user,
                     message,
                     messageTime,
-                    receiver = string.Empty,
+                    receiver = roomName,
                     isGroup = true,
                     replyToMessageId,
                     replyToMessageSender,
