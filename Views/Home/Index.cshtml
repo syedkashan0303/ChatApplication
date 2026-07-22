@@ -599,6 +599,7 @@
 
     // ✅ to avoid duplicate marker insertion
     let unreadMarkerInserted = false;
+    let activeBadgeTimers = {};
 
     // Generate lightweight client-side id for idempotent sends (prevents duplicates on retry/reconnect)
     function generateClientMessageId() {
@@ -872,7 +873,34 @@
     connectionChat.on("ReceiveUnreadCount", function (roomId, roomName, count, isRoom) {
         console.log("ReceiveUnreadCount =>", { roomId, roomName, count, isRoom });
 
+        const activeRoomId = getHiddenRoomId();
+        const activeIsGroup = (getIsGroup() === "true" || getIsGroup() === true);
+        const isCurrentActive = (activeRoomId == roomId && activeIsGroup == (isRoom === true || isRoom === "true"));
+
         const badge = document.getElementById(`unread-count-${roomId}`);
+
+        if (isCurrentActive) {
+            if (activeBadgeTimers[roomId]) {
+                clearTimeout(activeBadgeTimers[roomId]);
+                delete activeBadgeTimers[roomId];
+            }
+
+            if (count > 0 && badge) {
+                badge.textContent = count;
+                badge.style.display = 'inline-block';
+
+                activeBadgeTimers[roomId] = setTimeout(() => {
+                    badge.textContent = '';
+                    badge.style.display = 'none';
+                    delete activeBadgeTimers[roomId];
+                }, 5000);
+            } else if (badge) {
+                badge.textContent = '';
+                badge.style.display = 'none';
+            }
+            return;
+        }
+
         if (badge) {
             badge.textContent = count > 0 ? count : '';
             badge.style.display = count > 0 ? 'inline-block' : 'none';
@@ -887,10 +915,49 @@
 
     // 🔹 Lightweight unread delta (used when a single message is sent)
     connectionChat.on("ReceiveUnreadDelta", function (roomId, roomName, delta, isRoom) {
-        const badge = document.getElementById(`unread-count-${roomId}`);
-        let current = 0;
+        const activeRoomId = getHiddenRoomId();
+        const activeIsGroup = (getIsGroup() === "true" || getIsGroup() === true);
+        const isCurrentActive = (activeRoomId == roomId && activeIsGroup == (isRoom === true || isRoom === "true"));
 
-        if (badge && badge.textContent) {
+        const badge = document.getElementById(`unread-count-${roomId}`);
+
+        if (isCurrentActive) {
+            if (activeBadgeTimers[roomId]) {
+                clearTimeout(activeBadgeTimers[roomId]);
+                delete activeBadgeTimers[roomId];
+            }
+
+            if (badge) {
+                let current = 0;
+                if (badge.style.display !== 'none' && badge.textContent) {
+                    current = parseInt(badge.textContent, 10) || 0;
+                }
+                let next = current + delta;
+                if (next > 0) {
+                    badge.textContent = next;
+                    badge.style.display = 'inline-block';
+
+                    activeBadgeTimers[roomId] = setTimeout(() => {
+                        badge.textContent = '';
+                        badge.style.display = 'none';
+                        delete activeBadgeTimers[roomId];
+                    }, 5000);
+                } else {
+                    badge.textContent = '';
+                    badge.style.display = 'none';
+                }
+            }
+
+            if (isRoom === true || isRoom === "true") {
+                connectionChat.invoke("MarkMessagesAsRead", parseInt(roomId, 10)).catch(() => {});
+            } else {
+                connectionChat.invoke("P_To_P_MarkMessagesAsRead", roomId.toString()).catch(() => {});
+            }
+            return;
+        }
+
+        let current = 0;
+        if (badge && badge.style.display !== 'none' && badge.textContent) {
             current = parseInt(badge.textContent, 10) || 0;
         }
 
@@ -1158,19 +1225,32 @@
             // Load messages
             loadGroupMessages(roomName, 0, true, roomId, isroom, roomId);
 
-            // Mark as read
-            if (isroom === true) {
-                connectionChat.invoke("MarkMessagesAsRead", roomId)
-                    .then(() => $(`#unread-count-${roomId}`).hide())
+            // Mark as read and clear badge
+            const clearBadge = () => {
+                if (activeBadgeTimers[roomId]) {
+                    clearTimeout(activeBadgeTimers[roomId]);
+                    delete activeBadgeTimers[roomId];
+                }
+                const badge = document.getElementById(`unread-count-${roomId}`);
+                if (badge) {
+                    badge.textContent = '';
+                    badge.style.display = 'none';
+                }
+            };
+
+            clearBadge();
+
+            if (isroom === true || isroom === "true") {
+                connectionChat.invoke("MarkMessagesAsRead", parseInt(roomId, 10))
+                    .then(clearBadge)
                     .catch(() => { });
             } else {
-                connectionChat.invoke("P_To_P_MarkMessagesAsRead", roomId)
-                    .then(() => $(`#unread-count-${roomId}`).hide())
+                connectionChat.invoke("P_To_P_MarkMessagesAsRead", roomId.toString())
+                    .then(clearBadge)
                     .catch(() => { });
             }
         });
     });
-
     // ==========================
     // ✅ FONT SIZE DROPDOWN
     // ==========================
