@@ -1463,6 +1463,11 @@
     // ==========================
     function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false, messagetime, replyInfo = null) {
 
+        if (messageId && $("#msg_" + messageId).length) {
+            if (returnOnly) return $("#msg_" + messageId);
+            return;
+        }
+
         var senderEmail = getSenderEmail();
         var isOwnMessage = user === senderEmail;
         var userName = capitalizeFirstLetter(user);

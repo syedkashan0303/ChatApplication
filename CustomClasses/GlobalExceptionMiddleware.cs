@@ -1,4 +1,4 @@
-﻿namespace SignalRMVC.CustomClasses
+namespace SignalRMVC.CustomClasses
 {
     public class GlobalExceptionMiddleware
     {
@@ -34,14 +34,8 @@
                 //var json = System.Text.Json.JsonSerializer.Serialize(errorResponse);
 
 
-                var json = System.Text.Json.JsonSerializer.Serialize(errorResponse, new System.Text.Json.JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-
-                var logFilePath = @"D:\ChatAppLogs\JsonException" + DateTime.Now.ToString("dd_MM_yyyy_HH_mm") + ".json";
-                await File.AppendAllTextAsync(logFilePath, json + Environment.NewLine);
-                //await context.Response.WriteAsync(json);
+                var json = System.Text.Json.JsonSerializer.Serialize(errorResponse);
+                await context.Response.WriteAsync(json);
             }
         }
     }

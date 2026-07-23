@@ -417,9 +417,7 @@ namespace SignalRMVC
                     replyMessage = replyMessageDto
                 };
 
-                // ✅ Send MessageReceived to ALL group members via user IDs as well as SignalR group name
-                var allTargetUserIds = new List<string>(recipientIds) { userId };
-                await Clients.Users(allTargetUserIds).SendAsync("MessageReceived", messageDto);
+                // ✅ Broadcast MessageReceived ONLY to the SignalR room group (prevents double delivery bug)
                 await Clients.Group(roomName).SendAsync("MessageReceived", messageDto);
 
                 // ✅ Push unread deltas to all affected recipients
@@ -495,12 +493,25 @@ namespace SignalRMVC
                     ? chatMessage.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
                     : "";
 
-                await Clients.User(receiver).SendAsync(
-                    "MessageReceived",
-                    new object?[] { messageId, user, message, messageTime, senderId, receiver, false, null, null, null, false });
-                await Clients.User(userId).SendAsync(
-                    "SendMessageUser",
-                    new object?[] { messageId, user, message, messageTime, senderId, receiver, false, null, null, null, false });
+                var messageDto = new
+                {
+                    id = messageId,
+                    senderId = userId,
+                    senderName = user,
+                    message,
+                    messageTime,
+                    receiver,
+                    isGroup = false,
+                    replyToMessageId = 0,
+                    replyToMessageSender = string.Empty,
+                    replyToMessageText = (string?)null,
+                    replyToMessageDeleted = false,
+                    replyMessage = (object?)null
+                };
+
+                // ✅ Send standardized DTO object to receiver and sender
+                await Clients.User(receiver).SendAsync("MessageReceived", messageDto);
+                await Clients.User(userId).SendAsync("SendMessageUser", messageDto);
 
                 // ✅ Avoid DB group-by storms: push delta only to affected receiver
                 await Clients.User(receiver).SendAsync("ReceiveUnreadDelta", senderId, user, 1, false);

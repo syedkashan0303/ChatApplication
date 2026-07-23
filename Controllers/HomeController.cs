@@ -1,4 +1,4 @@
-﻿namespace SignalRMVC.Controllers
+namespace SignalRMVC.Controllers
 {
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Identity;
@@ -161,6 +161,28 @@
                     CreatedOn = DateTime.Now
                 };
 
+                var roomObj = await _db.ChatRoom.FirstOrDefaultAsync(r => r.Name == room);
+                var recipientIds = new List<string>();
+
+                if (roomObj != null)
+                {
+                    recipientIds = await _db.GroupUserMapping
+                        .AsNoTracking()
+                        .Where(g => g.GroupId == roomObj.Id && g.UserId != senderUser.Id && g.Active)
+                        .Select(g => g.UserId)
+                        .ToListAsync();
+
+                    var readStatuses = recipientIds.Select(recipientId => new ChatMessageReadStatus
+                    {
+                        ChatMessage = chatMessage,
+                        UserId = recipientId,
+                        IsRead = false,
+                        CreatedOn = DateTime.Now
+                    }).ToList();
+
+                    _db.ChatMessageReadStatuses.AddRange(readStatuses);
+                }
+
                 _db.ChatMessages.Add(chatMessage);
                 await _db.SaveChangesAsync();
 
@@ -185,7 +207,7 @@
                     senderName = senderUser.UserName ?? user,
                     message,
                     messageTime,
-                    receiver = string.Empty,
+                    receiver = room,
                     isGroup = true,
                     replyToMessageId,
                     replyToMessageSender,
@@ -195,6 +217,15 @@
                 };
 
                 await _basicChatHub.Clients.Group(room).SendAsync("MessageReceived", messageDto);
+
+                if (roomObj != null)
+                {
+                    foreach (var recipientId in recipientIds)
+                    {
+                        await _basicChatHub.Clients.User(recipientId)
+                            .SendAsync("ReceiveUnreadDelta", roomObj.Id.ToString(), room, 1, true);
+                    }
+                }
             }
 
             return Ok();
