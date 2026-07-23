@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Quartz;
 using Serilog;
 using SignalRMVC;
 using SignalRMVC.Areas.Identity.Data; // Make sure ApplicationUser is here
@@ -49,8 +50,48 @@ builder.Services.AddRazorPages(); // <--- This line fixes the error
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<UserInfoService>();
 
-builder.Services.AddSingleton<DatabaseJobService>();
-builder.Services.AddHostedService<ScheduledTaskService>();
+builder.Services.AddScoped<DatabaseJobService>();
+
+// Validate QuartzSettings and build dynamic CRON expression
+var dailyExecutionTime = builder.Configuration.GetValue<string>("QuartzSettings:DailyExecutionTime");
+var (_, _, cronExpression) = QuartzCronHelper.ValidateAndBuildCron(dailyExecutionTime);
+var pakistanTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time");
+
+// Quartz.NET Configuration - Single daily job, lightweight single-thread pool
+builder.Services.AddQuartz(q =>
+{
+    q.UseSimpleTypeLoader();
+    q.UseInMemoryStore();
+    q.UseDefaultThreadPool(tp =>
+    {
+        tp.MaxConcurrency = 1;
+    });
+
+    q.AddSchedulerListener<QuartzSchedulerListener>();
+
+    var jobKey = new JobKey("DailyDatabaseJob", "DatabaseJobs");
+    q.AddJob<DailyDatabaseJob>(opts => opts.WithIdentity(jobKey));
+
+    q.AddTrigger(opts => opts
+        .ForJob(jobKey)
+        .WithIdentity("DailyDatabaseJob-trigger", "DatabaseJobs")
+        .WithCronSchedule(cronExpression, x => x
+            .InTimeZone(pakistanTimeZone)
+            .WithMisfireHandlingInstructionDoNothing())
+        .WithDescription("Executes daily stored procedure archive task"));
+});
+
+builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+
+// Startup logging for Quartz initialization
+Log.Information("----------------------------------");
+Log.Information("Quartz Scheduler Initialized");
+Log.Information("Execution Time:\n{DailyExecutionTime}", dailyExecutionTime);
+Log.Information("Timezone:\nPakistan Standard Time");
+Log.Information("Cron Expression:\n{CronExpression}", cronExpression);
+Log.Information("----------------------------------");
+Log.Information("Quartz Scheduler Initialized Successfully");
+
 builder.Services.AddHttpClient(); // ✅ Register IHttpClientFactory
 //builder.Services.AddHostedService<AppWatchdogService>();
 

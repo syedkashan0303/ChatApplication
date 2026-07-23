@@ -80,3 +80,7 @@
 /obj/SignalRMVC.csproj.nuget.dgspec.json
 /obj/Debug/net8.0/rpswa.dswa.cache.json
 /Logs
+/obj/Debug/net8.0/rjimswa.dswa.cache.json
+/obj/Debug/net8.0
+/bin/Debug/net8.0
+/bin/Debug/net8.0/System.Text.Json.dll

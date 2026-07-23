@@ -15,29 +15,73 @@ namespace SignalRMVC.CustomClasses
             _logger = logger;
         }
 
-        // Async so it never blocks a ThreadPool thread. Previously void + sync ADO.NET
-        // caused ThreadPool starvation when the SP ran while users were active.
         public async Task RunStoredProcedureAsync(CancellationToken cancellationToken = default)
         {
             var sw = Stopwatch.StartNew();
 
+            _logger.LogInformation("Stored Procedure Started");
+
             string connectionString = _configuration.GetConnectionString("AppDbContextConnection")
                 ?? throw new InvalidOperationException("Connection string 'AppDbContextConnection' not found.");
 
-            await using var conn = new SqlConnection(connectionString);
-            await using var cmd = new SqlCommand("sp_ArchiveOldChatData", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure,
-                CommandTimeout = 20  // 5-minute timeout for large batch archiving
-            };
-            cmd.Parameters.AddWithValue("@DaysToKeep", 2);
+                await using var conn = new SqlConnection(connectionString);
+                await using var cmd = new SqlCommand("sp_ArchiveOldChatData", conn)
+                {
+                    CommandType = CommandType.StoredProcedure,
+                    CommandTimeout = 300 // Level 1 Timeout Protection: 300 seconds (5 minutes)
+                };
+                cmd.Parameters.AddWithValue("@DaysToKeep", 2);
 
-            await conn.OpenAsync(cancellationToken);
-            await cmd.ExecuteNonQueryAsync(cancellationToken);
+                await conn.OpenAsync(cancellationToken);
+                await cmd.ExecuteNonQueryAsync(cancellationToken);
 
-            sw.Stop();
-            _logger.LogInformation(
-                "sp_ArchiveOldChatData completed successfully in {ElapsedMs}ms", sw.ElapsedMilliseconds);
+                sw.Stop();
+
+                _logger.LogInformation("Stored Procedure Finished");
+                _logger.LogInformation("Execution Time:\n{Duration}", FormatDuration(sw.Elapsed));
+                _logger.LogInformation("Job Completed Successfully");
+            }
+            catch (SqlException ex) when (IsTimeoutException(ex))
+            {
+                sw.Stop();
+                _logger.LogWarning("Timeout Occurred");
+                _logger.LogWarning("Execution Time:\n{Duration}", FormatDuration(sw.Elapsed));
+                _logger.LogWarning("Job Timed Out");
+                _logger.LogError(ex, "Exception Details:\n{Exception}", ex.ToString());
+            }
+            catch (OperationCanceledException ex)
+            {
+                sw.Stop();
+                _logger.LogWarning("Timeout Occurred");
+                _logger.LogWarning("Execution Time:\n{Duration}", FormatDuration(sw.Elapsed));
+                _logger.LogWarning("Job Timed Out");
+                _logger.LogError(ex, "Exception Details:\n{Exception}", ex.ToString());
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                _logger.LogError("Execution Time:\n{Duration}", FormatDuration(sw.Elapsed));
+                _logger.LogError(ex, "Exception Details:\n{Exception}", ex.ToString());
+            }
+        }
+
+        private static bool IsTimeoutException(SqlException ex)
+        {
+            return ex.Number == -2 || ex.Message.Contains("Timeout", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string FormatDuration(TimeSpan timeSpan)
+        {
+            if (timeSpan.TotalMinutes >= 1)
+            {
+                int minutes = (int)Math.Round(timeSpan.TotalMinutes);
+                return $"{minutes} minute{(minutes == 1 ? "" : "s")}";
+            }
+
+            int seconds = (int)Math.Round(timeSpan.TotalSeconds);
+            return $"{seconds} second{(seconds == 1 ? "" : "s")}";
         }
     }
 }
