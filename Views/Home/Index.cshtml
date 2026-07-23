@@ -938,6 +938,7 @@
         }
 
         renderMessage(incoming.senderName, incoming.message, incoming.id, false, false, false, incoming.messageTime, incoming.replyInfo);
+        // moveChatToTop(incoming.receiver, false);
         setTimeout(() => customFontSize(fontSize), 100);
 
         // Auto-scroll to bottom for the sender

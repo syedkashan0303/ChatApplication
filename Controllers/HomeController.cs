@@ -465,6 +465,66 @@ namespace SignalRMVC.Controllers
                 .Select(x => new { x.Id, x.UserName })
                 .ToListAsync();
 
+            // Execute sp_SortingChatUser to get conversation order for Category 1 users
+            var sortedUserIds = new List<string>();
+            try
+            {
+                var connectionString = _db.Database.GetConnectionString();
+                if (!string.IsNullOrEmpty(connectionString))
+                {
+                    await using var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+                    await conn.OpenAsync();
+
+                    // Execute stored procedure
+                    await using var cmd = new Microsoft.Data.SqlClient.SqlCommand("sp_SortingChatUser", conn)
+                    {
+                        CommandType = System.Data.CommandType.StoredProcedure
+                    };
+                    cmd.Parameters.AddWithValue("@UserId", userId ?? string.Empty);
+
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        if (!reader.IsDBNull(0))
+                        {
+                            sortedUserIds.Add(reader.GetString(0));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "sp_SortingChatUser execution warning for UserId={UserId}", userId);
+            }
+
+            // Partition users into Category 1 (active conversations in SP order) and Category 2 (no conversations, alphabetical)
+            var userDict = users.ToDictionary(u => u.Id, u => u);
+
+            var category1Rooms = new List<Room>();
+            foreach (var sortedId in sortedUserIds)
+            {
+                if (userDict.TryGetValue(sortedId, out var activeUser))
+                {
+                    category1Rooms.Add(new Room
+                    {
+                        Name = activeUser.UserName ?? string.Empty,
+                        SafeId = activeUser.Id,
+                        IsRoom = false
+                    });
+                    userDict.Remove(sortedId);
+                }
+            }
+
+            var category2Rooms = userDict.Values
+                .OrderBy(u => u.UserName)
+                .Select(u => new Room
+                {
+                    Name = u.UserName ?? string.Empty,
+                    SafeId = u.Id,
+                    IsRoom = false
+                })
+                .ToList();
+
             var rooms = await _db.ChatRoom
                 .AsNoTracking()
                 .Where(x => !x.isDelete && groupUserList.Contains(x.Id))
@@ -474,21 +534,11 @@ namespace SignalRMVC.Controllers
                     SafeId = r.Id.ToString(),
                     IsRoom = true
                 })
+                .OrderBy(r => r.Name)
                 .ToListAsync();
 
-            rooms.AddRange(
-                users.Select(u => new Room
-                {
-                    Name = u.UserName,
-                    SafeId = u.Id,
-                    IsRoom = false
-                })
-            );
-
-            rooms = rooms
-                .OrderByDescending(x => x.IsRoom)
-                .ThenBy(x => x.Name)
-                .ToList();
+            rooms.AddRange(category1Rooms);
+            rooms.AddRange(category2Rooms);
 
             return Json(rooms);
         }
