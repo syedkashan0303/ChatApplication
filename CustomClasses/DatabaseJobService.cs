@@ -25,18 +25,19 @@ namespace SignalRMVC.CustomClasses
                 ?? throw new InvalidOperationException("Connection string 'AppDbContextConnection' not found.");
 
             await using var conn = new SqlConnection(connectionString);
-            await using var cmd = new SqlCommand("DeleteOldReadMappingRecord", conn)
+            await using var cmd = new SqlCommand("sp_ArchiveOldChatData", conn)
             {
                 CommandType = CommandType.StoredProcedure,
-                CommandTimeout = 120  // 2-minute hard limit; prevents indefinite thread hold
+                CommandTimeout = 20  // 5-minute timeout for large batch archiving
             };
+            cmd.Parameters.AddWithValue("@DaysToKeep", 2);
 
             await conn.OpenAsync(cancellationToken);
             await cmd.ExecuteNonQueryAsync(cancellationToken);
 
             sw.Stop();
             _logger.LogInformation(
-                "DeleteOldReadMappingRecord completed in {ElapsedMs}ms", sw.ElapsedMilliseconds);
+                "sp_ArchiveOldChatData completed successfully in {ElapsedMs}ms", sw.ElapsedMilliseconds);
         }
     }
 }

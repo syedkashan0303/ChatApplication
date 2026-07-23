@@ -46,14 +46,13 @@ namespace SignalRMVC.CustomClasses
 
                 try
                 {
-                    await Task.Delay(TimeSpan.FromHours(2), stoppingToken);
+                    await Task.Delay(TimeSpan.FromSeconds(50), stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {
                     break;
                 }
             }
-
             _logger.LogInformation("ScheduledTaskService stopped.");
         }
     }
