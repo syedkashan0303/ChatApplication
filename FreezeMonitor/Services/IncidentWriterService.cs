@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SignalRMVC.FreezeMonitor.Configuration;
 using SignalRMVC.FreezeMonitor.Helpers;
+using SignalRMVC.FreezeMonitor.Logging;
 using SignalRMVC.FreezeMonitor.Models;
 
 namespace SignalRMVC.FreezeMonitor.Services;
@@ -12,6 +13,8 @@ public sealed class IncidentWriterService
     private readonly RequestStatisticsService _requestStatisticsService;
     private readonly SignalRHealthService _signalRHealthService;
     private readonly SystemHealthCollector _healthCollector;
+    private readonly ProcDumpService _procDumpService;
+    private readonly EmailNotificationService _emailNotificationService;
     private readonly IHostEnvironment _hostEnvironment;
     private readonly IOptionsMonitor<FreezeMonitorOptions> _options;
     private readonly ILogger _logger;
@@ -22,6 +25,8 @@ public sealed class IncidentWriterService
         RequestStatisticsService requestStatisticsService,
         SignalRHealthService signalRHealthService,
         SystemHealthCollector healthCollector,
+        ProcDumpService procDumpService,
+        EmailNotificationService emailNotificationService,
         IHostEnvironment hostEnvironment,
         IOptionsMonitor<FreezeMonitorOptions> options,
         ILoggerFactory loggerFactory)
@@ -30,31 +35,60 @@ public sealed class IncidentWriterService
         _requestStatisticsService = requestStatisticsService;
         _signalRHealthService = signalRHealthService;
         _healthCollector = healthCollector;
+        _procDumpService = procDumpService;
+        _emailNotificationService = emailNotificationService;
         _hostEnvironment = hostEnvironment;
         _options = options;
         _logger = loggerFactory.CreateLogger("FreezeMonitor");
     }
 
-    public async Task<IncidentReport> WriteIncidentAsync(string reason, CancellationToken cancellationToken = default)
+    public async Task<IncidentReport> WriteIncidentAsync(
+        string reason,
+        HealthStatusLevel statusLevel = HealthStatusLevel.FreezeDetected,
+        string? customIncidentId = null,
+        CancellationToken cancellationToken = default)
     {
         var options = _options.CurrentValue;
+        var nowUtc = DateTimeOffset.UtcNow;
+        var incidentId = customIncidentId ?? $"INC-{nowUtc:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6]}";
+
+        FreezeMonitorLogEnricher.SetCurrentIncidentContext(incidentId);
+
         var snapshot = _ringBuffer.GetLatest() ?? await _healthCollector.CollectAsync(options, cancellationToken);
         var statistics = _requestStatisticsService.GetStatistics(
             TimeSpan.FromSeconds(Math.Max(1, options.LongRequestThresholdSeconds)),
             options.MaxLongRequests);
         var signalR = _signalRHealthService.GetSnapshot();
-        var directory = CreateIncidentDirectory(options.IncidentFolder, snapshot.TimestampUtc);
+        var envInfo = _healthCollector.GetEnvironmentInformation();
+        var directory = CreateIncidentDirectory(options.IncidentFolder, nowUtc);
+
+        var capturedFiles = new List<string>
+        {
+            "Health.json",
+            "Statistics.json",
+            "SignalR.json",
+            "ThreadPool.json",
+            "SQL.json",
+            "Application.json",
+            "Environment.json",
+            "Summary.json"
+        };
+
         var report = new IncidentReport(
-            DateTimeOffset.UtcNow,
+            incidentId,
+            nowUtc,
             reason,
             directory,
             Environment.MachineName,
             snapshot.ProcessId,
+            envInfo,
             snapshot,
             statistics,
             signalR,
             snapshot.ThreadPool,
-            snapshot.Sql);
+            snapshot.Sql,
+            statusLevel,
+            capturedFiles);
 
         try
         {
@@ -64,15 +98,34 @@ public sealed class IncidentWriterService
             await JsonFileHelper.WriteAsync(Path.Combine(directory, "ThreadPool.json"), snapshot.ThreadPool, cancellationToken);
             await JsonFileHelper.WriteAsync(Path.Combine(directory, "SQL.json"), snapshot.Sql, cancellationToken);
             await JsonFileHelper.WriteAsync(Path.Combine(directory, "Application.json"), _healthCollector.GetApplicationInformation(), cancellationToken);
+            await JsonFileHelper.WriteAsync(Path.Combine(directory, "Environment.json"), envInfo, cancellationToken);
             await JsonFileHelper.WriteAsync(Path.Combine(directory, "Summary.json"), report, cancellationToken);
+
             Volatile.Write(ref _latestIncident, report);
-            _logger.LogCritical("Freeze monitor incident written to {IncidentDirectory}. Reason: {Reason}", directory, reason);
+            _logger.LogCritical("Freeze monitor incident created at {Directory}. Incident ID: {IncidentId}, Reason: {Reason}", directory, incidentId, reason);
+
+            // Execute ProcDump if enabled (isolated fail-safe execution)
+            var dumpCaptured = await _procDumpService.ExecuteProcDumpAsync(directory, cancellationToken);
+            if (dumpCaptured)
+            {
+                capturedFiles.Add("dump.dmp");
+                // Re-write summary with updated captured files list
+                await JsonFileHelper.WriteAsync(Path.Combine(directory, "Summary.json"), report with { CapturedFiles = capturedFiles }, cancellationToken);
+            }
+
+            // Send SMTP notification if enabled (isolated fail-safe execution)
+            await _emailNotificationService.SendIncidentEmailAsync(report, cancellationToken);
+
             return report;
         }
         catch (Exception exception)
         {
-            _logger.LogError(exception, "Freeze monitor incident write failed for {IncidentDirectory}", directory);
+            _logger.LogError(exception, "Freeze monitor incident write failed for {Directory}", directory);
             throw;
+        }
+        finally
+        {
+            FreezeMonitorLogEnricher.ClearCurrentIncidentContext();
         }
     }
 
@@ -84,30 +137,93 @@ public sealed class IncidentWriterService
             return inMemoryReport;
         }
 
+        var incidents = await GetAllIncidentsAsync(cancellationToken);
+        if (!incidents.Any())
+        {
+            return null;
+        }
+
+        var latestSummary = incidents.OrderByDescending(i => i.TimestampUtc).First();
+        return await GetIncidentByIdAsync(latestSummary.IncidentId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<IncidentSummaryDto>> GetAllIncidentsAsync(CancellationToken cancellationToken = default)
+    {
         var rootDirectory = GetIncidentRootDirectory(_options.CurrentValue.IncidentFolder);
         if (!Directory.Exists(rootDirectory))
         {
-            return null;
+            return Array.Empty<IncidentSummaryDto>();
         }
 
-        var latestSummary = Directory.EnumerateDirectories(rootDirectory)
-            .Select(directory => new FileInfo(Path.Combine(directory, "Summary.json")))
-            .Where(file => file.Exists)
-            .OrderByDescending(file => file.LastWriteTimeUtc)
-            .FirstOrDefault();
-        if (latestSummary is null)
+        var list = new List<IncidentSummaryDto>();
+        var subdirectories = Directory.EnumerateDirectories(rootDirectory);
+
+        foreach (var subDir in subdirectories)
         {
-            return null;
+            cancellationToken.ThrowIfCancellationRequested();
+            var summaryFile = Path.Combine(subDir, "Summary.json");
+            if (!File.Exists(summaryFile)) continue;
+
+            try
+            {
+                await using var stream = File.OpenRead(summaryFile);
+                var report = await JsonSerializer.DeserializeAsync<IncidentReport>(stream, cancellationToken: cancellationToken);
+                if (report != null)
+                {
+                    var files = Directory.EnumerateFiles(subDir).Select(Path.GetFileName).Where(f => f != null).Cast<string>().ToList();
+                    list.Add(new IncidentSummaryDto(
+                        report.IncidentId,
+                        report.TimestampUtc,
+                        report.Reason,
+                        report.StatusLevel.ToString(),
+                        report.MachineName,
+                        report.ProcessId,
+                        subDir,
+                        files,
+                        report.StatusLevel
+                    ));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not parse summary file at {SummaryFile}", summaryFile);
+            }
         }
 
-        await using var stream = latestSummary.OpenRead();
-        var report = await JsonSerializer.DeserializeAsync<IncidentReport>(stream, cancellationToken: cancellationToken);
-        if (report is not null)
+        return list.OrderByDescending(x => x.TimestampUtc).ToList();
+    }
+
+    public async Task<IncidentReport?> GetIncidentByIdAsync(string incidentId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(incidentId)) return null;
+
+        var rootDirectory = GetIncidentRootDirectory(_options.CurrentValue.IncidentFolder);
+        if (!Directory.Exists(rootDirectory)) return null;
+
+        var subdirectories = Directory.EnumerateDirectories(rootDirectory);
+        foreach (var subDir in subdirectories)
         {
-            Volatile.Write(ref _latestIncident, report);
+            cancellationToken.ThrowIfCancellationRequested();
+            var summaryFile = Path.Combine(subDir, "Summary.json");
+            if (!File.Exists(summaryFile)) continue;
+
+            try
+            {
+                await using var stream = File.OpenRead(summaryFile);
+                var report = await JsonSerializer.DeserializeAsync<IncidentReport>(stream, cancellationToken: cancellationToken);
+                if (report != null && string.Equals(report.IncidentId, incidentId, StringComparison.OrdinalIgnoreCase))
+                {
+                    var files = Directory.EnumerateFiles(subDir).Select(Path.GetFileName).Where(f => f != null).Cast<string>().ToList();
+                    return report with { CapturedFiles = files };
+                }
+            }
+            catch
+            {
+                // continue searching
+            }
         }
 
-        return report;
+        return null;
     }
 
     private string CreateIncidentDirectory(string configuredFolder, DateTimeOffset timestampUtc)

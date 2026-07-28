@@ -24,6 +24,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<RequestStatisticsService>();
         services.AddSingleton<SqlHealthChecker>();
         services.AddSingleton<SystemHealthCollector>();
+        services.AddSingleton<ProcDumpService>();
+        services.AddSingleton<EmailNotificationService>();
+        services.AddSingleton<FreezeDetectionService>();
         services.AddSingleton<IncidentWriterService>();
         services.AddSingleton<RingBufferService>(serviceProvider =>
         {

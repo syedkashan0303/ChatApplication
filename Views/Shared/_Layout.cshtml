@@ -371,6 +371,9 @@
 							<li class="nav-item">
 								<a class="nav-link text-dark navFonts" asp-area="" asp-controller="Group" asp-action="AddUser">Add new user</a>
 							</li>
+							<li class="nav-item">
+								<a class="nav-link text-dark navFonts" href="/Admin/Diagnostics">Diagnostics</a>
+							</li>
 						}
 
 					</ul>
@@ -448,5 +451,6 @@
 	</script>
 
 	@await RenderSectionAsync("Scripts", required: false)
+	<script src="~/js/freeze-monitor.js" asp-append-version="true"></script>
 </body>
 </html>

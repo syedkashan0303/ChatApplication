@@ -1,6 +1,22 @@
 [
   {
     "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "Method": "PostBrowserDiagnostics",
+    "RelativePath": "diagnostics/browser",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "payload",
+        "Type": "SignalRMVC.FreezeMonitor.Models.BrowserDiagnosticsPayload",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
     "Method": "GetHealth",
     "RelativePath": "diagnostics/health",
     "HttpMethod": "GET",
@@ -11,12 +27,64 @@
   },
   {
     "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "Method": "Heartbeat",
+    "RelativePath": "diagnostics/heartbeat",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "Method": "CreateManualIncident",
+    "RelativePath": "diagnostics/incident/create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "reason",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
     "Method": "GetLatestIncident",
     "RelativePath": "diagnostics/incident/latest",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
     "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "Method": "GetIncidents",
+    "RelativePath": "diagnostics/incidents",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "Method": "GetIncidentById",
+    "RelativePath": "diagnostics/incidents/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
     "ReturnTypes": []
   },
   {

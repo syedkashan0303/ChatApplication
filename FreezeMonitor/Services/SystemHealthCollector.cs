@@ -109,4 +109,19 @@ public sealed class SystemHealthCollector
             configuredConnection = _configuration.GetConnectionString("AppDbContextConnection") is not null
         };
     }
+
+    public EnvironmentInformation GetEnvironmentInformation()
+    {
+        using var process = Process.GetCurrentProcess();
+        var nowUtc = DateTimeOffset.UtcNow;
+        return new EnvironmentInformation(
+            typeof(SystemHealthCollector).Assembly.GetName().Version?.ToString() ?? "1.0.0",
+            Environment.MachineName,
+            Environment.OSVersion.ToString(),
+            System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+            nowUtc,
+            ProcessHelper.GetUptime(process, nowUtc),
+            process.Id,
+            _hostEnvironment.EnvironmentName);
+    }
 }

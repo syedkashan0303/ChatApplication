@@ -1,0 +1,377 @@
+@{
+    ViewData["Title"] = "Freeze Monitor - Real-Time Production Diagnostics";
+    Layout = "_Layout";
+}
+
+<style>
+    .diag-dashboard {
+        background-color: #0f1217;
+        color: #e2e8f0;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        padding: 24px;
+        border-radius: 12px;
+        margin-top: 15px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .diag-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #1e293b;
+        padding-bottom: 16px;
+        margin-bottom: 24px;
+    }
+
+    .diag-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #f8fafc;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .status-badge {
+        font-size: 0.85rem;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .status-healthy { background: #064e3b; color: #34d399; border: 1px solid #059669; }
+    .status-warning { background: #78350f; color: #fbbf24; border: 1px solid #d97706; }
+    .status-critical { background: #7f1d1d; color: #f87171; border: 1px solid #dc2626; }
+    .status-freezedetected { background: #450a0a; color: #ef4444; border: 1px solid #f87171; animation: pulse 1.5s infinite; }
+
+    @@keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .metric-card {
+        background: #1e2430;
+        border: 1px solid #2d3748;
+        border-radius: 10px;
+        padding: 18px;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        border-color: #4a5568;
+    }
+
+    .metric-label {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+
+    .metric-value {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #f1f5f9;
+    }
+
+    .metric-sub {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 4px;
+    }
+
+    .section-card {
+        background: #181d27;
+        border: 1px solid #27303f;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        margin-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .tbl-incidents {
+        width: 100%;
+        border-collapse: collapse;
+        color: #cbd5e1;
+    }
+
+    .tbl-incidents th {
+        background: #0f172a;
+        color: #94a3b8;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        padding: 10px 14px;
+        text-align: left;
+        border-bottom: 1px solid #334155;
+    }
+
+    .tbl-incidents td {
+        padding: 12px 14px;
+        border-bottom: 1px solid #1e293b;
+        font-size: 0.9rem;
+    }
+
+    .tbl-incidents tr:hover {
+        background: #1e293b;
+    }
+
+    .btn-manual-incident {
+        background: #dc2626;
+        color: #ffffff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+    .btn-manual-incident:hover {
+        background: #b91c1c;
+    }
+
+    .refresh-indicator {
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+</style>
+
+<div class="diag-dashboard">
+    <div class="diag-header">
+        <div class="diag-title">
+            <i class="fa-solid fa-heart-pulse text-danger"></i> Freeze Monitor Dashboard
+            <span id="lblStatusLevel" class="status-badge status-healthy">Healthy</span>
+        </div>
+        <div>
+            <button class="btn-manual-incident" onclick="triggerManualIncident()">
+                <i class="fa-solid fa-triangle-exclamation me-1"></i> Capture Incident Now
+            </button>
+        </div>
+    </div>
+
+    <!-- Core Health Metrics -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-label">CPU Usage</div>
+            <div class="metric-value" id="valCpu">0.0 %</div>
+            <div class="metric-sub" id="valProcessId">PID: --</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Working Set Memory</div>
+            <div class="metric-value" id="valMemory">0 MB</div>
+            <div class="metric-sub" id="valManagedMemory">Managed: 0 MB</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">ThreadPool Workers</div>
+            <div class="metric-value" id="valThreadPoolWorker">0 / 0</div>
+            <div class="metric-sub" id="valThreadPoolIocp">IOCP: 0 / 0</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">SQL Health Status</div>
+            <div class="metric-value" id="valSqlStatus">Healthy</div>
+            <div class="metric-sub" id="valSqlLatency">Duration: 0 ms</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">SignalR Connections</div>
+            <div class="metric-value" id="valSignalRConnections">0</div>
+            <div class="metric-sub" id="valSignalRUsers">Users: 0</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Pending Requests</div>
+            <div class="metric-value" id="valPendingRequests">0</div>
+            <div class="metric-sub" id="valLongRequests">Active Long: 0</div>
+        </div>
+    </div>
+
+    <!-- Environment & Application Info -->
+    <div class="section-card">
+        <div class="section-title">
+            <span><i class="fa-solid fa-server me-2"></i> Operational Environment</span>
+            <span class="refresh-indicator" id="valLastUpdated">Last updated: Just now</span>
+        </div>
+        <div class="row g-3 text-light" style="font-size: 0.9rem;">
+            <div class="col-md-3"><strong>Machine Name:</strong> <span id="envMachine">--</span></div>
+            <div class="col-md-3"><strong>App Version:</strong> <span id="envAppVersion">--</span></div>
+            <div class="col-md-3"><strong>Environment:</strong> <span id="envEnvironment">--</span></div>
+            <div class="col-md-3"><strong>App Uptime:</strong> <span id="envUptime">0h</span></div>
+            <div class="col-md-6"><strong>OS Version:</strong> <span id="envOs">--</span></div>
+            <div class="col-md-6"><strong>Runtime:</strong> <span id="envRuntime">--</span></div>
+        </div>
+    </div>
+
+    <!-- Incident History -->
+    <div class="section-card">
+        <div class="section-title">
+            <span><i class="fa-solid fa-folder-open me-2"></i> Captured Incident History</span>
+            <button class="btn btn-sm btn-outline-secondary text-light" onclick="loadIncidents()">Refresh List</button>
+        </div>
+        <div class="table-responsive">
+            <table class="tbl-incidents">
+                <thead>
+                    <tr>
+                        <th>Incident ID</th>
+                        <th>Timestamp (UTC)</th>
+                        <th>Status</th>
+                        <th>Machine</th>
+                        <th>Reason</th>
+                        <th>Files Captured</th>
+                    </tr>
+                </thead>
+                <tbody id="tblIncidentsBody">
+                    <tr><td colspan="6" class="text-center text-muted">No incidents captured.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            refreshDashboard();
+            loadIncidents();
+            setInterval(refreshDashboard, 5000);
+            setInterval(loadIncidents, 15000);
+        });
+
+        function refreshDashboard() {
+            $.ajax({
+                url: '/diagnostics/health',
+                type: 'GET',
+                success: function (data) {
+                    $('#valLastUpdated').text('Last updated: ' + new Date().toLocaleTimeString());
+
+                    // Status level
+                    const status = data.statusLevel || 'Healthy';
+                    const $badge = $('#lblStatusLevel');
+                    $badge.text(status);
+                    $badge.removeClass('status-healthy status-warning status-critical status-freezedetected');
+                    $badge.addClass('status-' + status.toLowerCase());
+
+                    // Health metrics
+                    if (data.health) {
+                        $('#valCpu').text((data.health.cpuUsagePercent || 0).toFixed(1) + ' %');
+                        $('#valMemory').text(Math.round((data.health.workingSetBytes || 0) / (1024 * 1024)) + ' MB');
+                        $('#valManagedMemory').text('Managed: ' + Math.round((data.health.managedMemoryBytes || 0) / (1024 * 1024)) + ' MB');
+                        $('#valPendingRequests').text(data.health.pendingRequests || 0);
+                        $('#valLongRequests').text('Active Long: ' + (data.health.longRunningRequests || 0));
+
+                        if (data.health.threadPool) {
+                            const tp = data.health.threadPool;
+                            $('#valThreadPoolWorker').text((tp.availableWorkerThreads || 0) + ' / ' + (tp.maxWorkerThreads || 0));
+                            $('#valThreadPoolIocp').text('IOCP: ' + (tp.availableCompletionPortThreads || 0) + ' / ' + (tp.maxCompletionPortThreads || 0));
+                        }
+
+                        if (data.health.sql) {
+                            const sql = data.health.sql;
+                            $('#valSqlStatus').text(sql.isHealthy ? 'Healthy' : 'FAILED');
+                            $('#valSqlStatus').css('color', sql.isHealthy ? '#34d399' : '#f87171');
+                            $('#valSqlLatency').text('Duration: ' + (sql.durationMs || 0).toFixed(1) + ' ms');
+                        }
+                    }
+
+                    if (data.signalR) {
+                        $('#valSignalRConnections').text(data.signalR.activeConnections || 0);
+                        $('#valSignalRUsers').text('Users: ' + (data.signalR.connectedUsers || 0));
+                    }
+
+                    if (data.environment) {
+                        const env = data.environment;
+                        $('#envMachine').text(env.machineName || '--');
+                        $('#envAppVersion').text(env.applicationVersion || '--');
+                        $('#envEnvironment').text(env.environmentName || '--');
+                        $('#envOs').text(env.osVersion || '--');
+                        $('#envRuntime').text(env.dotNetRuntimeVersion || '--');
+                        $('#valProcessId').text('PID: ' + (env.processId || '--'));
+
+                        if (env.applicationUptime) {
+                            const uptimeHours = (env.applicationUptime.totalDays * 24 + env.applicationUptime.hours).toFixed(1);
+                            $('#envUptime').text(uptimeHours + ' hours');
+                        }
+                    }
+                },
+                error: function (xhr) {
+                    console.error('Error refreshing dashboard:', xhr);
+                    $('#lblStatusLevel').text('Offline/Disconnected').addClass('status-critical');
+                }
+            });
+        }
+
+        function loadIncidents() {
+            $.ajax({
+                url: '/diagnostics/incidents',
+                type: 'GET',
+                success: function (list) {
+                    const $body = $('#tblIncidentsBody');
+                    $body.empty();
+
+                    if (!list || list.length === 0) {
+                        $body.append('<tr><td colspan="6" class="text-center text-muted">No incidents captured.</td></tr>');
+                        return;
+                    }
+
+                    list.forEach(function (inc) {
+                        const dateStr = new Date(inc.timestampUtc).toLocaleString();
+                        const fileCount = inc.capturedFiles ? inc.capturedFiles.length : 0;
+                        const row = `<tr>
+                            <td><code>${inc.incidentId}</code></td>
+                            <td>${dateStr}</td>
+                            <td><span class="badge bg-secondary">${inc.severity || 'Critical'}</span></td>
+                            <td>${inc.machineName || '--'}</td>
+                            <td>${inc.reason || '--'}</td>
+                            <td>${fileCount} files</td>
+                        </tr>`;
+                        $body.append(row);
+                    });
+                },
+                error: function (xhr) {
+                    console.error('Error loading incidents history:', xhr);
+                }
+            });
+        }
+
+        function triggerManualIncident() {
+            if (!confirm('Are you sure you want to trigger a manual incident snapshot?')) return;
+
+            const reason = prompt('Enter reason for manual capture:', 'Pre-restart manual diagnostic snapshot');
+            if (reason === null) return;
+
+            $.ajax({
+                url: '/diagnostics/incident/create?reason=' + encodeURIComponent(reason),
+                type: 'POST',
+                headers: {
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function (data) {
+                    alert('Manual incident captured successfully!\nIncident ID: ' + data.incidentId);
+                    loadIncidents();
+                },
+                error: function (xhr) {
+                    alert('Failed to trigger manual incident capture: ' + (xhr.responseText || 'Server error'));
+                }
+            });
+        }
+    </script>
+}

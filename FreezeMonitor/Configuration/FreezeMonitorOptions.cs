@@ -13,4 +13,8 @@ public sealed class FreezeMonitorOptions
     public int MaxLongRequests { get; set; } = 50;
     public string IncidentFolder { get; set; } = "Incidents";
     public bool EnableDiagnosticsApi { get; set; } = true;
+
+    public FreezeDetectionOptions FreezeDetection { get; set; } = new();
+    public ProcDumpOptions ProcDump { get; set; } = new();
+    public SmtpOptions SMTP { get; set; } = new();
 }

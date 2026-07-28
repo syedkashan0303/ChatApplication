@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using SignalRMVC.FreezeMonitor.Configuration;
+using SignalRMVC.FreezeMonitor.Models;
 
 namespace SignalRMVC.FreezeMonitor.Services;
 
@@ -8,6 +9,8 @@ public sealed class FreezeMonitorService : BackgroundService
     private readonly SystemHealthCollector _healthCollector;
     private readonly SqlHealthChecker _sqlHealthChecker;
     private readonly RingBufferService _ringBuffer;
+    private readonly FreezeDetectionService _freezeDetectionService;
+    private readonly IncidentWriterService _incidentWriterService;
     private readonly IOptionsMonitor<FreezeMonitorOptions> _options;
     private readonly ILogger _logger;
 
@@ -15,14 +18,33 @@ public sealed class FreezeMonitorService : BackgroundService
         SystemHealthCollector healthCollector,
         SqlHealthChecker sqlHealthChecker,
         RingBufferService ringBuffer,
+        FreezeDetectionService freezeDetectionService,
+        IncidentWriterService incidentWriterService,
         IOptionsMonitor<FreezeMonitorOptions> options,
         ILoggerFactory loggerFactory)
     {
         _healthCollector = healthCollector;
         _sqlHealthChecker = sqlHealthChecker;
         _ringBuffer = ringBuffer;
+        _freezeDetectionService = freezeDetectionService;
+        _incidentWriterService = incidentWriterService;
         _options = options;
         _logger = loggerFactory.CreateLogger("FreezeMonitor");
+
+        _freezeDetectionService.FreezeDetected += OnFreezeDetectedAsync;
+    }
+
+    private async Task OnFreezeDetectedAsync(FreezeDetectedEventArgs args)
+    {
+        try
+        {
+            _logger.LogCritical("Freeze monitor received FreezeDetected event. Writing incident bundle for Incident ID {IncidentId}", args.IncidentId);
+            await _incidentWriterService.WriteIncidentAsync(args.Reason, args.StatusLevel, args.IncidentId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to write incident bundle during FreezeDetected event for Incident ID {IncidentId}", args.IncidentId);
+        }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -32,7 +54,7 @@ public sealed class FreezeMonitorService : BackgroundService
         var nextSqlCheckUtc = DateTimeOffset.MinValue;
 
         _logger.LogInformation(
-            "Freeze monitor started with {SamplingIntervalSeconds}s sampling, {SqlHealthIntervalSeconds}s SQL checks, and ring buffer capacity {RingBufferCapacity}",
+            "Freeze monitor Phase 3 started with {SamplingIntervalSeconds}s sampling, {SqlHealthIntervalSeconds}s SQL checks, and ring buffer capacity {RingBufferCapacity}",
             samplingInterval.TotalSeconds,
             options.SqlHealthIntervalSeconds,
             _ringBuffer.Capacity);
@@ -53,8 +75,13 @@ public sealed class FreezeMonitorService : BackgroundService
 
                 var snapshot = await _healthCollector.CollectAsync(options, stoppingToken);
                 _ringBuffer.Add(snapshot);
+
+                // Evaluate multi-condition freeze rules
+                var statusLevel = await _freezeDetectionService.EvaluateAsync(snapshot, stoppingToken);
+
                 _logger.LogInformation(
-                    "Health snapshot collected: CPU={CpuUsagePercent}%, WorkingSet={WorkingSetBytes}, PendingRequests={PendingRequests}, SignalRConnections={SignalRConnections}, SqlHealthy={SqlHealthy}",
+                    "Health snapshot collected: Level={StatusLevel}, CPU={CpuUsagePercent}%, WorkingSet={WorkingSetBytes}, PendingRequests={PendingRequests}, SignalRConnections={SignalRConnections}, SqlHealthy={SqlHealthy}",
+                    statusLevel,
                     snapshot.CpuUsagePercent,
                     snapshot.WorkingSetBytes,
                     snapshot.PendingRequests,

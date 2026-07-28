@@ -1,123 +1,166 @@
-# Freeze Monitor
+# Production Freeze Monitor
 
 ## Purpose
 
-The Freeze Monitor is an isolated, in-process diagnostics module for the ASP.NET Core application. It records lightweight health samples and request/SignalR telemetry so a future production freeze can be correlated with application, SQL, and connection state. It does not change chat messages, room membership, authentication, controllers, or database schema.
+The Freeze Monitor is an isolated, in-process diagnostics, detection, and incident response module for ASP.NET Core applications. It records lightweight health samples, monitors request and SignalR telemetry, detects freeze conditions, captures process dumps, sends alert notifications, tracks browser-side telemetry, and presents a real-time SRE diagnostics dashboard.
 
-## Architecture
+It operates with zero impact on chat messaging logic, authentication, authorization, or database schemas.
+
+---
+
+## Phase 3 Architecture
 
 ```text
-HTTP request -> RequestMonitorMiddleware -> RequestStatisticsService
-                                             |
+HTTP requests -> RequestMonitorMiddleware -> RequestStatisticsService
+                                              |
 SignalR connect/activity/disconnect -> SignalRHealthService
-                                             |
+                                              |
 FreezeMonitorService (PeriodicTimer) -> SystemHealthCollector -> RingBufferService
-                                  |          |       |       |
-                                  |          |       |       +-> ThreadPool/process/GC metrics
-                                  |          |       +-> SignalR snapshot
-                                  |          +-> latest SQL SELECT 1 snapshot
-                                  +-> SqlHealthChecker (configured interval)
+           |                                  |
+           v                                  v
+  FreezeDetectionService (Evaluates Rules) -> Status (Healthy/Warning/Critical/FreezeDetected)
+           |
+           +-(FreezeDetected Event)-> IncidentWriterService
+                                            |
+                                            +-> JSON Snapshot Files (Health, SQL, ThreadPool, etc.)
+                                            +-> ProcDumpService (process memory dump execution)
+                                            +-> EmailNotificationService (HTML alert + Summary.json)
 
-DiagnosticsController -> RingBufferService / statistics / SignalR / latest incident
-IncidentWriterService -> formatted JSON files only when explicitly called
+Browser (`freeze-monitor.js`) -> Heartbeat GET /diagnostics/heartbeat
+                            -> Failure Telemetry POST /diagnostics/browser
+
+Admin Dashboard (`/Admin/Diagnostics`) -> Real-time status UI (5s refresh)
 ```
 
-## Flow
+---
 
-1. `AddFreezeMonitor()` registers the module as singleton services and starts the sampler when `FreezeMonitor:Enabled` is true at application startup.
-2. The sampler immediately runs, then records a health snapshot at `SamplingIntervalSeconds`.
-3. SQL health uses only `SELECT 1` through a new connection and runs at `SqlHealthIntervalSeconds`; it never executes a business query.
-4. Snapshots remain in the fixed-size ring buffer. They are not written to disk on every sample.
-5. The request middleware records normal HTTP request lifetime and produces warnings only for requests above the configured threshold. WebSocket requests are excluded because SignalR connection lifetime is measured separately; treating a healthy persistent WebSocket as a long HTTP request would create false alerts.
-6. SignalR hub lifecycle and hub invocations update an independent connection registry. No message, group, or authorization logic is changed.
-7. An incident JSON bundle is written only when another trusted component calls `IncidentWriterService.WriteIncidentAsync(...)`. Automatic freeze classification belongs to Phase 3.
+## Key Features
 
-## Configuration
+### 1. Automatic Freeze Detection (`FreezeDetectionService`)
+Continuously evaluates multi-condition health rules on each sampling cycle:
+- Pending HTTP requests exceeding configured threshold (`PendingRequestThreshold`).
+- Consecutive SQL probe failures (`SqlFailureThreshold`).
+- Critically low ThreadPool worker threads (`ThreadPoolWorkerThreshold`).
+- Consecutive browser/endpoint heartbeat failures (`HeartbeatFailureThreshold`).
+- Request stalls (no completed requests for `NoCompletedRequestSeconds` while requests are pending).
+- SignalR connection/activity drop while HTTP requests continue.
 
-The section is in `appsettings.json`:
+When freeze conditions are met:
+- Calculates `HealthStatusLevel.FreezeDetected`.
+- Raises `FreezeDetected` event.
+- Invokes `IncidentWriterService` automatically.
+- **Does NOT automatically restart the application.**
+
+### 2. Automatic Incident Capture (`IncidentWriterService`)
+Generates a unique `IncidentId` (`INC-yyyyMMdd-HHmmss-XXXXXX`) and writes structured diagnostic files inside `Incidents/<Timestamp>`:
+- `Health.json`
+- `Statistics.json`
+- `SignalR.json`
+- `ThreadPool.json`
+- `SQL.json`
+- `Application.json`
+- `Environment.json`
+- `Summary.json`
+
+### 3. ProcDump Integration (`ProcDumpService`)
+- Asynchronously executes `procdump.exe` when configured (`"ProcDump": { "Enabled": true }`).
+- Replaces `{PID}` and `{OUTPUT}` placeholder parameters.
+- Enforces execution timeout (`TimeoutSeconds`).
+- Completely isolated try-catch block: failure or timeout logs error without throwing or blocking web requests.
+
+### 4. SMTP Email Notifications (`EmailNotificationService`)
+- Sends HTML email notification upon incident creation.
+- Includes Incident ID, Machine Name, CPU %, Memory, ThreadPool status, SQL status, SignalR status, and directory path.
+- Attaches `Summary.json`. Does NOT attach dump files.
+- Fail-safe: handles SMTP errors gracefully without affecting application execution.
+
+### 5. Browser Telemetry & Heartbeat (`freeze-monitor.js`)
+- Included globally in layout (`_Layout.cshtml`).
+- Tracks JS unhandled errors, promise rejections, online/offline state, visibility changes, fetch/AJAX 5xx failures, and SignalR state.
+- Periodic heartbeat probe every 15s (`GET /diagnostics/heartbeat`).
+- Posts diagnostic payload to `POST /diagnostics/browser` upon repeated client failures.
+
+### 6. Real-Time Diagnostics Dashboard (`/Admin/Diagnostics`)
+- Manager-protected Razor View (`/Admin/Diagnostics`).
+- High-tech dark theme displaying CPU, Memory, ThreadPool, SQL latency, SignalR connections, pending requests, uptime, and incident history.
+- 5-second automatic UI refresh cycle.
+- "Capture Incident Now" manual trigger button.
+
+### 7. Incident History & Manual Capture APIs
+- `GET /diagnostics/incidents` -> Returns incident history list.
+- `GET /diagnostics/incidents/{id}` -> Returns specific incident details.
+- `POST /diagnostics/incident/create` -> Triggers manual incident capture.
+- `GET /diagnostics/heartbeat` -> Lightweight heartbeat probe endpoint.
+
+---
+
+## Configuration Reference
+
+Appsettings configuration block:
 
 ```json
-"FreezeMonitor": {
-  "Enabled": true,
-  "SamplingIntervalSeconds": 10,
-  "SqlHealthIntervalSeconds": 30,
-  "SqlHealthTimeoutSeconds": 5,
-  "RingBufferSize": 500,
-  "LongRequestThresholdSeconds": 5,
-  "MaxLongRequests": 50,
-  "IncidentFolder": "Incidents",
-  "EnableDiagnosticsApi": true
+{
+  "FreezeMonitor": {
+    "Enabled": true,
+    "SamplingIntervalSeconds": 10,
+    "SqlHealthIntervalSeconds": 30,
+    "SqlHealthTimeoutSeconds": 5,
+    "RingBufferSize": 500,
+    "LongRequestThresholdSeconds": 5,
+    "MaxLongRequests": 50,
+    "IncidentFolder": "Incidents",
+    "EnableDiagnosticsApi": true,
+    "FreezeDetection": {
+      "Enabled": true,
+      "NoCompletedRequestSeconds": 30,
+      "PendingRequestThreshold": 20,
+      "ThreadPoolWorkerThreshold": 5,
+      "SqlFailureThreshold": 3,
+      "HeartbeatFailureThreshold": 3
+    }
+  },
+  "SMTP": {
+    "Enabled": true,
+    "Host": "smtp.example.com",
+    "Port": 587,
+    "UseSSL": true,
+    "Username": "alerts@example.com",
+    "Password": "SecretPassword",
+    "FromEmail": "freezemonitor@example.com",
+    "FromName": "Freeze Monitor Alert",
+    "ToEmails": [
+      "sre-team@example.com"
+    ]
+  },
+  "ProcDump": {
+    "Enabled": false,
+    "ExecutablePath": "C:\\Tools\\ProcDump\\procdump.exe",
+    "Arguments": "-ma {PID} {OUTPUT}",
+    "TimeoutSeconds": 120
+  }
 }
 ```
 
-- `Enabled`: starts the hosted sampler at application startup and enables request measurement. Set to `false` and restart to disable collection.
-- `SamplingIntervalSeconds`: health-snapshot interval. Minimum `1`.
-- `SqlHealthIntervalSeconds`: `SELECT 1` interval. Minimum `1`.
-- `SqlHealthTimeoutSeconds`: cancellation/command timeout for the health probe. Minimum `1`.
-- `RingBufferSize`: newest snapshots retained in memory. Valid range `1` through `10000`.
-- `LongRequestThresholdSeconds`: warning and active-long-request threshold. Minimum `1`.
-- `MaxLongRequests`: maximum active long requests returned by diagnostics. Valid range `1` through `1000`.
-- `IncidentFolder`: relative to the application content root unless an absolute path is configured.
-- `EnableDiagnosticsApi`: controls diagnostics API availability while monitoring remains active.
+---
 
-Options are validated during startup. The sampling hosted service is registered from the startup value of `Enabled`; changing that setting requires an application restart. Request thresholds and SQL timeout/interval values are read from the current configuration on subsequent collection cycles.
+## Security & Access Control
 
-## Services
+- All `/diagnostics/*` endpoints and `/Admin/Diagnostics` dashboard require an authenticated user in the `Manager` role (`[Authorize(Roles = "Manager")]`).
+- POST endpoints require CSRF anti-forgery validation.
+- Client telemetry excludes personal data, chat content, and request bodies.
 
-- `FreezeMonitorService`: background sampler using `PeriodicTimer`.
-- `SystemHealthCollector`: combines process, CPU, memory, GC, ThreadPool, SQL, SignalR, and request data into `HealthSnapshot`.
-- `SqlHealthChecker`: async, timeout-bounded `SELECT 1` probe with separate connection/execution timings.
-- `CpuUsageService`: calculates process CPU percentage from successive process-time samples.
-- `SignalRHealthService`: thread-safe active-connection registry and daily/peak connection metrics.
-- `RequestStatisticsService`: thread-safe active request registry, cumulative response metrics, failures, rate, and active long requests.
-- `RingBufferService`: lock-protected fixed-capacity circular buffer; only the newest snapshots remain.
-- `IncidentWriterService`: creates formatted incident JSON files on demand.
-- `RequestMonitorMiddleware`: records ordinary HTTP request timing before the rest of the application pipeline.
+---
 
-All module logs are created with the logger category `FreezeMonitor`, which Serilog stores as `SourceContext = FreezeMonitor`.
+## Troubleshooting
 
-## Diagnostics Endpoints
+1. **ProcDump Not Generating Dumps**:
+   - Check if ProcDump path is correct and accessible by the IIS AppPool user.
+   - Verify `ProcDump:Enabled` is set to `true`.
+   - Ensure the process has permissions to execute external processes.
 
-All endpoints require an authenticated user in the `Manager` role. They return `404` when the monitor or diagnostics API is disabled.
+2. **SMTP Email Alerts Failing**:
+   - Verify SMTP Host, Port, SSL, and credentials.
+   - Check application log for category `FreezeMonitor` error entries.
 
-| Endpoint | Result |
-| --- | --- |
-| `GET /diagnostics/health` | Application information, latest health sample, request statistics, and current SignalR snapshot. |
-| `GET /diagnostics/statistics` | Current/pending, completed, failed, average/longest, per-minute, and active long request statistics. |
-| `GET /diagnostics/ringbuffer` | Up to the newest 50 health samples, oldest to newest. |
-| `GET /diagnostics/incident/latest` | Latest in-memory or persisted incident summary; returns `404` if no incident exists. |
-
-## Incident Files
-
-Calling the incident writer creates a directory such as:
-
-```text
-Incidents/
-  2026-07-28_14-22-15/
-    Health.json
-    Statistics.json
-    SignalR.json
-    ThreadPool.json
-    SQL.json
-    Application.json
-    Summary.json
-```
-
-Files are formatted JSON. The writer logs at `Critical` after a successful bundle creation and at `Error` if file creation fails. It does not write normal 10-second samples to disk.
-
-## Performance Considerations
-
-- The ring buffer has fixed capacity and retains references only to the configured number of snapshots.
-- SQL checks are a single async `SELECT 1` and have an independent timeout.
-- Shared request and SignalR state use `ConcurrentDictionary`, `ConcurrentQueue`, `Interlocked`, and narrow locks for fixed-size/daily counters.
-- No business query, schema change, timer per request, synchronous wait, or periodic disk write is used.
-- CPU calculation and process metrics are sampled only on the configured background interval.
-- The monitor is process-local. In a web-farm deployment, each worker process needs its own monitoring and centralized log/incident collection for cross-instance correlation.
-
-## Enable and Disable
-
-Set `FreezeMonitor:Enabled` to `true` and restart the application to enable the background sampler and request monitoring. Set it to `false` and restart to disable them. `EnableDiagnosticsApi` can independently hide the diagnostic endpoints while collection remains enabled.
-
-## Phase 3 Direction
-
-Phase 3 can add evidence-based automatic incident triggers, counter threshold policies, process dump/ProcDump integration with explicit operational approval, browser correlation IDs, a diagnostics dashboard, and centralized multi-instance incident storage. Those additions can call the existing `IncidentWriterService` without redesigning Phase 1 or Phase 2.
+3. **Dashboard Access Denied (403/401)**:
+   - Ensure the logged-in user has the `Manager` role assigned in ASP.NET Core Identity.
