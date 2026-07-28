@@ -366,10 +366,6 @@ namespace SignalRMVC.Controllers
 
                 return StatusCode(500, "Something went wrong");
             }
-            finally
-            { 
-                _db.Dispose();  
-            }
         }
 
         // =====================================================

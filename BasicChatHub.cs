@@ -100,7 +100,14 @@ namespace SignalRMVC
             var userId = httpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(userId))
+            {
+                _logger.LogWarning(
+                    "AUTH FAILED | ConnId={ConnId} | IsAuthenticated={IsAuth} | Transport={Transport}",
+                    Context.ConnectionId,
+                    httpContext?.User?.Identity?.IsAuthenticated,
+                    httpContext?.WebSockets?.IsWebSocketRequest);
                 throw new HubException("User is not authenticated.");
+            }
 
             return userId;
         }
@@ -527,25 +534,32 @@ namespace SignalRMVC
         // =====================================================
         public async Task MarkMessagesAsRead(int roomId)
         {
-            AppHealthTracker.UpdateActivity();
+            try
+            {
+                AppHealthTracker.UpdateActivity();
 
-            var userId = GetUserId();
+                var userId = GetUserId();
 
-            using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var roomName = await context.ChatRoom
-                .Where(r => r.Id == roomId)
-                .Select(r => r.Name)
-                .FirstOrDefaultAsync();
+                var roomName = await context.ChatRoom
+                    .Where(r => r.Id == roomId)
+                    .Select(r => r.Name)
+                    .FirstOrDefaultAsync();
 
-            if (roomName == null)
-                return;
+                if (roomName == null)
+                    return;
 
-            // ✅ EF Core 8 bulk delete (no load into memory)
-            await context.ChatMessageReadStatuses
-                .Where(s => s.UserId == userId && s.ChatMessage.GroupName == roomName)
-                .ExecuteDeleteAsync();
+                // ✅ EF Core 8 bulk delete (no load into memory)
+                await context.ChatMessageReadStatuses
+                    .Where(s => s.UserId == userId && s.ChatMessage.GroupName == roomName)
+                    .ExecuteDeleteAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "MarkMessagesAsRead failed | RoomId={RoomId}", roomId);
+            }
         }
 
         // =====================================================
@@ -553,15 +567,22 @@ namespace SignalRMVC
         // =====================================================
         public async Task P_To_P_MarkMessagesAsRead(string UserId)
         {
-            var receiver = GetUserId();
+            try
+            {
+                var receiver = GetUserId();
 
-            using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            // ✅ EF Core 8 bulk delete (no load into memory)
-            await context.UsersMessageReadStatus
-                .Where(s => s.SenderId == UserId && s.ReceiverId == receiver)
-                .ExecuteDeleteAsync();
+                // ✅ EF Core 8 bulk delete (no load into memory)
+                await context.UsersMessageReadStatus
+                    .Where(s => s.SenderId == UserId && s.ReceiverId == receiver)
+                    .ExecuteDeleteAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "P_To_P_MarkMessagesAsRead failed | UserId={UserId}", UserId);
+            }
         }
 
         // =====================================================

@@ -582,9 +582,6 @@
     </div>
 </div>
 
-<script src="~/js/jquery-3.6.4.min.js"></script>
-<link href="~/css/toastr.min.css" rel="stylesheet" />
-<script src="~/js/toastr.min.js"></script>
 <script src="~/js/signalr.min.js"></script>
 
 
@@ -793,10 +790,12 @@
     // ==========================
     connectionChat.onreconnecting(error => {
         console.warn("SignalR Reconnecting:", error);
+        showConnectionBanner("Reconnecting to server...", "warning");
     });
 
     connectionChat.onreconnected(async () => {
         console.log("SignalR Reconnected");
+        hideConnectionBanner();
 
         // ✅ Rejoin current room after reconnect
         if (currentRoom) {
@@ -818,23 +817,62 @@
 
     connectionChat.onclose((error) => {
         console.error("SignalR Connection closed:", error);
+        showConnectionBanner("Connection lost. Reconnecting...", "danger");
+        retryConnect(1);
+    });
 
-        // retry forever
+    // ✅ Exponential backoff reconnect after onclose
+    function retryConnect(attempt) {
+        var delay = Math.min(2000 * Math.pow(2, attempt - 1), 60000);
+        console.log("[SignalR] Retry attempt " + attempt + " in " + delay + "ms");
         setTimeout(async () => {
             try {
                 await connectionChat.start();
                 console.log("SignalR restarted after close");
-
+                hideConnectionBanner();
                 if (currentRoom) {
                     await connectionChat.invoke("JoinRoom", currentRoom);
                 }
-
                 await loadUnreadCounts();
             } catch (err) {
-                console.error("Restart failed:", err);
+                console.error("Restart attempt " + attempt + " failed:", err);
+                if (attempt >= 20) {
+                    showConnectionBanner("Unable to reconnect. Please refresh the page.", "danger");
+                } else {
+                    retryConnect(attempt + 1);
+                }
             }
-        }, 5000);
-    });
+        }, delay);
+    }
+
+    // ✅ Connection state banner helpers
+    function showConnectionBanner(msg, type) {
+        var banner = document.getElementById("signalr-connection-banner");
+        if (!banner) {
+            banner = document.createElement("div");
+            banner.id = "signalr-connection-banner";
+            banner.style.cssText = "position:fixed;top:0;left:0;width:100%;z-index:99999;text-align:center;padding:8px 16px;font-weight:bold;font-size:14px;transition:opacity 0.3s;";
+            document.body.prepend(banner);
+        }
+        banner.textContent = msg;
+        banner.style.display = "block";
+        banner.style.opacity = "1";
+        if (type === "danger") {
+            banner.style.background = "#dc3545";
+            banner.style.color = "#fff";
+        } else {
+            banner.style.background = "#ffc107";
+            banner.style.color = "#000";
+        }
+    }
+
+    function hideConnectionBanner() {
+        var banner = document.getElementById("signalr-connection-banner");
+        if (banner) {
+            banner.style.opacity = "0";
+            setTimeout(function() { banner.style.display = "none"; }, 300);
+        }
+    }
 
     // ==========================
     // ✅ SERVER EVENT: RedirectToLogin

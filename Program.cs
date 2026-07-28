@@ -107,9 +107,25 @@ builder.Services.AddSignalR(options =>
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.IsEssential = true;
-    options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
-    options.SlidingExpiration = false;
-    options.Cookie.Expiration = null; // session cookie
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);  // Full work shift
+    options.SlidingExpiration = true;                  // Renew on activity
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.LoginPath = "/Identity/Account/Login";
+    options.Events.OnRedirectToLogin = context =>
+    {
+        // Return 401 for SignalR/API requests instead of redirecting to login page
+        if (context.Request.Path.StartsWithSegments("/hubs") ||
+            context.Request.Headers["Accept"].ToString().Contains("application/json"))
+        {
+            context.Response.StatusCode = 401;
+        }
+        else
+        {
+            context.Response.Redirect(context.RedirectUri);
+        }
+        return Task.CompletedTask;
+    };
 });
 
 
