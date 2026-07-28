@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using SignalRMVC.FreezeMonitor.Services;
 using System.Diagnostics;
 
 namespace SignalRMVC.CustomClasses
@@ -8,10 +9,12 @@ namespace SignalRMVC.CustomClasses
         private const long SlowMethodThresholdMs = 2_000;
 
         private readonly ILogger<LoggingHubFilter> _logger;
+        private readonly SignalRHealthService _signalRHealthService;
 
-        public LoggingHubFilter(ILogger<LoggingHubFilter> logger)
+        public LoggingHubFilter(ILogger<LoggingHubFilter> logger, SignalRHealthService signalRHealthService)
         {
             _logger = logger;
+            _signalRHealthService = signalRHealthService;
         }
 
         public async ValueTask<object?> InvokeMethodAsync(
@@ -21,6 +24,7 @@ namespace SignalRMVC.CustomClasses
             var method = invocationContext.HubMethodName;
             var user = invocationContext.Context.User?.Identity?.Name ?? "Anonymous";
             var connId = invocationContext.Context.ConnectionId;
+            _signalRHealthService.RecordActivity(connId);
 
             try
             {

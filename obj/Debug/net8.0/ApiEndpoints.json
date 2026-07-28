@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "Method": "GetHealth",
+    "RelativePath": "diagnostics/health",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "Method": "GetLatestIncident",
+    "RelativePath": "diagnostics/incident/latest",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "Method": "GetRingBuffer",
+    "RelativePath": "diagnostics/ringbuffer",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "Method": "GetStatistics",
+    "RelativePath": "diagnostics/statistics",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  }
+]

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SignalRMVC.Areas.Identity.Data;
 using SignalRMVC.CustomClasses;
+using SignalRMVC.FreezeMonitor.Services;
 using SignalRMVC.Models;
 using System.Security.Claims;
 using System.Collections.Concurrent;
@@ -15,6 +16,7 @@ namespace SignalRMVC
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<BasicChatHub> _logger;
+        private readonly SignalRHealthService _signalRHealthService;
 
         // ❌ Removed AppDbContext from constructor
         // Reason: DbContext is NOT thread-safe inside SignalR Hub
@@ -22,11 +24,13 @@ namespace SignalRMVC
         public BasicChatHub(
             UserManager<ApplicationUser> userManager,
             IServiceScopeFactory scopeFactory,
-            ILogger<BasicChatHub> logger)
+            ILogger<BasicChatHub> logger,
+            SignalRHealthService signalRHealthService)
         {
             _userManager = userManager;
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _signalRHealthService = signalRHealthService;
         }
 
         // =====================================================
@@ -40,6 +44,7 @@ namespace SignalRMVC
                 AppHealthTracker.TrackConnect();
 
                 var userId = GetUserId();
+                _signalRHealthService.TrackConnected(Context.ConnectionId, userId);
                 _logger.LogInformation(
                     "SignalR Connected | UserId={UserId} | ConnId={ConnId} | ActiveConns={Active}",
                     userId, Context.ConnectionId, AppHealthTracker.ActiveConnections);
@@ -61,6 +66,7 @@ namespace SignalRMVC
             {
                 AppHealthTracker.UpdateActivity();
                 AppHealthTracker.TrackDisconnect();
+                _signalRHealthService.TrackDisconnected(Context.ConnectionId);
 
                 _joinedGroupsByConnection.TryRemove(Context.ConnectionId, out _);
 

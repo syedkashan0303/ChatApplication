@@ -9,6 +9,7 @@ using Serilog;
 using SignalRMVC;
 using SignalRMVC.Areas.Identity.Data; // Make sure ApplicationUser is here
 using SignalRMVC.CustomClasses;
+using SignalRMVC.FreezeMonitor.Configuration;
 using SignalRMVC.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -51,6 +52,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<UserInfoService>();
 
 builder.Services.AddScoped<DatabaseJobService>();
+builder.Services.AddFreezeMonitor(builder.Configuration);
 
 // Validate QuartzSettings and build dynamic CRON expression
 var dailyExecutionTime = builder.Configuration.GetValue<string>("QuartzSettings:DailyExecutionTime");
@@ -176,6 +178,7 @@ app.UseExceptionHandler(errorApp =>
 });
 
 app.UseMiddleware<GlobalExceptionMiddleware>(); // 👈 Add this first
+app.UseFreezeMonitorRequestMonitoring();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseSerilogRequestLogging();
