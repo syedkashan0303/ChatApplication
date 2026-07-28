@@ -583,6 +583,188 @@ ORDER BY connection_count DESC;
 ### Verification steps after deployment
 
 1. Deploy the updated build.
+
+---
+
+## 16. Production Bug Investigation — Thread Pool Starvation
+
+Investigated and fixed: 2026-06-17
+
+### Symptoms
+
+- 8–10 simultaneous users in active group chats.
+- Randomly, all users experience a complete application freeze.
+- Chat stops updating, AJAX requests receive no response, SignalR messages stop arriving.
+- No visible frontend error.
+- The freeze lasts several minutes then recovers automatically or after a browser refresh.
+- Occurs intermittently and is difficult to reproduce locally.
+
+---
+
+### Root Cause
+
+**Primary cause: synchronous blocking ADO.NET inside a `BackgroundService`, causing ThreadPool starvation.**
+
+The exact causal chain:
+
+**Step 1** — `ScheduledTaskService` fires every 2 hours and calls `DatabaseJobService.RunStoredProcedure()`.
+
+**Step 2** — `RunStoredProcedure()` was a synchronous `void` method using `conn.Open()` and `cmd.ExecuteNonQuery()`. These are blocking synchronous calls that hold a .NET ThreadPool worker thread for the entire duration of the stored procedure.
+
+**Step 3** — The stored procedure `DeleteOldReadMappingRecord` performs a bulk `DELETE` on the `ChatMessageReadStatuses` table, acquiring row-level or page-level SQL locks.
+
+**Step 4** — Active users are simultaneously sending messages (`SendMessageToRoom` inserts to `ChatMessageReadStatuses`) and opening rooms (`MarkMessagesAsRead` deletes from `ChatMessageReadStatuses`). These operations wait on the lock held by the stored procedure.
+
+**Step 5** — Each waiting database operation holds its own ThreadPool thread while waiting for the lock. With 8–10 active users the ThreadPool fills up entirely.
+
+**Step 6** — ThreadPool starvation: no threads are available to process new HTTP requests or SignalR message delivery. All incoming requests queue. AJAX calls time out. SignalR stops delivering messages.
+
+**Step 7** — After 30 seconds the default `SqlCommand.CommandTimeout` fires. `cmd.ExecuteNonQuery()` throws a `SqlException`. Because there was **no `try/catch`** in `ScheduledTaskService.ExecuteAsync`, the exception propagated out of the `while` loop and **permanently terminated the background service**. The cleanup job never ran again until the next application restart.
+
+**Step 8** — With the blocking thread freed, the ThreadPool recovers and the application becomes responsive again.
+
+This explains every observed symptom:
+
+| Symptom | Explanation |
+|---|---|
+| Intermittent | Fires at 2-hour intervals; worse under active load |
+| All users affected simultaneously | ThreadPool starvation is process-wide |
+| Several minutes freeze | 30-second command timeout + ThreadPool drain time |
+| No frontend error | Requests are queued, not rejected with an error code |
+| Automatic recovery | After `CommandTimeout` fires, threads free up |
+| Hard to reproduce locally | Requires concurrent load + exact 2-hour timing |
+
+---
+
+### Secondary issues found
+
+| # | Location | Issue | Severity |
+|---|---|---|---|
+| 1 | [CustomClasses/ScheduledTaskService.cs](CustomClasses/ScheduledTaskService.cs) | No `try/catch` around `RunStoredProcedure()` — one SP failure permanently killed the `while` loop and stopped all future cleanup runs until app restart | High |
+| 2 | [CustomClasses/DatabaseJobService.cs](CustomClasses/DatabaseJobService.cs) | `void` method using synchronous `conn.Open()` and `cmd.ExecuteNonQuery()` — blocks a ThreadPool thread for the full SP duration | Critical |
+| 3 | [CustomClasses/DatabaseJobService.cs](CustomClasses/DatabaseJobService.cs) | No `CommandTimeout` set on `SqlCommand` — the default 30 seconds is the only thing that eventually frees the thread | High |
+| 4 | [CustomClasses/DatabaseJobService.cs](CustomClasses/DatabaseJobService.cs) | No logging — impossible to know in Serilog output when the SP started, finished, or how long it took | Medium |
+| 5 | [CustomClasses/LoggingHubFilter.cs](CustomClasses/LoggingHubFilter.cs) | All hub calls logged at `Information` level with no slow-method threshold — slow operations during a freeze are indistinguishable from normal calls in logs | Medium |
+| 6 | [CustomClasses/AppHealthTracker.cs](CustomClasses/AppHealthTracker.cs) | No active connection count — the Ping endpoint had no visibility into how many SignalR clients were connected | Medium |
+| 7 | [Controllers/HomeController.cs](Controllers/HomeController.cs) | `GET /Home/ping` returned only idle time as plain text — no ThreadPool or connection data to detect starvation remotely | Medium |
+| 8 | [BasicChatHub.cs](BasicChatHub.cs) | `OnConnectedAsync` and `OnDisconnectedAsync` did not log `UserId` or `ConnectionId` — impossible to trace which user was connected during a freeze | Low |
+
+---
+
+### Files changed
+
+| File | What changed |
+|---|---|
+| [CustomClasses/DatabaseJobService.cs](CustomClasses/DatabaseJobService.cs) | `void RunStoredProcedure()` replaced with `async Task RunStoredProcedureAsync()` using `OpenAsync()` and `ExecuteNonQueryAsync()`. Added explicit `CommandTimeout = 120`. Added `ILogger<DatabaseJobService>` with start/finish/error timing. |
+| [CustomClasses/ScheduledTaskService.cs](CustomClasses/ScheduledTaskService.cs) | Calls `await RunStoredProcedureAsync()` instead of the synchronous version. Wrapped in `try/catch` so a failure logs the error and retries after 2 hours instead of permanently terminating the service. Added start/stop/error logging. |
+| [CustomClasses/LoggingHubFilter.cs](CustomClasses/LoggingHubFilter.cs) | Added 2-second slow-method threshold. Methods exceeding it are logged at `Warning` level with `ConnectionId`. Normal calls remain at `Information`. |
+| [CustomClasses/AppHealthTracker.cs](CustomClasses/AppHealthTracker.cs) | Added thread-safe `ActiveConnections` counter using `Interlocked.Increment` / `Interlocked.Decrement`. |
+| [BasicChatHub.cs](BasicChatHub.cs) | `OnConnectedAsync` calls `AppHealthTracker.TrackConnect()` and logs `UserId` + `ConnectionId` + current connection count. `OnDisconnectedAsync` calls `AppHealthTracker.TrackDisconnect()` and logs clean vs error disconnect reason. |
+| [Controllers/HomeController.cs](Controllers/HomeController.cs) | `GET /Home/ping` now returns a JSON object with `status`, `idleSeconds`, `activeSignalRConnections`, and a `threadPool` block containing `workerAvailable`, `workerInUse`, `workerMax`, `iocpAvailable`, `iocpInUse`, `iocpMax`. |
+
+---
+
+### What the Ping endpoint now returns
+
+`GET /Home/ping` — sample healthy response:
+
+```json
+{
+  "status": "healthy",
+  "idleSeconds": 3,
+  "activeSignalRConnections": 9,
+  "threadPool": {
+    "workerAvailable": 32755,
+    "workerInUse": 5,
+    "workerMax": 32767,
+    "workerMin": 8,
+    "iocpAvailable": 1000,
+    "iocpInUse": 0,
+    "iocpMax": 1000,
+    "iocpMin": 8
+  },
+  "timestamp": "2026-06-17T14:22:10Z"
+}
+```
+
+During a ThreadPool starvation event `workerInUse` will be close to `workerMax` and the response itself will be delayed or will not arrive.
+
+---
+
+### SQL scripts for production investigation
+
+Run these in SSMS to diagnose the issue if it recurs.
+
+**1 — Active blocking chains**
+```sql
+SELECT
+    blocking.session_id  AS blocking_session,
+    blocked.session_id   AS blocked_session,
+    blocked.wait_type,
+    blocked.wait_time / 1000.0 AS wait_seconds,
+    sq_blocked.text      AS blocked_sql,
+    sq_blocking.text     AS blocking_sql
+FROM sys.dm_exec_sessions blocked
+JOIN sys.dm_exec_sessions blocking
+    ON blocked.blocking_session_id = blocking.session_id
+CROSS APPLY sys.dm_exec_sql_text(blocked.most_recent_sql_handle)  sq_blocked
+CROSS APPLY sys.dm_exec_sql_text(blocking.most_recent_sql_handle) sq_blocking
+ORDER BY blocked.wait_time DESC;
+```
+
+**2 — Long-running queries right now**
+```sql
+SELECT
+    r.session_id,
+    r.status,
+    r.wait_type,
+    r.wait_time / 1000.0          AS wait_seconds,
+    r.total_elapsed_time / 1000.0 AS elapsed_seconds,
+    t.text                        AS sql_text,
+    s.login_name
+FROM sys.dm_exec_requests r
+JOIN sys.dm_exec_sessions s ON r.session_id = s.session_id
+CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) t
+WHERE r.session_id <> @@SPID
+ORDER BY r.total_elapsed_time DESC;
+```
+
+**3 — Lock contention on ChatMessageReadStatuses**
+```sql
+SELECT
+    tl.request_session_id,
+    tl.resource_type,
+    tl.resource_description,
+    tl.request_mode,
+    tl.request_status,
+    t.text AS sql_text
+FROM sys.dm_tran_locks tl
+JOIN sys.dm_exec_requests r
+    ON tl.request_session_id = r.session_id
+CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) t
+WHERE tl.resource_database_id = DB_ID()
+  AND tl.request_status = 'WAIT'
+ORDER BY tl.request_session_id;
+```
+
+**4 — Connection pool usage by login**
+```sql
+SELECT
+    login_name,
+    COUNT(*)                                                  AS connection_count,
+    SUM(CASE WHEN status = 'running'  THEN 1 ELSE 0 END)     AS active,
+    SUM(CASE WHEN status = 'sleeping' THEN 1 ELSE 0 END)     AS idle
+FROM sys.dm_exec_sessions
+WHERE is_user_process = 1
+GROUP BY login_name
+ORDER BY connection_count DESC;
+```
+
+---
+
+### Verification steps after deployment
+
+1. Deploy the updated build.
 2. Watch Serilog output for the first scheduled run at the 2-hour mark. Expect to see:
    - `Starting scheduled cleanup job.`
    - `DeleteOldReadMappingRecord completed in Xms`
@@ -591,3 +773,65 @@ ORDER BY connection_count DESC;
 4. Confirm the service continues to log cleanup attempts every 2 hours without stopping — this confirms the `try/catch` fix is working.
 5. If a failure occurs, Serilog will log `Scheduled cleanup job failed. Will retry after 2 hours.` and the service will continue — previously the service would silently die with no log entry after the first failure.
 
+---
+
+## 17. Production Chat Freeze Root Cause Analysis & Fixes
+
+Investigated and fixed: 2026-07-28
+
+### Problem Statement
+In production, after running normally for some time, the chat application freezes intermittently:
+- UI becomes unresponsive
+- Sending and receiving messages stops
+- SignalR communication halts with no visible frontend exception
+- Refreshing the page temporarily fixes the issue
+
+---
+
+### Root Cause Analysis Summary
+
+1. **Authentication Cookie Hard Expiry (Primary Cause - 35%)**:
+   - `ExpireTimeSpan` was set to 60 minutes with `SlidingExpiration = false`.
+   - After exactly 60 minutes, the cookie ticket expired. SignalR Hub calls failed `GetUserId()` authentication checks silently.
+   - SignalR redirect events were returning 302/HTML redirects instead of `401 Unauthorized`.
+2. **IIS Application Pool Idle Shutdown (20%)**:
+   - Default IIS App Pool `Idle Timeout` of 20 minutes shuts down the worker process when HTTP traffic pauses. WebSocket traffic alone doesn't prevent idle shutdown on default IIS settings.
+3. **Single-Attempt SignalR Reconnect (10%)**:
+   - On connection drop, `connectionChat.onclose` attempted to reconnect only **once** after a fixed 5-second delay. If that attempt failed, it stopped retrying, leaving the UI permanently dead without notifying the user.
+4. **Uncaught DB Exceptions in Hub Methods (5%)**:
+   - Methods like `MarkMessagesAsRead` lacked `try-catch` blocks. Unhandled DB errors terminated the Hub connection context.
+5. **Potential Double Disposal**:
+   - `HomeController.GetMessagesByRoom` manually invoked `_db.Dispose()` inside a `finally` block while using scoped injection via `using var scope`.
+
+---
+
+### Status of Fixes
+
+#### ✅ Completed Code Fixes (In Codebase)
+
+| # | Component | File | Changes Implemented |
+|---|---|---|---|
+| 1 | **Authentication Cookie** | [Program.cs](Program.cs) | Extended `ExpireTimeSpan` to 8 hours. Enabled `SlidingExpiration = true`. Configured `OnRedirectToLogin` to return `401 Unauthorized` for `/hubs` paths instead of HTTP redirects. |
+| 2 | **Resilient SignalR Reconnect** | [Views/Home/Index.cshtml](Views/Home/Index.cshtml) | Replaced fixed 5s single retry in `onclose` with exponential backoff algorithm (`retryConnect`, up to 20 attempts, max 60s delay). |
+| 3 | **UI Connection Status Banner** | [Views/Home/Index.cshtml](Views/Home/Index.cshtml) | Added `showConnectionBanner()` / `hideConnectionBanner()` to display real-time visual alerts ("Reconnecting...", "Connection lost", "Unable to reconnect") to users. |
+| 4 | **Hub Exception Safeguards** | [BasicChatHub.cs](BasicChatHub.cs) | Wrapped `MarkMessagesAsRead` and `P_To_P_MarkMessagesAsRead` in `try-catch` blocks with error logging to prevent socket termination on DB exceptions. |
+| 5 | **Authentication Diagnostics** | [BasicChatHub.cs](BasicChatHub.cs) | Added diagnostic logging (`_logger.LogWarning`) in `GetUserId()` to record `ConnId`, `IsAuthenticated`, and transport details whenever auth fails. |
+| 6 | **Double-Disposal Cleanup** | [Controllers/HomeController.cs](Controllers/HomeController.cs) | Removed redundant manual `_db.Dispose()` from `finally` block in `GetMessagesByRoom`. |
+| 7 | **Script Deduplication** | [Views/Home/Index.cshtml](Views/Home/Index.cshtml) | Removed duplicate jQuery library scripts to prevent script re-initialization side effects. |
+
+---
+
+#### ⏳ Remaining Tasks (IIS & Production Infrastructure Administration)
+
+The following server-level configuration changes must be applied on the IIS Production Host by the system administrator:
+
+1. **IIS Application Pool Settings**:
+   - Open IIS Manager → Application Pools → Select App Pool → Advanced Settings.
+   - Set **Idle Time-out (minutes)** to `0` (Disabled).
+   - Set **Start Mode** to `AlwaysRunning`.
+   - Set **Preload Enabled** to `True` on the website.
+2. **IIS WebSocket Protocol Feature**:
+   - Ensure `Web-WebSockets` feature is installed on Windows Server (`Install-WindowsFeature Web-Sockets`).
+   - Confirm `<webSocket enabled="true" />` is configured under `<system.webServer>` in IIS `web.config`.
+3. **Data Protection Key Storage Permissions**:
+   - Ensure the IIS Application Pool Identity has full Read/Write permissions to `D:\ChatAppKeys`.
