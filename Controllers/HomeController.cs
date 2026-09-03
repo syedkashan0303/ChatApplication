@@ -547,6 +547,8 @@ namespace SignalRMVC.Controllers
             return HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         }
 
+
+        [AllowAnonymous]
         [HttpGet("/Home/ping")]
         public IActionResult Ping()
         {
