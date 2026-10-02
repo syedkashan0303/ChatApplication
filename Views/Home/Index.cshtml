@@ -346,6 +346,113 @@
         opacity: 0.85;
     }
 
+    .reaction-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 2px;
+    }
+
+        .reaction-row:empty {
+            display: none;
+        }
+
+    .justify-content-end > .reaction-row {
+        justify-content: flex-end;
+        padding-right: 8px;
+    }
+
+    .justify-content-start > .reaction-row {
+        padding-left: 8px;
+    }
+
+    .reaction-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 1px 8px;
+        font-size: 0.8rem;
+        line-height: 1.4;
+        border-radius: 12px;
+        border: 1px solid #6c7a89;
+        background: rgba(48, 61, 79, 0.15);
+        color: inherit;
+        cursor: pointer;
+    }
+
+        .reaction-chip.mine {
+            border-color: #f0b429;
+            background: rgba(240, 180, 41, 0.22);
+        }
+
+    .react-btn {
+        font-size: 0.8rem;
+        color: #cfd6df;
+        padding: 0 0 0 10px;
+        border: none;
+        background: none;
+    }
+
+        .react-btn:hover {
+            color: #f0b429;
+        }
+
+    #reaction-picker {
+        position: fixed;
+        z-index: 99998;
+        display: none;
+        flex-direction: column;
+        padding: 4px 6px;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 16px;
+        max-width: calc(100vw - 16px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    }
+
+        #reaction-picker .reaction-quick {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        #reaction-picker .reaction-more {
+            display: none;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 2px;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px solid #ddd;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        #reaction-picker .reaction-more-btn {
+            width: 28px;
+            height: 28px;
+            margin-left: 4px;
+            border: none;
+            border-radius: 50%;
+            background: #e9ecef;
+            color: #333;
+            font-size: 1.1rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        #reaction-picker .reaction-pick {
+            font-size: 1.3rem;
+            line-height: 1;
+            padding: 2px 4px;
+            border: none;
+            background: none;
+            cursor: pointer;
+        }
+
+            #reaction-picker .reaction-pick:hover {
+                transform: scale(1.25);
+            }
+
     .reply-action-row {
         margin-top: 4px;
         margin-bottom: 4px;
@@ -759,7 +866,8 @@
                 senderId: dto.senderId || "",
                 receiver: dto.receiver || dto.groupName || dto.roomName || dto.room || "",
                 isGroup: dto.isGroup === true || dto.isRoom === true,
-                replyInfo: normalizeReplyInfo(dto)
+                replyInfo: normalizeReplyInfo(dto),
+                reactions: Array.isArray(dto.reactions) ? dto.reactions : null
             };
         }
 
@@ -899,6 +1007,129 @@
             $msg.find(".message-text").html(newContent + " <i>(edited)</i>");
             $msg.find(".edit-btn").attr("data-content", newContent);
         }
+    });
+
+    // ==========================
+    // ✅ REACTIONS (group messages, one reaction per user)
+    // ==========================
+    const REACTION_EMOJIS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(SignalRMVC.BasicChatHub.ReactionEmojis));
+    const REACTION_QUICK_COUNT = 6;
+
+    function reactionsToMap(list) {
+        const map = {};
+        (list || []).forEach(function (r) {
+            const name = r && (r.userName || r.UserName);
+            const emoji = r && (r.emoji || r.Emoji);
+            if (name && emoji) map[name] = emoji;
+        });
+        return map;
+    }
+
+    function refreshReactionRow($li) {
+        const $row = $li.children(".reaction-row");
+        if (!$row.length) return;
+
+        const map = $li.data("reactions") || {};
+        const namesByEmoji = {};
+        Object.keys(map).forEach(function (name) {
+            (namesByEmoji[map[name]] = namesByEmoji[map[name]] || []).push(name);
+        });
+
+        const me = getSenderEmail();
+        $row.empty();
+        REACTION_EMOJIS.forEach(function (emoji) {
+            const names = namesByEmoji[emoji];
+            if (!names) return;
+            $row.append(
+                $("<button>")
+                    .attr("type", "button")
+                    .addClass("reaction-chip")
+                    .toggleClass("mine", names.indexOf(me) >= 0)
+                    .attr("data-emoji", emoji)
+                    .attr("title", names.join(", "))
+                    .append($("<span>").text(emoji), $("<span>").text(names.length))
+            );
+        });
+    }
+
+    function toggleReaction(messageId, emoji) {
+        connectionChat.invoke("ToggleReaction", parseInt(messageId), emoji)
+            .catch(err => console.error("Reaction failed:", err));
+    }
+
+    function getPickerEl() {
+        let $picker = $("#reaction-picker");
+        if (!$picker.length) {
+            const $quick = $("<div>").addClass("reaction-quick");
+            const $more = $("<div>").addClass("reaction-more");
+
+            REACTION_EMOJIS.forEach(function (emoji, i) {
+                const $btn = $("<button>").attr("type", "button").addClass("reaction-pick").attr("data-emoji", emoji).text(emoji);
+                (i < REACTION_QUICK_COUNT ? $quick : $more).append($btn);
+            });
+            $quick.append($("<button>").attr({ type: "button", title: "More emojis" }).addClass("reaction-more-btn").text("+"));
+
+            $picker = $("<div>").attr("id", "reaction-picker").append($quick, $more);
+            $("body").append($picker);
+        }
+        return $picker;
+    }
+
+    function positionPicker() {
+        const $picker = $("#reaction-picker");
+        const anchor = $picker.data("anchor");
+        if (!anchor) return;
+
+        const h = $picker.outerHeight();
+        const left = Math.max(8, Math.min(anchor.left, window.innerWidth - $picker.outerWidth() - 8));
+        const above = anchor.top - h - 6;
+        const top = above >= 8 ? above : Math.min(anchor.bottom + 6, Math.max(8, window.innerHeight - h - 8));
+        $picker.css({ left: left + "px", top: top + "px" });
+    }
+
+    $(document).on("click", ".react-btn", function (e) {
+        e.stopPropagation();
+        const $picker = getPickerEl();
+        const messageId = $(this).closest("li.list-group-item").attr("id").replace("msg_", "");
+        const rect = this.getBoundingClientRect();
+
+        $picker.data("messageId", messageId).data("anchor", { top: rect.top, bottom: rect.bottom, left: rect.left });
+        $picker.find(".reaction-more").hide();
+        $picker.css({ display: "flex", visibility: "hidden" });
+        positionPicker();
+        $picker.css("visibility", "visible");
+    });
+
+    $(document).on("click", ".reaction-more-btn", function (e) {
+        e.stopPropagation();
+        const $picker = $("#reaction-picker");
+        $picker.find(".reaction-more").toggle();
+        positionPicker();
+    });
+
+    $(document).on("click", ".reaction-pick", function (e) {
+        e.stopPropagation();
+        const $picker = $("#reaction-picker");
+        toggleReaction($picker.data("messageId"), $(this).attr("data-emoji"));
+        $picker.hide();
+    });
+
+    $(document).on("click", ".reaction-chip", function () {
+        const messageId = $(this).closest("li.list-group-item").attr("id").replace("msg_", "");
+        toggleReaction(messageId, $(this).attr("data-emoji"));
+    });
+
+    $(document).on("click", function () { $("#reaction-picker").hide(); });
+    $(".card-footer").on("scroll", function () { $("#reaction-picker").hide(); });
+
+    connectionChat.on("ReactionChanged", function (messageId, userName, emoji) {
+        const $li = $("#msg_" + messageId);
+        if (!$li.length) return;
+
+        const map = $li.data("reactions") || {};
+        if (emoji) map[userName] = emoji; else delete map[userName];
+        $li.data("reactions", map);
+        refreshReactionRow($li);
     });
 
     // 🔹 Message Received (Group + Personal)
@@ -1462,7 +1693,7 @@
                     }
 
                     const incoming = normalizeMessagePayload(msg);
-                    const messageHtml = renderMessage(incoming.senderName, incoming.message, incoming.id, true, false, false, incoming.messageTime, incoming.replyInfo);
+                    const messageHtml = renderMessage(incoming.senderName, incoming.message, incoming.id, true, false, false, incoming.messageTime, incoming.replyInfo, incoming.reactions);
 
                     // prepend older messages
                     if (prepend) {
@@ -1503,7 +1734,7 @@
     // ==========================
     // ✅ RENDER MESSAGE
     // ==========================
-    function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false, messagetime, replyInfo = null) {
+    function renderMessage(user, message, messageId, returnOnly = false, isEdited = false, isDeleted = false, messagetime, replyInfo = null, reactions = null) {
 
         if (messageId && $("#msg_" + messageId).length) {
             if (returnOnly) return $("#msg_" + messageId);
@@ -1627,7 +1858,17 @@
                 .addClass(isOwnMessage ? "justify-content-end pe-2" : "justify-content-start ps-2")
                 .append(replyBtn);
 
-            li.append(replyBar);
+            var reactBtn = $("<button>")
+                .addClass("react-btn")
+                .attr("type", "button")
+                .attr("title", "React")
+                .html('<i class="fa-regular fa-face-smile"></i>');
+            replyBar.append(reactBtn);
+
+            var reactionRow = $("<div>").addClass("reaction-row w-100");
+            li.data("reactions", reactionsToMap(reactions));
+            li.append(reactionRow, replyBar);
+            refreshReactionRow(li);
         }
 
         return returnOnly ? li : $("#messagesList").append(li);
@@ -1703,7 +1944,8 @@
             $messageBubble.find(".fa-trash").remove();
             $messageBubble.find(".edit-btn").remove();
             $messageBubble.find(".copy-btn").remove();
-            $messageBubble.siblings(".reply-action-row").remove();
+            $messageBubble.children(".reply-action-row, .reaction-row").remove();
+            
             $messageBubble.find(".message-text").html('Message deleted');
             $messageBubble.css({
                 "opacity": ".7",

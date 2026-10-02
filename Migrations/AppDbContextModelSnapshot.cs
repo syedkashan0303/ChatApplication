@@ -301,6 +301,40 @@ namespace SignalRMVC.Migrations
                     b.ToTable("ChatMessages");
                 });
 
+            modelBuilder.Entity("SignalRMVC.Models.ChatMessageReaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChatMessageId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ChatMessageId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ChatMessageReactions_ChatMessageId_UserId");
+
+                    b.ToTable("ChatMessageReactions");
+                });
+
             modelBuilder.Entity("SignalRMVC.Models.ChatMessageReadStatus", b =>
                 {
                     b.Property<int>("Id")
@@ -563,7 +597,18 @@ namespace SignalRMVC.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("SignalRMVC.Models.ChatMessageReadStatus", b =>
+            modelBuilder.Entity("SignalRMVC.Models.ChatMessage", b =>
+                {
+                    b.HasOne("SignalRMVC.Models.ChatMessage", "ReplyToMessage")
+                        .WithMany()
+                        .HasForeignKey("ReplyToMessageId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("ReplyToMessage");
+                });
+
+            modelBuilder.Entity("SignalRMVC.Models.ChatMessageReaction", b =>
                 {
                     b.HasOne("SignalRMVC.Models.ChatMessage", "ChatMessage")
                         .WithMany()
@@ -582,14 +627,23 @@ namespace SignalRMVC.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("SignalRMVC.Models.ChatMessage", b =>
+            modelBuilder.Entity("SignalRMVC.Models.ChatMessageReadStatus", b =>
                 {
-                    b.HasOne("SignalRMVC.Models.ChatMessage", "ReplyToMessage")
+                    b.HasOne("SignalRMVC.Models.ChatMessage", "ChatMessage")
                         .WithMany()
-                        .HasForeignKey("ReplyToMessageId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .HasForeignKey("ChatMessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("ReplyToMessage");
+                    b.HasOne("SignalRMVC.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatMessage");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SignalRMVC.Models.UsersMessageReadStatus", b =>

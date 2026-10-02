@@ -125,7 +125,35 @@ namespace SignalRMVC.Controllers
                         .Take(chunkRecords)
                         .ToListAsync(cts.Token);
 
-                    return Ok(messages);
+                    // One extra query for all reactions of this page (no per-message round trips)
+                    var messageIds = messages.Select(m => m.id).ToList();
+                    var reactionRows = await _db.ChatMessageReactions
+                        .AsNoTracking()
+                        .Where(r => messageIds.Contains(r.ChatMessageId))
+                        .Select(r => new { r.ChatMessageId, userName = r.User.UserName, r.Emoji })
+                        .ToListAsync(cts.Token);
+
+                    var reactionsByMessage = reactionRows
+                        .GroupBy(r => r.ChatMessageId)
+                        .ToDictionary(g => g.Key, g => g.Select(r => new { userName = r.userName, emoji = r.Emoji }).ToList());
+
+                    var result = messages.Select(m => new
+                    {
+                        m.id,
+                        m.senderId,
+                        m.senderName,
+                        m.message,
+                        m.createdOn,
+                        m.messageTime,
+                        m.replyToMessageId,
+                        m.replyToMessageSender,
+                        m.replyToMessageText,
+                        m.replyToMessageDeleted,
+                        m.replyMessage,
+                        reactions = reactionsByMessage.TryGetValue(m.id, out var rx) ? rx : null
+                    }).ToList();
+
+                    return Ok(result);
                 }
 
                 // ===========================

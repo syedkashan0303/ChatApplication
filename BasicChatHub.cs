@@ -315,6 +315,112 @@ namespace SignalRMVC
         }
 
         // =====================================================
+        // Reactions (group messages only, one reaction per user per message)
+        // =====================================================
+        // Single source of truth: the first 6 are the quick-pick row, the rest appear under the "+" button.
+        public static readonly string[] ReactionEmojis =
+        {
+            "✅", "❌", "🔥","❤️", "💯", "🙏",
+            "👎", "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😊", "😇",
+            "🙂", "😉", "😍", "😘", "😋", "😎", "🤔", "😐", "😴", "😭",
+            "😡", "😱", "😬", "🤗", "🥳", "🤝", "👏", "🙌", "💪", "👌",
+            "✌️",  "😮", "🎉", "👍", "😂" , "😢", "⭐", "👀", "🤦"
+        };
+
+        private static readonly HashSet<string> AllowedReactions = new(ReactionEmojis, StringComparer.Ordinal);
+
+        public async Task ToggleReaction(int messageId, string emoji)
+        {
+            var userId = GetUserId();
+
+            try
+            {
+                AppHealthTracker.UpdateActivity();
+
+                if (string.IsNullOrEmpty(emoji) || !AllowedReactions.Contains(emoji))
+                {
+                    await Clients.Caller.SendAsync("Error", "Reaction not allowed.");
+                    return;
+                }
+
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var message = await context.ChatMessages
+                    .AsNoTracking()
+                    .Where(m => m.Id == messageId)
+                    .Select(m => new { m.GroupName, m.IsDelete })
+                    .FirstOrDefaultAsync();
+
+                if (message == null || message.IsDelete || string.IsNullOrEmpty(message.GroupName))
+                {
+                    await Clients.Caller.SendAsync("Error", "Message not found.");
+                    return;
+                }
+
+                var isActiveMember = await (
+                    from room in context.ChatRoom
+                    join mapping in context.GroupUserMapping on room.Id equals mapping.GroupId
+                    where room.Name == message.GroupName && !room.isDelete
+                          && mapping.UserId == userId && mapping.Active
+                    select mapping.Id
+                ).AnyAsync();
+
+                if (!isActiveMember)
+                {
+                    await Clients.Caller.SendAsync("Error", "You are not a member of this group.");
+                    return;
+                }
+
+                var existing = await context.ChatMessageReactions
+                    .FirstOrDefaultAsync(r => r.ChatMessageId == messageId && r.UserId == userId);
+
+                string? resultEmoji = emoji;
+
+                if (existing == null)
+                {
+                    context.ChatMessageReactions.Add(new ChatMessageReaction
+                    {
+                        ChatMessageId = messageId,
+                        UserId = userId,
+                        Emoji = emoji,
+                        CreatedOn = DateTime.Now
+                    });
+                }
+                else if (existing.Emoji == emoji)
+                {
+                    context.ChatMessageReactions.Remove(existing); // same emoji again = remove
+                    resultEmoji = null;
+                }
+                else
+                {
+                    existing.Emoji = emoji; // different emoji replaces the previous one
+                    existing.CreatedOn = DateTime.Now;
+                }
+
+                try
+                {
+                    await context.SaveChangesAsync();
+                }
+                catch (DbUpdateException ex)
+                {
+                    // Concurrent double-click hit the unique index; the other request already won.
+                    _logger.LogInformation(ex, "ToggleReaction conflict | MessageId={MessageId} | UserId={UserId}", messageId, userId);
+                    return;
+                }
+
+                await Clients.Group(message.GroupName).SendAsync(
+                    "ReactionChanged", messageId, Context.User?.Identity?.Name ?? string.Empty, resultEmoji);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ToggleReaction failed | MessageId={MessageId}", messageId);
+                await LogAsync(userId, "ToggleReaction", ex.Message + " InnerException " + (ex.InnerException?.Message ?? ""));
+                await Clients.Caller.SendAsync("Error", "Could not save reaction.");
+            }
+        }
+
+        // =====================================================
         // Send Message to Room
         // =====================================================
         public async Task SendMessageToRoom(string roomName, string user, string message, string? clientMessageId = null, int replyToMessageId = 0)

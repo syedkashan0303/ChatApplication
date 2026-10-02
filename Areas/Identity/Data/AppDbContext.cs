@@ -24,6 +24,26 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .OnDelete(DeleteBehavior.NoAction);
         });
 
+        builder.Entity<ChatMessageReaction>(entity =>
+        {
+            entity.Property(r => r.Emoji).HasMaxLength(16).IsRequired();
+
+            // One reaction per user per message; also serves the "reactions for these messages" lookup
+            entity.HasIndex(r => new { r.ChatMessageId, r.UserId })
+                .IsUnique()
+                .HasDatabaseName("IX_ChatMessageReactions_ChatMessageId_UserId");
+
+            entity.HasOne(r => r.ChatMessage)
+                .WithMany()
+                .HasForeignKey(r => r.ChatMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // Configure UserLoginLogs table
         builder.Entity<UserLoginLog>(entity =>
         {
@@ -45,6 +65,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<EditedMessagesLog> EditedtMessagesLogs { get; set; }
     public DbSet<ChatLog> ChatLogs { get; set; }
     public DbSet<ChatMessageReadStatus> ChatMessageReadStatuses { get; set; }
+    public DbSet<ChatMessageReaction> ChatMessageReactions { get; set; }
     public DbSet<UsersMessageReadStatus> UsersMessageReadStatus { get; set; }
     public DbSet<UserLoginLog> UserLoginLogs { get; set; }
 
