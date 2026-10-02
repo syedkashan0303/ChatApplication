@@ -734,6 +734,12 @@
     let allMessagesLoaded = false; // ✅ FIX: start false, not true
     let currentRoom = null;
     let fontSize = @Model.FontSize;
+
+    // Browser tab title: "<chat name> - ARY News Chat" while a chat is open, original title otherwise
+    const defaultTabTitle = document.title;
+    function setTabTitle(chatName) {
+        document.title = chatName ? chatName + " - ARY News Chat" : defaultTabTitle;
+    }
     let currentReplyTarget = null;
 
     // ✅ to avoid duplicate marker insertion
@@ -1583,6 +1589,7 @@
         connectionChat.invoke("JoinRoom", firstRoom).then(() => {
             currentRoom = firstRoom;
             $("#roomName").text(" - " + firstRoom);
+            setTabTitle(firstRoom);
             $("#hiddenRoomName").val(firstRoom);
 
             skipDays = 0;
@@ -1620,6 +1627,7 @@
 
             currentRoom = roomName;
             $("#roomName").text(" - " + roomName);
+            setTabTitle(roomName);
             $("#hiddenRoomName").val(roomName);
             $("#hiddenRoomid").val(roomId);
             $("#isGroup").val(isroom);
