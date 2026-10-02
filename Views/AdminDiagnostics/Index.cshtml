@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = "Freeze Monitor - Real-Time Production Diagnostics";
+    ViewData["Title"] = "System Diagnostics";
     Layout = "_Layout";
 }
 
@@ -16,11 +16,13 @@
 
     .diag-header {
         display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
         justify-content: space-between;
         align-items: center;
         border-bottom: 1px solid #1e293b;
         padding-bottom: 16px;
-        margin-bottom: 24px;
+        margin-bottom: 20px;
     }
 
     .diag-title {
@@ -30,6 +32,7 @@
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-wrap: wrap;
     }
 
     .status-badge {
@@ -39,7 +42,6 @@
         font-weight: 600;
         letter-spacing: 0.5px;
         text-transform: uppercase;
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
     }
 
     .status-healthy { background: #064e3b; color: #34d399; border: 1px solid #059669; }
@@ -53,195 +55,355 @@
         100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
 
-    .metrics-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 16px;
-        margin-bottom: 24px;
+    .diag-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    .btn-diag {
+        background: #1e293b;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        padding: 7px 14px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
     }
 
-    .metric-card {
-        background: #1e2430;
-        border: 1px solid #2d3748;
-        border-radius: 10px;
-        padding: 18px;
-        transition: transform 0.2s ease, border-color 0.2s ease;
+        .btn-diag:hover { background: #273449; }
+
+    .btn-manual-incident {
+        background: #dc2626;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
     }
 
-    .metric-card:hover {
-        transform: translateY(-2px);
-        border-color: #4a5568;
-    }
+        .btn-manual-incident:hover { background: #b91c1c; }
 
-    .metric-label {
-        font-size: 0.8rem;
-        color: #94a3b8;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 8px;
-    }
-
-    .metric-value {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #f1f5f9;
-    }
-
-    .metric-sub {
-        font-size: 0.75rem;
-        color: #64748b;
-        margin-top: 4px;
-    }
+    .refresh-indicator { font-size: 0.75rem; color: #64748b; }
 
     .section-card {
         background: #181d27;
         border: 1px solid #27303f;
         border-radius: 10px;
         padding: 20px;
-        margin-bottom: 24px;
+        margin-bottom: 20px;
     }
 
     .section-title {
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         font-weight: 600;
         color: #e2e8f0;
-        margin-bottom: 16px;
+        margin-bottom: 14px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
     }
 
-    .tbl-incidents {
-        width: 100%;
-        border-collapse: collapse;
-        color: #cbd5e1;
+    .section-sub { font-size: 0.78rem; color: #64748b; font-weight: 400; }
+
+    /* ---- issues ---- */
+    .issue-summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+
+    .pill {
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 14px;
     }
 
-    .tbl-incidents th {
+    .pill-critical { background: #7f1d1d; color: #fecaca; }
+    .pill-warning { background: #78350f; color: #fde68a; }
+    .pill-info { background: #1e3a5f; color: #bfdbfe; }
+    .pill-ok { background: #064e3b; color: #a7f3d0; }
+
+    .issue-card {
+        border-left: 4px solid #64748b;
+        background: #1e2430;
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-bottom: 10px;
+    }
+
+    .issue-critical { border-left-color: #ef4444; }
+    .issue-warning { border-left-color: #f59e0b; }
+    .issue-info { border-left-color: #3b82f6; }
+
+    .issue-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .issue-title { font-weight: 700; color: #f8fafc; }
+
+    .issue-cat {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
         background: #0f172a;
         color: #94a3b8;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        padding: 10px 14px;
-        text-align: left;
-        border-bottom: 1px solid #334155;
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-right: 8px;
     }
 
-    .tbl-incidents td {
-        padding: 12px 14px;
-        border-bottom: 1px solid #1e293b;
-        font-size: 0.9rem;
-    }
+    .issue-since { font-size: 0.75rem; color: #64748b; white-space: nowrap; }
+    .issue-detail { font-size: 0.88rem; color: #cbd5e1; margin-top: 6px; word-break: break-word; }
+    .issue-fix { font-size: 0.84rem; color: #94a3b8; margin-top: 4px; }
+    .issue-fix b { color: #a5b4fc; }
 
-    .tbl-incidents tr:hover {
-        background: #1e293b;
-    }
-
-    .btn-manual-incident {
-        background: #dc2626;
-        color: #ffffff;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
+    .all-clear {
+        background: #052e22;
+        border: 1px solid #065f46;
+        color: #6ee7b7;
+        padding: 14px 16px;
+        border-radius: 8px;
         font-weight: 600;
-        cursor: pointer;
-        transition: background 0.2s ease;
     }
 
-    .btn-manual-incident:hover {
-        background: #b91c1c;
+    /* ---- metrics ---- */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 14px;
+        margin-bottom: 20px;
     }
 
-    .refresh-indicator {
-        font-size: 0.75rem;
-        color: #64748b;
+    .metric-card {
+        background: #1e2430;
+        border: 1px solid #2d3748;
+        border-radius: 10px;
+        padding: 14px 16px;
     }
+
+        .metric-card.m-warning { border-color: #d97706; }
+        .metric-card.m-critical { border-color: #dc2626; }
+
+    .metric-label { font-size: 0.74rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .metric-value { font-size: 1.5rem; font-weight: 700; color: #f1f5f9; }
+    .metric-sub { font-size: 0.74rem; color: #64748b; margin-top: 2px; }
+    .spark { display: block; margin-top: 6px; width: 100%; height: 30px; }
+
+    /* ---- tables ---- */
+    .tbl-diag { width: 100%; border-collapse: collapse; color: #cbd5e1; }
+
+        .tbl-diag th {
+            background: #0f172a;
+            color: #94a3b8;
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+            white-space: nowrap;
+        }
+
+        .tbl-diag td {
+            padding: 9px 12px;
+            border-bottom: 1px solid #1e293b;
+            font-size: 0.85rem;
+            vertical-align: top;
+        }
+
+        .tbl-diag tr:hover { background: #1e293b; }
+        .tbl-diag .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .tbl-diag code { color: #a5b4fc; font-size: 0.8rem; word-break: break-all; }
+
+    .t-bad { color: #f87171; font-weight: 700; }
+    .t-warn { color: #fbbf24; font-weight: 700; }
+    .t-ok { color: #34d399; }
+    .empty-row { text-align: center; color: #64748b; padding: 14px; }
+
+    .kind {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 2px 8px;
+        border-radius: 10px;
+        white-space: nowrap;
+    }
+
+    .kind-error, .kind-handled-error, .kind-failed, .kind-disconnect, .kind-auth { background: #7f1d1d; color: #fecaca; }
+    .kind-slow { background: #78350f; color: #fde68a; }
+    .kind-Opened { background: #7f1d1d; color: #fecaca; }
+    .kind-Resolved { background: #064e3b; color: #a7f3d0; }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; }
+
+    @@media (max-width: 600px) {
+        .grid-2 { grid-template-columns: 1fr; }
+        .diag-dashboard { padding: 14px; }
+    }
+
+    .scroll-box { max-height: 340px; overflow: auto; }
+    .access-denied { background: #7f1d1d; color: #fecaca; padding: 14px; border-radius: 8px; display: none; margin-bottom: 16px; }
 </style>
 
 <div class="diag-dashboard">
     <div class="diag-header">
         <div class="diag-title">
-            <i class="fa-solid fa-heart-pulse text-danger"></i> Freeze Monitor Dashboard
+            <i class="fa-solid fa-heart-pulse text-danger"></i> System Diagnostics
             <span id="lblStatusLevel" class="status-badge status-healthy">Healthy</span>
         </div>
-        <div>
-            <button class="btn-manual-incident" onclick="triggerManualIncident()">
+        <div class="diag-actions">
+            <span class="refresh-indicator" id="valLastUpdated">Loading...</span>
+            <button class="btn-diag" id="btnPause" type="button">Pause</button>
+            <button class="btn-manual-incident" type="button" onclick="triggerManualIncident()">
                 <i class="fa-solid fa-triangle-exclamation me-1"></i> Capture Incident Now
             </button>
         </div>
     </div>
 
-    <!-- Core Health Metrics -->
-    <div class="metrics-grid">
-        <div class="metric-card">
-            <div class="metric-label">CPU Usage</div>
-            <div class="metric-value" id="valCpu">0.0 %</div>
-            <div class="metric-sub" id="valProcessId">PID: --</div>
+    <div class="access-denied" id="accessDenied">
+        Access denied. This page and its data are only available to users in the <b>Manager</b> role.
+    </div>
+
+    <!-- Detected issues -->
+    <div class="section-card">
+        <div class="section-title">
+            <span><i class="fa-solid fa-stethoscope me-2"></i> Detected Issues</span>
+            <span class="section-sub">Evaluated every 10 seconds from live data (hub, database, requests, thread pool, memory, browsers)</span>
         </div>
-        <div class="metric-card">
-            <div class="metric-label">Working Set Memory</div>
-            <div class="metric-value" id="valMemory">0 MB</div>
-            <div class="metric-sub" id="valManagedMemory">Managed: 0 MB</div>
+        <div class="issue-summary" id="issueSummary"></div>
+        <div id="issuesList"><div class="empty-row">Loading...</div></div>
+    </div>
+
+    <!-- Core metrics -->
+    <div class="metrics-grid" id="metricsGrid"></div>
+
+    <div class="grid-2">
+        <!-- Hub performance -->
+        <div class="section-card">
+            <div class="section-title">
+                <span><i class="fa-solid fa-tower-broadcast me-2"></i> SignalR Hub Methods</span>
+                <span class="section-sub" id="hubSub"></span>
+            </div>
+            <div class="scroll-box table-responsive">
+                <table class="tbl-diag">
+                    <thead><tr><th>Method</th><th class="num">Calls</th><th class="num">Avg ms</th><th class="num">Max ms</th><th class="num">Slow</th><th class="num">Errors</th><th>Last error</th></tr></thead>
+                    <tbody id="tblHubMethods"><tr><td colspan="7" class="empty-row">No hub calls recorded since the app started.</td></tr></tbody>
+                </table>
+            </div>
         </div>
-        <div class="metric-card">
-            <div class="metric-label">ThreadPool Workers</div>
-            <div class="metric-value" id="valThreadPoolWorker">0 / 0</div>
-            <div class="metric-sub" id="valThreadPoolIocp">IOCP: 0 / 0</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">SQL Health Status</div>
-            <div class="metric-value" id="valSqlStatus">Healthy</div>
-            <div class="metric-sub" id="valSqlLatency">Duration: 0 ms</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">SignalR Connections</div>
-            <div class="metric-value" id="valSignalRConnections">0</div>
-            <div class="metric-sub" id="valSignalRUsers">Users: 0</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">Pending Requests</div>
-            <div class="metric-value" id="valPendingRequests">0</div>
-            <div class="metric-sub" id="valLongRequests">Active Long: 0</div>
+
+        <!-- Hub events -->
+        <div class="section-card">
+            <div class="section-title">
+                <span><i class="fa-solid fa-bolt me-2"></i> Recent Hub Events</span>
+                <span class="section-sub">slow calls, errors, abnormal disconnects, unauthenticated calls</span>
+            </div>
+            <div class="scroll-box table-responsive">
+                <table class="tbl-diag">
+                    <thead><tr><th>Time</th><th>Type</th><th>Method</th><th>User</th><th class="num">ms</th><th>Details</th></tr></thead>
+                    <tbody id="tblHubEvents"><tr><td colspan="6" class="empty-row">No hub problems recorded.</td></tr></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <!-- Environment & Application Info -->
+    <div class="grid-2">
+        <!-- Database queries -->
+        <div class="section-card">
+            <div class="section-title">
+                <span><i class="fa-solid fa-database me-2"></i> Database Queries (heaviest first)</span>
+                <span class="section-sub" id="dbSub"></span>
+            </div>
+            <div class="scroll-box table-responsive">
+                <table class="tbl-diag">
+                    <thead><tr><th>Query</th><th class="num">Calls</th><th class="num">Avg ms</th><th class="num">Max ms</th><th class="num">Total ms</th></tr></thead>
+                    <tbody id="tblDbQueries"><tr><td colspan="5" class="empty-row">No queries recorded yet.</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Database events -->
+        <div class="section-card">
+            <div class="section-title">
+                <span><i class="fa-solid fa-hourglass-half me-2"></i> Slow / Failed Database Commands</span>
+                <span class="section-sub">slower than 500 ms or failed</span>
+            </div>
+            <div class="scroll-box table-responsive">
+                <table class="tbl-diag">
+                    <thead><tr><th>Time</th><th>Type</th><th class="num">ms</th><th>Query / error</th></tr></thead>
+                    <tbody id="tblDbEvents"><tr><td colspan="4" class="empty-row">No slow or failed commands.</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <!-- Long running requests -->
+        <div class="section-card">
+            <div class="section-title">
+                <span><i class="fa-solid fa-clock me-2"></i> Long-Running HTTP Requests</span>
+                <span class="section-sub">currently in flight</span>
+            </div>
+            <div class="scroll-box table-responsive">
+                <table class="tbl-diag">
+                    <thead><tr><th>Request</th><th>User</th><th class="num">Running</th></tr></thead>
+                    <tbody id="tblLongRequests"><tr><td colspan="3" class="empty-row">None.</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Browser reports -->
+        <div class="section-card">
+            <div class="section-title">
+                <span><i class="fa-solid fa-display me-2"></i> Browser Reports</span>
+                <span class="section-sub">clients that reported problems in the last 10 minutes</span>
+            </div>
+            <div class="scroll-box table-responsive">
+                <table class="tbl-diag">
+                    <thead><tr><th>Time</th><th>User</th><th>SignalR</th><th class="num">Heartbeat fails</th><th class="num">AJAX fails</th><th>Last error</th></tr></thead>
+                    <tbody id="tblClients"><tr><td colspan="6" class="empty-row">No browser problems reported.</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Issue history -->
+    <div class="section-card">
+        <div class="section-title">
+            <span><i class="fa-solid fa-timeline me-2"></i> Issue History</span>
+            <span class="section-sub">when problems opened and cleared (since the app started)</span>
+        </div>
+        <div class="scroll-box table-responsive">
+            <table class="tbl-diag">
+                <thead><tr><th>Time</th><th>Event</th><th>Severity</th><th>Category</th><th>Issue</th></tr></thead>
+                <tbody id="tblIssueHistory"><tr><td colspan="5" class="empty-row">No issues have occurred since the app started.</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Environment -->
     <div class="section-card">
         <div class="section-title">
             <span><i class="fa-solid fa-server me-2"></i> Operational Environment</span>
-            <span class="refresh-indicator" id="valLastUpdated">Last updated: Just now</span>
         </div>
         <div class="row g-3 text-light" style="font-size: 0.9rem;">
-            <div class="col-md-3"><strong>Machine Name:</strong> <span id="envMachine">--</span></div>
-            <div class="col-md-3"><strong>App Version:</strong> <span id="envAppVersion">--</span></div>
+            <div class="col-md-3"><strong>Machine:</strong> <span id="envMachine">--</span></div>
+            <div class="col-md-3"><strong>App version:</strong> <span id="envAppVersion">--</span></div>
             <div class="col-md-3"><strong>Environment:</strong> <span id="envEnvironment">--</span></div>
-            <div class="col-md-3"><strong>App Uptime:</strong> <span id="envUptime">0h</span></div>
-            <div class="col-md-6"><strong>OS Version:</strong> <span id="envOs">--</span></div>
+            <div class="col-md-3"><strong>Uptime:</strong> <span id="envUptime">--</span></div>
+            <div class="col-md-6"><strong>OS:</strong> <span id="envOs">--</span></div>
             <div class="col-md-6"><strong>Runtime:</strong> <span id="envRuntime">--</span></div>
+            <div class="col-md-3"><strong>Process ID:</strong> <span id="envPid">--</span></div>
+            <div class="col-md-3"><strong>Thread pool queue:</strong> <span id="envQueue">--</span></div>
+            <div class="col-md-3"><strong>Threads / Handles:</strong> <span id="envThreads">--</span></div>
+            <div class="col-md-3"><strong>GC (gen0/1/2):</strong> <span id="envGc">--</span></div>
         </div>
     </div>
 
-    <!-- Incident History -->
+    <!-- Incident history -->
     <div class="section-card">
         <div class="section-title">
             <span><i class="fa-solid fa-folder-open me-2"></i> Captured Incident History</span>
-            <button class="btn btn-sm btn-outline-secondary text-light" onclick="loadIncidents()">Refresh List</button>
+            <button class="btn-diag" type="button" onclick="loadIncidents()">Refresh list</button>
         </div>
         <div class="table-responsive">
-            <table class="tbl-incidents">
-                <thead>
-                    <tr>
-                        <th>Incident ID</th>
-                        <th>Timestamp (UTC)</th>
-                        <th>Status</th>
-                        <th>Machine</th>
-                        <th>Reason</th>
-                        <th>Files Captured</th>
-                    </tr>
-                </thead>
-                <tbody id="tblIncidentsBody">
-                    <tr><td colspan="6" class="text-center text-muted">No incidents captured.</td></tr>
-                </tbody>
+            <table class="tbl-diag">
+                <thead><tr><th>Incident ID</th><th>Timestamp</th><th>Severity</th><th>Machine</th><th>Reason</th><th>Files</th></tr></thead>
+                <tbody id="tblIncidentsBody"><tr><td colspan="6" class="empty-row">No incidents captured.</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -249,129 +411,311 @@
 
 @section Scripts {
     <script>
-        $(document).ready(function () {
-            refreshDashboard();
-            loadIncidents();
-            setInterval(refreshDashboard, 5000);
-            setInterval(loadIncidents, 15000);
-        });
+        (function () {
+            'use strict';
 
-        function refreshDashboard() {
-            $.ajax({
-                url: '/diagnostics/health',
-                type: 'GET',
-                success: function (data) {
-                    $('#valLastUpdated').text('Last updated: ' + new Date().toLocaleTimeString());
+            var paused = false;
+            var REFRESH_MS = 5000;
 
-                    // Status level
-                    const status = data.statusLevel || 'Healthy';
-                    const $badge = $('#lblStatusLevel');
-                    $badge.text(status);
-                    $badge.removeClass('status-healthy status-warning status-critical status-freezedetected');
-                    $badge.addClass('status-' + status.toLowerCase());
+            // ---------- helpers ----------
+            function esc(value) {
+                return String(value === null || value === undefined ? '' : value)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            }
 
-                    // Health metrics
-                    if (data.health) {
-                        $('#valCpu').text((data.health.cpuUsagePercent || 0).toFixed(1) + ' %');
-                        $('#valMemory').text(Math.round((data.health.workingSetBytes || 0) / (1024 * 1024)) + ' MB');
-                        $('#valManagedMemory').text('Managed: ' + Math.round((data.health.managedMemoryBytes || 0) / (1024 * 1024)) + ' MB');
-                        $('#valPendingRequests').text(data.health.pendingRequests || 0);
-                        $('#valLongRequests').text('Active Long: ' + (data.health.longRunningRequests || 0));
+            function fmtMs(v) { return (v || 0).toFixed(v >= 100 ? 0 : 1); }
+            function mb(bytes) { return Math.round((bytes || 0) / (1024 * 1024)); }
 
-                        if (data.health.threadPool) {
-                            const tp = data.health.threadPool;
-                            $('#valThreadPoolWorker').text((tp.availableWorkerThreads || 0) + ' / ' + (tp.maxWorkerThreads || 0));
-                            $('#valThreadPoolIocp').text('IOCP: ' + (tp.availableCompletionPortThreads || 0) + ' / ' + (tp.maxCompletionPortThreads || 0));
-                        }
+            function ago(iso) {
+                if (!iso) return '--';
+                var s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+                if (s < 60) return Math.round(s) + 's ago';
+                if (s < 3600) return Math.round(s / 60) + ' min ago';
+                if (s < 86400) return (s / 3600).toFixed(1) + ' h ago';
+                return Math.round(s / 86400) + ' d ago';
+            }
 
-                        if (data.health.sql) {
-                            const sql = data.health.sql;
-                            $('#valSqlStatus').text(sql.isHealthy ? 'Healthy' : 'FAILED');
-                            $('#valSqlStatus').css('color', sql.isHealthy ? '#34d399' : '#f87171');
-                            $('#valSqlLatency').text('Duration: ' + (sql.durationMs || 0).toFixed(1) + ' ms');
-                        }
+            function clock(iso) { return iso ? new Date(iso).toLocaleTimeString() : '--'; }
+
+            function duration(seconds) {
+                seconds = Math.max(0, seconds || 0);
+                var d = Math.floor(seconds / 86400), h = Math.floor((seconds % 86400) / 3600), m = Math.floor((seconds % 3600) / 60);
+                return (d ? d + 'd ' : '') + h + 'h ' + m + 'm';
+            }
+
+            function fetchJson(url) {
+                return fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } }).then(function (res) {
+                    if (res.status === 401 || res.status === 403) {
+                        document.getElementById('accessDenied').style.display = 'block';
+                        throw new Error('forbidden');
                     }
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    return res.json();
+                });
+            }
 
-                    if (data.signalR) {
-                        $('#valSignalRConnections').text(data.signalR.activeConnections || 0);
-                        $('#valSignalRUsers').text('Users: ' + (data.signalR.connectedUsers || 0));
-                    }
+            function spark(values, color) {
+                if (!values || values.length < 2) return '<svg class="spark"></svg>';
+                var max = Math.max.apply(null, values), min = Math.min.apply(null, values);
+                var range = (max - min) || 1, w = 200, h = 30;
+                var pts = values.map(function (v, i) {
+                    return (i / (values.length - 1) * w).toFixed(1) + ',' + (h - 2 - ((v - min) / range) * (h - 4)).toFixed(1);
+                }).join(' ');
+                return '<svg class="spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none"><polyline fill="none" stroke="' + color + '" stroke-width="1.8" points="' + pts + '"/></svg>';
+            }
 
-                    if (data.environment) {
-                        const env = data.environment;
-                        $('#envMachine').text(env.machineName || '--');
-                        $('#envAppVersion').text(env.applicationVersion || '--');
-                        $('#envEnvironment').text(env.environmentName || '--');
-                        $('#envOs').text(env.osVersion || '--');
-                        $('#envRuntime').text(env.dotNetRuntimeVersion || '--');
-                        $('#valProcessId').text('PID: ' + (env.processId || '--'));
+            function card(label, value, sub, level, series, color) {
+                return '<div class="metric-card ' + (level ? 'm-' + level : '') + '">' +
+                    '<div class="metric-label">' + esc(label) + '</div>' +
+                    '<div class="metric-value">' + esc(value) + '</div>' +
+                    '<div class="metric-sub">' + esc(sub) + '</div>' + spark(series, color || '#60a5fa') + '</div>';
+            }
 
-                        if (env.applicationUptime) {
-                            const uptimeHours = (env.applicationUptime.totalDays * 24 + env.applicationUptime.hours).toFixed(1);
-                            $('#envUptime').text(uptimeHours + ' hours');
-                        }
-                    }
-                },
-                error: function (xhr) {
-                    console.error('Error refreshing dashboard:', xhr);
-                    $('#lblStatusLevel').text('Offline/Disconnected').addClass('status-critical');
+            // ---------- renderers ----------
+            function renderIssues(overview) {
+                var issues = overview.issues || [];
+                var crit = issues.filter(function (i) { return i.severity === 'Critical'; }).length;
+                var warn = issues.filter(function (i) { return i.severity === 'Warning'; }).length;
+                var info = issues.filter(function (i) { return i.severity === 'Info'; }).length;
+
+                var summary = '';
+                if (crit) summary += '<span class="pill pill-critical">' + crit + ' critical</span>';
+                if (warn) summary += '<span class="pill pill-warning">' + warn + ' warning' + (warn > 1 ? 's' : '') + '</span>';
+                if (info) summary += '<span class="pill pill-info">' + info + ' info</span>';
+                if (!issues.length) summary = '<span class="pill pill-ok">0 issues</span>';
+                document.getElementById('issueSummary').innerHTML = summary;
+
+                if (!issues.length) {
+                    document.getElementById('issuesList').innerHTML = '<div class="all-clear"><i class="fa-solid fa-circle-check me-2"></i>All checks are passing. No problems detected right now.</div>';
+                    return;
                 }
-            });
-        }
 
-        function loadIncidents() {
-            $.ajax({
-                url: '/diagnostics/incidents',
-                type: 'GET',
-                success: function (list) {
-                    const $body = $('#tblIncidentsBody');
-                    $body.empty();
+                document.getElementById('issuesList').innerHTML = issues.map(function (i) {
+                    var cls = 'issue-' + i.severity.toLowerCase();
+                    return '<div class="issue-card ' + cls + '">' +
+                        '<div class="issue-head"><div><span class="issue-cat">' + esc(i.category) + '</span><span class="issue-title">' + esc(i.title) + '</span></div>' +
+                        '<span class="issue-since">' + esc(i.severity) + ' &middot; since ' + esc(ago(i.firstSeenUtc)) + '</span></div>' +
+                        '<div class="issue-detail">' + esc(i.detail) + '</div>' +
+                        '<div class="issue-fix"><b>What to check:</b> ' + esc(i.suggestion) + '</div></div>';
+                }).join('');
+            }
 
-                    if (!list || list.length === 0) {
-                        $body.append('<tr><td colspan="6" class="text-center text-muted">No incidents captured.</td></tr>');
+            function renderMetrics(health, overview, series) {
+                var h = health.health || {}, tp = h.threadPool || {}, sql = h.sql || {}, st = health.statistics || {}, sr = health.signalR || {};
+                var hub = overview.hub || {}, db = overview.database || {};
+
+                var cpuLevel = h.cpuUsagePercent >= 85 ? 'critical' : h.cpuUsagePercent >= 70 ? 'warning' : '';
+                var sqlLevel = !sql.isHealthy ? 'critical' : sql.totalTimeMilliseconds >= 2000 ? 'critical' : sql.totalTimeMilliseconds >= 500 ? 'warning' : '';
+                var tpLevel = tp.availableWorkerThreads < 5 ? 'critical' : tp.availableWorkerThreads < 15 ? 'warning' : '';
+                var pendLevel = h.pendingRequests >= 20 ? 'critical' : h.pendingRequests > 5 ? 'warning' : '';
+                var failRate = st.totalRequests ? (st.failedRequests / st.totalRequests * 100) : 0;
+                var failLevel = failRate >= 20 ? 'critical' : failRate >= 5 ? 'warning' : '';
+                var hubErrLevel = hub.errorsLast10Min >= 10 ? 'critical' : hub.errorsLast10Min > 0 ? 'warning' : '';
+                var dbSlowLevel = db.slowLast10Min >= 20 ? 'critical' : db.slowLast10Min >= 3 ? 'warning' : '';
+
+                var cards = [
+                    card('CPU', (h.cpuUsagePercent || 0).toFixed(1) + ' %', 'PID ' + (h.processId || '--'), cpuLevel, series.cpu, '#f59e0b'),
+                    card('Memory (working set)', mb(h.workingSetBytes) + ' MB', 'Managed ' + mb(h.managedMemoryBytes) + ' MB', '', series.mem, '#a78bfa'),
+                    card('Thread pool free workers', (tp.availableWorkerThreads || 0) + ' / ' + (tp.maximumWorkerThreads || 0), 'In use ' + (tp.workerThreadsInUse || 0), tpLevel, series.tp, '#34d399'),
+                    card('Database ping', sql.isHealthy ? fmtMs(sql.totalTimeMilliseconds) + ' ms' : 'FAILED', sql.isHealthy ? 'connect ' + fmtMs(sql.connectionTimeMilliseconds) + ' ms' : (sql.errorMessage || ''), sqlLevel, series.sql, '#38bdf8'),
+                    card('Pending HTTP requests', h.pendingRequests || 0, 'Long-running: ' + (h.longRunningRequests || 0), pendLevel, series.pending, '#f87171'),
+                    card('HTTP requests / min', Math.round(st.requestsPerMinute || 0), 'Avg response ' + fmtMs(st.averageResponseTimeMilliseconds) + ' ms', '', null),
+                    card('Failed requests (5xx)', st.failedRequests || 0, failRate.toFixed(1) + '% of ' + (st.totalRequests || 0), failLevel, null),
+                    card('SignalR connections', sr.currentConnections || 0, sr.connectedUsers + ' users, peak ' + (sr.peakConnections || 0), '', series.conn, '#22d3ee'),
+                    card('Hub calls / min', Math.round(hub.invocationsPerMinute || 0), 'Reconnects (5 min): ' + (hub.connectsLast5Min || 0), '', null),
+                    card('Hub errors (10 min)', hub.errorsLast10Min || 0, 'Slow: ' + (hub.slowLast10Min || 0) + ', dropped: ' + (hub.abnormalDisconnectsLast10Min || 0), hubErrLevel, null),
+                    card('DB queries / min', Math.round(db.commandsPerMinute || 0), 'Total ' + (db.totalCommands || 0), '', null),
+                    card('Slow DB queries (10 min)', db.slowLast10Min || 0, 'Failed: ' + (db.failedLast10Min || 0), dbSlowLevel, null)
+                ];
+                document.getElementById('metricsGrid').innerHTML = cards.join('');
+            }
+
+            function renderHub(overview, health) {
+                var hub = overview.hub || {};
+                var sr = health.signalR || {};
+                document.getElementById('hubSub').textContent =
+                    'Created today ' + (sr.connectionsCreatedToday || 0) + ', closed ' + (sr.connectionsClosedToday || 0) +
+                    ', avg session ' + duration(sr.averageConnectionDurationSeconds);
+
+                var methods = hub.methods || [];
+                document.getElementById('tblHubMethods').innerHTML = methods.length ? methods.map(function (m) {
+                    return '<tr><td><code>' + esc(m.method) + '</code></td>' +
+                        '<td class="num">' + m.calls + '</td>' +
+                        '<td class="num ' + (m.averageMs >= 500 ? 't-bad' : m.averageMs >= 200 ? 't-warn' : '') + '">' + fmtMs(m.averageMs) + '</td>' +
+                        '<td class="num ' + (m.maxMs >= 2000 ? 't-bad' : m.maxMs >= 1000 ? 't-warn' : '') + '">' + fmtMs(m.maxMs) + '</td>' +
+                        '<td class="num ' + (m.slowCalls ? 't-warn' : '') + '">' + m.slowCalls + '</td>' +
+                        '<td class="num ' + (m.errors ? 't-bad' : 't-ok') + '">' + m.errors + '</td>' +
+                        '<td>' + (m.lastError ? esc(m.lastError) + ' <span class="section-sub">(' + esc(ago(m.lastErrorUtc)) + ')</span>' : '') + '</td></tr>';
+                }).join('') : '<tr><td colspan="7" class="empty-row">No hub calls recorded since the app started.</td></tr>';
+
+                var events = hub.recentEvents || [];
+                document.getElementById('tblHubEvents').innerHTML = events.length ? events.slice(0, 40).map(function (e) {
+                    return '<tr><td>' + esc(clock(e.timestampUtc)) + '</td>' +
+                        '<td><span class="kind kind-' + esc(e.kind) + '">' + esc(e.kind) + '</span></td>' +
+                        '<td><code>' + esc(e.method) + '</code></td><td>' + esc(e.user || '') + '</td>' +
+                        '<td class="num">' + (e.durationMs ? fmtMs(e.durationMs) : '') + '</td>' +
+                        '<td>' + esc(e.message || '') + '</td></tr>';
+                }).join('') : '<tr><td colspan="6" class="empty-row">No hub problems recorded.</td></tr>';
+            }
+
+            function renderDb(overview) {
+                var db = overview.database || {};
+                document.getElementById('dbSub').textContent = (db.totalCommands || 0) + ' commands since start';
+
+                var queries = db.queries || [];
+                document.getElementById('tblDbQueries').innerHTML = queries.length ? queries.map(function (q) {
+                    return '<tr><td><code>' + esc(q.sql) + '</code></td>' +
+                        '<td class="num">' + q.calls + '</td>' +
+                        '<td class="num ' + (q.averageMs >= 300 ? 't-bad' : q.averageMs >= 100 ? 't-warn' : '') + '">' + fmtMs(q.averageMs) + '</td>' +
+                        '<td class="num ' + (q.maxMs >= 1000 ? 't-bad' : q.maxMs >= 500 ? 't-warn' : '') + '">' + fmtMs(q.maxMs) + '</td>' +
+                        '<td class="num">' + Math.round(q.totalMs) + '</td></tr>';
+                }).join('') : '<tr><td colspan="5" class="empty-row">No queries recorded yet.</td></tr>';
+
+                var events = db.recentEvents || [];
+                document.getElementById('tblDbEvents').innerHTML = events.length ? events.slice(0, 40).map(function (e) {
+                    return '<tr><td>' + esc(clock(e.timestampUtc)) + '</td>' +
+                        '<td><span class="kind kind-' + esc(e.kind) + '">' + esc(e.kind) + '</span></td>' +
+                        '<td class="num">' + fmtMs(e.durationMs) + '</td>' +
+                        '<td><code>' + esc(e.sql) + '</code>' + (e.message ? '<div class="t-bad">' + esc(e.message) + '</div>' : '') + '</td></tr>';
+                }).join('') : '<tr><td colspan="4" class="empty-row">No slow or failed commands.</td></tr>';
+            }
+
+            function renderRequests(health) {
+                var list = (health.statistics && health.statistics.longRunningRequests) || [];
+                document.getElementById('tblLongRequests').innerHTML = list.length ? list.map(function (r) {
+                    return '<tr><td><code>' + esc(r.method) + ' ' + esc(r.path) + '</code></td><td>' + esc(r.userName || 'anonymous') + '</td>' +
+                        '<td class="num t-bad">' + (r.elapsedMilliseconds / 1000).toFixed(1) + ' s</td></tr>';
+                }).join('') : '<tr><td colspan="3" class="empty-row">None.</td></tr>';
+            }
+
+            function renderClients(overview) {
+                var list = overview.clientReports || [];
+                document.getElementById('tblClients').innerHTML = list.length ? list.map(function (c) {
+                    var bad = c.signalRState && c.signalRState.toLowerCase() !== 'connected';
+                    return '<tr><td>' + esc(clock(c.timestampUtc)) + '</td><td>' + esc(c.user || 'anonymous') + '</td>' +
+                        '<td class="' + (bad ? 't-bad' : 't-ok') + '">' + esc(c.signalRState || '--') + (c.isOnline === false ? ' (offline)' : '') + '</td>' +
+                        '<td class="num ' + (c.heartbeatFailures ? 't-bad' : '') + '">' + c.heartbeatFailures + '</td>' +
+                        '<td class="num ' + (c.ajaxFailures ? 't-warn' : '') + '">' + c.ajaxFailures + '</td>' +
+                        '<td>' + esc(c.lastError || '') + '</td></tr>';
+                }).join('') : '<tr><td colspan="6" class="empty-row">No browser problems reported.</td></tr>';
+            }
+
+            function renderHistory(overview) {
+                var list = overview.issueHistory || [];
+                document.getElementById('tblIssueHistory').innerHTML = list.length ? list.map(function (e) {
+                    return '<tr><td>' + esc(new Date(e.timestampUtc).toLocaleString()) + '</td>' +
+                        '<td><span class="kind kind-' + esc(e.event) + '">' + esc(e.event) + '</span></td>' +
+                        '<td>' + esc(e.severity) + '</td><td>' + esc(e.category) + '</td><td>' + esc(e.title) + '</td></tr>';
+                }).join('') : '<tr><td colspan="5" class="empty-row">No issues have occurred since the app started.</td></tr>';
+            }
+
+            function renderEnvironment(health, overview) {
+                var env = health.environment || {}, h = health.health || {}, rt = overview.runtime || {};
+                document.getElementById('envMachine').textContent = env.machineName || '--';
+                document.getElementById('envAppVersion').textContent = env.applicationVersion || '--';
+                document.getElementById('envEnvironment').textContent = env.environmentName || '--';
+                document.getElementById('envOs').textContent = env.osVersion || '--';
+                document.getElementById('envRuntime').textContent = env.dotNetRuntimeVersion || '--';
+                document.getElementById('envPid').textContent = env.processId || '--';
+                document.getElementById('envUptime').textContent = duration(h.applicationUptimeSeconds);
+                document.getElementById('envQueue').textContent = (rt.threadPoolPendingWorkItems || 0) + ' queued';
+                document.getElementById('envThreads').textContent = (h.threadCount || 0) + ' / ' + (h.handleCount || 0);
+                document.getElementById('envGc').textContent = (h.gen0Collections || 0) + ' / ' + (h.gen1Collections || 0) + ' / ' + (h.gen2Collections || 0);
+            }
+
+            function renderStatus(health, overview) {
+                var status = health.statusLevel || 'Healthy';
+                var issues = overview.issues || [];
+                // the badge shows the worse of the freeze monitor level and the detected issues
+                if (status === 'Healthy' && issues.some(function (i) { return i.severity === 'Critical'; })) status = 'Critical';
+                else if (status === 'Healthy' && issues.some(function (i) { return i.severity === 'Warning'; })) status = 'Warning';
+
+                var badge = document.getElementById('lblStatusLevel');
+                badge.textContent = status;
+                badge.className = 'status-badge status-' + status.toLowerCase();
+            }
+
+            // ---------- loaders ----------
+            function refresh() {
+                if (paused) return;
+
+                Promise.all([fetchJson('/diagnostics/health'), fetchJson('/diagnostics/overview'), fetchJson('/diagnostics/ringbuffer')])
+                    .then(function (r) {
+                        var health = r[0], overview = r[1], ring = r[2] || [];
+                        document.getElementById('accessDenied').style.display = 'none';
+
+                        var series = {
+                            cpu: ring.map(function (s) { return s.cpuUsagePercent; }),
+                            mem: ring.map(function (s) { return s.workingSetBytes; }),
+                            tp: ring.map(function (s) { return s.threadPool ? s.threadPool.availableWorkerThreads : 0; }),
+                            sql: ring.map(function (s) { return s.sql ? s.sql.totalTimeMilliseconds : 0; }),
+                            pending: ring.map(function (s) { return s.pendingRequests; }),
+                            conn: ring.map(function (s) { return s.activeSignalRConnections; })
+                        };
+
+                        renderStatus(health, overview);
+                        renderIssues(overview);
+                        renderMetrics(health, overview, series);
+                        renderHub(overview, health);
+                        renderDb(overview);
+                        renderRequests(health);
+                        renderClients(overview);
+                        renderHistory(overview);
+                        renderEnvironment(health, overview);
+
+                        var lag = overview.monitorLagSeconds;
+                        document.getElementById('valLastUpdated').textContent =
+                            'Updated ' + new Date().toLocaleTimeString() + (lag != null ? ' (monitor sample ' + Math.round(lag) + 's old)' : '');
+                    })
+                    .catch(function (err) {
+                        if (err && err.message === 'forbidden') return;
+                        var badge = document.getElementById('lblStatusLevel');
+                        badge.textContent = 'Server not responding';
+                        badge.className = 'status-badge status-critical';
+                        document.getElementById('valLastUpdated').textContent = 'Last attempt ' + new Date().toLocaleTimeString() + ' failed';
+                    });
+            }
+
+            window.loadIncidents = function () {
+                fetchJson('/diagnostics/incidents').then(function (list) {
+                    var body = document.getElementById('tblIncidentsBody');
+                    if (!list || !list.length) {
+                        body.innerHTML = '<tr><td colspan="6" class="empty-row">No incidents captured.</td></tr>';
                         return;
                     }
+                    body.innerHTML = list.map(function (inc) {
+                        return '<tr><td><code>' + esc(inc.incidentId) + '</code></td>' +
+                            '<td>' + esc(new Date(inc.timestampUtc).toLocaleString()) + '</td>' +
+                            '<td>' + esc(inc.severity || 'Critical') + '</td>' +
+                            '<td>' + esc(inc.machineName || '--') + '</td>' +
+                            '<td>' + esc(inc.reason || '--') + '</td>' +
+                            '<td>' + (inc.capturedFiles ? inc.capturedFiles.length : 0) + ' files</td></tr>';
+                    }).join('');
+                }).catch(function () { /* handled by access-denied banner */ });
+            };
 
-                    list.forEach(function (inc) {
-                        const dateStr = new Date(inc.timestampUtc).toLocaleString();
-                        const fileCount = inc.capturedFiles ? inc.capturedFiles.length : 0;
-                        const row = `<tr>
-                            <td><code>${inc.incidentId}</code></td>
-                            <td>${dateStr}</td>
-                            <td><span class="badge bg-secondary">${inc.severity || 'Critical'}</span></td>
-                            <td>${inc.machineName || '--'}</td>
-                            <td>${inc.reason || '--'}</td>
-                            <td>${fileCount} files</td>
-                        </tr>`;
-                        $body.append(row);
-                    });
-                },
-                error: function (xhr) {
-                    console.error('Error loading incidents history:', xhr);
-                }
+            window.triggerManualIncident = function () {
+                if (!confirm('Capture a manual incident snapshot now?')) return;
+                var reason = prompt('Reason for this capture:', 'Manual diagnostic snapshot');
+                if (reason === null) return;
+
+                fetch('/diagnostics/incident/create?reason=' + encodeURIComponent(reason), { method: 'POST', credentials: 'same-origin' })
+                    .then(function (res) { return res.ok ? res.json() : res.text().then(function (t) { throw new Error(t || 'Server error'); }); })
+                    .then(function (data) { alert('Incident captured.\nIncident ID: ' + data.incidentId); window.loadIncidents(); })
+                    .catch(function (err) { alert('Failed to capture incident: ' + err.message); });
+            };
+
+            document.getElementById('btnPause').addEventListener('click', function () {
+                paused = !paused;
+                this.textContent = paused ? 'Resume' : 'Pause';
+                if (!paused) refresh();
             });
-        }
 
-        function triggerManualIncident() {
-            if (!confirm('Are you sure you want to trigger a manual incident snapshot?')) return;
-
-            const reason = prompt('Enter reason for manual capture:', 'Pre-restart manual diagnostic snapshot');
-            if (reason === null) return;
-
-            $.ajax({
-                url: '/diagnostics/incident/create?reason=' + encodeURIComponent(reason),
-                type: 'POST',
-                headers: {
-                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
-                },
-                success: function (data) {
-                    alert('Manual incident captured successfully!\nIncident ID: ' + data.incidentId);
-                    loadIncidents();
-                },
-                error: function (xhr) {
-                    alert('Failed to trigger manual incident capture: ' + (xhr.responseText || 'Server error'));
-                }
-            });
-        }
+            refresh();
+            window.loadIncidents();
+            setInterval(refresh, REFRESH_MS);
+            setInterval(window.loadIncidents, 15000);
+        })();
     </script>
 }

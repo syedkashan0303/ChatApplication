@@ -10,11 +10,13 @@ namespace SignalRMVC.CustomClasses
 
         private readonly ILogger<LoggingHubFilter> _logger;
         private readonly SignalRHealthService _signalRHealthService;
+        private readonly HubDiagnosticsService _hubDiagnostics;
 
-        public LoggingHubFilter(ILogger<LoggingHubFilter> logger, SignalRHealthService signalRHealthService)
+        public LoggingHubFilter(ILogger<LoggingHubFilter> logger, SignalRHealthService signalRHealthService, HubDiagnosticsService hubDiagnostics)
         {
             _logger = logger;
             _signalRHealthService = signalRHealthService;
+            _hubDiagnostics = hubDiagnostics;
         }
 
         public async ValueTask<object?> InvokeMethodAsync(
@@ -30,6 +32,7 @@ namespace SignalRMVC.CustomClasses
             {
                 var result = await next(invocationContext);
                 sw.Stop();
+                _hubDiagnostics.RecordInvocation(method, user, sw.Elapsed.TotalMilliseconds, null);
 
                 if (sw.ElapsedMilliseconds > SlowMethodThresholdMs)
                     _logger.LogWarning(
@@ -45,6 +48,7 @@ namespace SignalRMVC.CustomClasses
             catch (Exception ex)
             {
                 sw.Stop();
+                _hubDiagnostics.RecordInvocation(method, user, sw.Elapsed.TotalMilliseconds, ex);
                 _logger.LogError(ex,
                     "Hub Method Error | {HubMethod} | User: {Username} | Conn: {ConnId} | {ElapsedMs}ms",
                     method, user, connId, sw.ElapsedMilliseconds);

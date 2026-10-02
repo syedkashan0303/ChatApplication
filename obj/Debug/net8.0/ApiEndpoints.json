@@ -1,6 +1,6 @@
 [
   {
-    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsClientController",
     "Method": "PostBrowserDiagnostics",
     "RelativePath": "diagnostics/browser",
     "HttpMethod": "POST",
@@ -26,7 +26,7 @@
     "ReturnTypes": []
   },
   {
-    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsClientController",
     "Method": "Heartbeat",
     "RelativePath": "diagnostics/heartbeat",
     "HttpMethod": "GET",
@@ -85,6 +85,16 @@
         "IsRequired": true
       }
     ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "Method": "GetOverview",
+    "RelativePath": "diagnostics/overview",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
     "ReturnTypes": []
   },
   {

@@ -21,6 +21,10 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<CpuUsageService>();
         services.AddSingleton<SignalRHealthService>();
+        services.AddSingleton<HubDiagnosticsService>();
+        services.AddSingleton<DbDiagnosticsService>();
+        services.AddSingleton<DbDiagnosticsInterceptor>();
+        services.AddSingleton<DiagnosticsAnalyzer>();
         services.AddSingleton<RequestStatisticsService>();
         services.AddSingleton<SqlHealthChecker>();
         services.AddSingleton<SystemHealthCollector>();

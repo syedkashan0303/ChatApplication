@@ -10,6 +10,7 @@ public sealed class FreezeMonitorService : BackgroundService
     private readonly SqlHealthChecker _sqlHealthChecker;
     private readonly RingBufferService _ringBuffer;
     private readonly FreezeDetectionService _freezeDetectionService;
+    private readonly DiagnosticsAnalyzer _analyzer;
     private readonly IncidentWriterService _incidentWriterService;
     private readonly IOptionsMonitor<FreezeMonitorOptions> _options;
     private readonly ILogger _logger;
@@ -19,6 +20,7 @@ public sealed class FreezeMonitorService : BackgroundService
         SqlHealthChecker sqlHealthChecker,
         RingBufferService ringBuffer,
         FreezeDetectionService freezeDetectionService,
+        DiagnosticsAnalyzer analyzer,
         IncidentWriterService incidentWriterService,
         IOptionsMonitor<FreezeMonitorOptions> options,
         ILoggerFactory loggerFactory)
@@ -27,6 +29,7 @@ public sealed class FreezeMonitorService : BackgroundService
         _sqlHealthChecker = sqlHealthChecker;
         _ringBuffer = ringBuffer;
         _freezeDetectionService = freezeDetectionService;
+        _analyzer = analyzer;
         _incidentWriterService = incidentWriterService;
         _options = options;
         _logger = loggerFactory.CreateLogger("FreezeMonitor");
@@ -78,6 +81,9 @@ public sealed class FreezeMonitorService : BackgroundService
 
                 // Evaluate multi-condition freeze rules
                 var statusLevel = await _freezeDetectionService.EvaluateAsync(snapshot, stoppingToken);
+
+                // Derive human-readable issues and record when they open or resolve
+                _analyzer.Tick();
 
                 _logger.LogInformation(
                     "Health snapshot collected: Level={StatusLevel}, CPU={CpuUsagePercent}%, WorkingSet={WorkingSetBytes}, PendingRequests={PendingRequests}, SignalRConnections={SignalRConnections}, SqlHealthy={SqlHealthy}",

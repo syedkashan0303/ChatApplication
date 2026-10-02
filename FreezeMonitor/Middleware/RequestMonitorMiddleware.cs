@@ -24,10 +24,23 @@ public sealed class RequestMonitorMiddleware
         _logger = loggerFactory.CreateLogger("FreezeMonitor");
     }
 
+    // WebSockets (HTTP/1.1 upgrade or HTTP/2 CONNECT) and SignalR streaming transports stay open for as long as the
+    // user keeps the chat page open. Counting them would show every connected user as a stuck request.
+    private static bool IsLongLivedConnection(HttpContext context)
+    {
+        if (context.WebSockets.IsWebSocketRequest || HttpMethods.IsConnect(context.Request.Method))
+        {
+            return true;
+        }
+
+        var path = context.Request.Path;
+        return path.StartsWithSegments("/hubs") && !path.Value!.EndsWith("/negotiate", StringComparison.OrdinalIgnoreCase);
+    }
+
     public async Task InvokeAsync(HttpContext context)
     {
         var options = _options.CurrentValue;
-        if (!options.Enabled || context.WebSockets.IsWebSocketRequest)
+        if (!options.Enabled || IsLongLivedConnection(context))
         {
             await _next(context);
             return;

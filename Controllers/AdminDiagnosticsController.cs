@@ -7,7 +7,6 @@ namespace SignalRMVC.Controllers;
 [Route("Admin/Diagnostics")]
 public sealed class AdminDiagnosticsController : Controller
 {
-    [AllowAnonymous]
     [HttpGet]
     public IActionResult Index()
     {

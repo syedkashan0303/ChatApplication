@@ -17,6 +17,7 @@ namespace SignalRMVC
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<BasicChatHub> _logger;
         private readonly SignalRHealthService _signalRHealthService;
+        private readonly HubDiagnosticsService _hubDiagnostics;
 
         // ❌ Removed AppDbContext from constructor
         // Reason: DbContext is NOT thread-safe inside SignalR Hub
@@ -25,12 +26,14 @@ namespace SignalRMVC
             UserManager<ApplicationUser> userManager,
             IServiceScopeFactory scopeFactory,
             ILogger<BasicChatHub> logger,
-            SignalRHealthService signalRHealthService)
+            SignalRHealthService signalRHealthService,
+            HubDiagnosticsService hubDiagnostics)
         {
             _userManager = userManager;
             _scopeFactory = scopeFactory;
             _logger = logger;
             _signalRHealthService = signalRHealthService;
+            _hubDiagnostics = hubDiagnostics;
         }
 
         // =====================================================
@@ -42,6 +45,7 @@ namespace SignalRMVC
             {
                 AppHealthTracker.UpdateActivity();
                 AppHealthTracker.TrackConnect();
+                _hubDiagnostics.RecordConnect();
 
                 var userId = GetUserId();
                 _signalRHealthService.TrackConnected(Context.ConnectionId, userId);
@@ -56,6 +60,7 @@ namespace SignalRMVC
             catch (Exception ex)
             {
                 _logger.LogError(ex, "OnConnectedAsync failed | ConnId={ConnId}", Context.ConnectionId);
+                _hubDiagnostics.RecordHandledError("OnConnected", Context.User?.Identity?.Name, ex.Message);
                 await base.OnConnectedAsync();
             }
         }
@@ -67,6 +72,7 @@ namespace SignalRMVC
                 AppHealthTracker.UpdateActivity();
                 AppHealthTracker.TrackDisconnect();
                 _signalRHealthService.TrackDisconnected(Context.ConnectionId);
+                _hubDiagnostics.RecordDisconnect(Context.User?.Identity?.Name, exception);
 
                 _joinedGroupsByConnection.TryRemove(Context.ConnectionId, out _);
 
@@ -112,6 +118,7 @@ namespace SignalRMVC
                     Context.ConnectionId,
                     httpContext?.User?.Identity?.IsAuthenticated,
                     httpContext?.WebSockets?.IsWebSocketRequest);
+                _hubDiagnostics.RecordAuthFailure($"Unauthenticated hub call (transport websocket={httpContext?.WebSockets?.IsWebSocketRequest})");
                 throw new HubException("User is not authenticated.");
             }
 
@@ -217,6 +224,7 @@ namespace SignalRMVC
             }
             catch (Exception ex)
             {
+                _hubDiagnostics.RecordHandledError("EditMessage", Context.User?.Identity?.Name, ex.Message);
                 await LogAsync(userId, "EditMessage", ex.Message + " InnerException " + (ex.InnerException?.Message ?? ""));
                 await Clients.Caller.SendAsync("Error", $"Server error: {ex.Message}");
             }
@@ -284,6 +292,7 @@ namespace SignalRMVC
             }
             catch (Exception ex)
             {
+                _hubDiagnostics.RecordHandledError("DeleteMessage", Context.User?.Identity?.Name, ex.Message);
                 await LogAsync(userId, "DeleteMessage", ex.ToString());
                 await Clients.Caller.SendAsync("Error", $"Server error: {ex.Message}");
                 throw;
@@ -415,6 +424,7 @@ namespace SignalRMVC
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ToggleReaction failed | MessageId={MessageId}", messageId);
+                _hubDiagnostics.RecordHandledError("ToggleReaction", Context.User?.Identity?.Name, ex.Message);
                 await LogAsync(userId, "ToggleReaction", ex.Message + " InnerException " + (ex.InnerException?.Message ?? ""));
                 await Clients.Caller.SendAsync("Error", "Could not save reaction.");
             }
@@ -551,6 +561,7 @@ namespace SignalRMVC
             }
             catch (Exception ex)
             {
+                _hubDiagnostics.RecordHandledError("SendMessageToRoom", Context.User?.Identity?.Name, ex.Message);
                 await LogAsync(userId, "SendMessageToRoom", ex.Message + " InnerException " + (ex.InnerException?.Message ?? ""));
             }
         }
@@ -637,6 +648,7 @@ namespace SignalRMVC
             }
             catch (Exception ex)
             {
+                _hubDiagnostics.RecordHandledError("SendMessageToUser", Context.User?.Identity?.Name, ex.Message);
                 await LogAsync(userId, "SendMessageToUser", ex.Message + " InnerException " + (ex.InnerException?.Message ?? ""));
             }
         }
@@ -671,6 +683,7 @@ namespace SignalRMVC
             catch (Exception ex)
             {
                 _logger.LogError(ex, "MarkMessagesAsRead failed | RoomId={RoomId}", roomId);
+                _hubDiagnostics.RecordHandledError("MarkMessagesAsRead", Context.User?.Identity?.Name, ex.Message);
             }
         }
 
@@ -694,6 +707,7 @@ namespace SignalRMVC
             catch (Exception ex)
             {
                 _logger.LogError(ex, "P_To_P_MarkMessagesAsRead failed | UserId={UserId}", UserId);
+                _hubDiagnostics.RecordHandledError("P_To_P_MarkMessagesAsRead", Context.User?.Identity?.Name, ex.Message);
             }
         }
 

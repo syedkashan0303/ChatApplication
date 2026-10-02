@@ -21,11 +21,13 @@ var connectionString = builder.Configuration.GetConnectionString("AppDbContextCo
 //builder.Services.AddDbContext<AppDbContext>(options =>
 //    options.UseSqlServer(connectionString));
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
     options.UseSqlServer(connectionString, sql =>
     {
         sql.CommandTimeout(30); // 30 seconds
     })
+    // feeds the Diagnostics page (slow/failed query tracking)
+    .AddInterceptors(serviceProvider.GetRequiredService<SignalRMVC.FreezeMonitor.Services.DbDiagnosticsInterceptor>())
 );
 
 
@@ -178,14 +180,16 @@ app.UseExceptionHandler(errorApp =>
 });
 
 app.UseMiddleware<GlobalExceptionMiddleware>(); // 👈 Add this first
-app.UseFreezeMonitorRequestMonitoring();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseSerilogRequestLogging(options =>
 {
     // Log only slow or failed requests; routine 2xx requests are not worth the disk I/O
     options.GetLevel = (httpContext, elapsedMs, ex) =>
-        ex != null || httpContext.Response.StatusCode >= 500 ? Serilog.Events.LogEventLevel.Error
+        // WebSocket / streaming hub connections last as long as the chat page is open; their duration is not a problem
+        ex == null && httpContext.Request.Path.StartsWithSegments("/hubs") && !httpContext.Request.Path.Value!.EndsWith("/negotiate", StringComparison.OrdinalIgnoreCase)
+            ? Serilog.Events.LogEventLevel.Debug
+        : ex != null || httpContext.Response.StatusCode >= 500 ? Serilog.Events.LogEventLevel.Error
         : httpContext.Response.StatusCode >= 400 || elapsedMs > 2000 ? Serilog.Events.LogEventLevel.Warning
         : Serilog.Events.LogEventLevel.Debug;
 });
@@ -194,6 +198,8 @@ app.UseSerilogRequestLogging(options =>
 app.UseRouting();
 
 app.UseAuthentication(); // ✅ Important for Identity
+// After authentication so long-running requests show the real user name (not "anonymous")
+app.UseFreezeMonitorRequestMonitoring();
 app.UseAuthorization();
 
 // Routing

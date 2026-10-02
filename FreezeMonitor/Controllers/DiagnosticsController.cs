@@ -18,6 +18,9 @@ public sealed class DiagnosticsController : ControllerBase
     private readonly IncidentWriterService _incidentWriterService;
     private readonly SystemHealthCollector _healthCollector;
     private readonly FreezeDetectionService _freezeDetectionService;
+    private readonly DiagnosticsAnalyzer _analyzer;
+    private readonly HubDiagnosticsService _hubDiagnostics;
+    private readonly DbDiagnosticsService _dbDiagnostics;
     private readonly IOptionsMonitor<FreezeMonitorOptions> _options;
     private readonly ILogger<DiagnosticsController> _logger;
 
@@ -28,6 +31,9 @@ public sealed class DiagnosticsController : ControllerBase
         IncidentWriterService incidentWriterService,
         SystemHealthCollector healthCollector,
         FreezeDetectionService freezeDetectionService,
+        DiagnosticsAnalyzer analyzer,
+        HubDiagnosticsService hubDiagnostics,
+        DbDiagnosticsService dbDiagnostics,
         IOptionsMonitor<FreezeMonitorOptions> options,
         ILogger<DiagnosticsController> logger)
     {
@@ -37,6 +43,9 @@ public sealed class DiagnosticsController : ControllerBase
         _incidentWriterService = incidentWriterService;
         _healthCollector = healthCollector;
         _freezeDetectionService = freezeDetectionService;
+        _analyzer = analyzer;
+        _hubDiagnostics = hubDiagnostics;
+        _dbDiagnostics = dbDiagnostics;
         _options = options;
         _logger = logger;
     }
@@ -65,36 +74,34 @@ public sealed class DiagnosticsController : ControllerBase
         });
     }
 
-    [HttpGet("heartbeat")]
-    public IActionResult Heartbeat()
+    // One call for the whole Diagnostics page: detected issues + hub / database / browser detail.
+    [HttpGet("overview")]
+    public IActionResult GetOverview()
     {
         if (!DiagnosticsEnabled())
         {
             return NotFound();
         }
 
-        _freezeDetectionService.RecordHeartbeatSuccess();
-        return Ok(new { status = "healthy", timestamp = DateTimeOffset.UtcNow });
-    }
+        var nowUtc = DateTimeOffset.UtcNow;
+        var latest = _ringBuffer.GetLatest();
 
-    [HttpPost("browser")]
-    public IActionResult PostBrowserDiagnostics([FromBody] BrowserDiagnosticsPayload payload)
-    {
-        if (!DiagnosticsEnabled())
+        return Ok(new
         {
-            return NotFound();
-        }
-
-        if (payload.ConsecutiveHeartbeatFailures > 0)
-        {
-            _freezeDetectionService.RecordHeartbeatFailure();
-        }
-
-        _logger.LogWarning(
-            "Browser diagnostics alert received from Client {ClientId} at {Url}. Errors: {Errors}, AJAX Failures: {AjaxFailures}, ConsecutiveHeartbeatFailures: {HeartbeatFailures}, SignalRState: {SignalRState}",
-            payload.ClientId, payload.Url, payload.UnhandledErrorsCount, payload.AjaxFailuresCount, payload.ConsecutiveHeartbeatFailures, payload.SignalRState);
-
-        return Ok(new { status = "recorded" });
+            generatedAtUtc = nowUtc,
+            monitorLagSeconds = latest == null ? (double?)null : Math.Round((nowUtc - latest.TimestampUtc).TotalSeconds, 1),
+            issues = _analyzer.GetCurrentIssues(),
+            issueHistory = _analyzer.GetHistory(),
+            hub = _hubDiagnostics.GetSnapshot(),
+            database = _dbDiagnostics.GetSnapshot(),
+            clientReports = _hubDiagnostics.GetClientReports(TimeSpan.FromMinutes(10)),
+            runtime = new
+            {
+                threadPoolPendingWorkItems = ThreadPool.PendingWorkItemCount,
+                threadPoolCompletedWorkItems = ThreadPool.CompletedWorkItemCount,
+                lockContentions = System.Threading.Monitor.LockContentionCount
+            }
+        });
     }
 
     [HttpGet("statistics")]
