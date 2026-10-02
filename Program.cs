@@ -181,7 +181,14 @@ app.UseMiddleware<GlobalExceptionMiddleware>(); // 👈 Add this first
 app.UseFreezeMonitorRequestMonitoring();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-app.UseSerilogRequestLogging();
+app.UseSerilogRequestLogging(options =>
+{
+    // Log only slow or failed requests; routine 2xx requests are not worth the disk I/O
+    options.GetLevel = (httpContext, elapsedMs, ex) =>
+        ex != null || httpContext.Response.StatusCode >= 500 ? Serilog.Events.LogEventLevel.Error
+        : httpContext.Response.StatusCode >= 400 || elapsedMs > 2000 ? Serilog.Events.LogEventLevel.Warning
+        : Serilog.Events.LogEventLevel.Debug;
+});
 //app.UseMiddleware<ResponseTimeMiddleware>();
 
 app.UseRouting();

@@ -3,7 +3,6 @@ namespace SignalRMVC.Controllers
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Identity;
     using Microsoft.AspNetCore.Mvc;
-    using Microsoft.AspNetCore.SignalR;
     using Microsoft.EntityFrameworkCore;
     using SignalRMVC.Areas.Identity.Data;
     using SignalRMVC.CustomClasses;
@@ -15,18 +14,15 @@ namespace SignalRMVC.Controllers
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly IHubContext<BasicChatHub> _basicChatHub;
         private readonly ILogger<HomeController> _logger;
 
         public HomeController(
             IServiceScopeFactory scopeFactory,
             UserManager<ApplicationUser> userManager,
-            IHubContext<BasicChatHub> basicChatHub,
             ILogger<HomeController> logger)
         {
             _scopeFactory = scopeFactory;
             _userManager = userManager;
-            _basicChatHub = basicChatHub;
             _logger = logger;
         }
 
@@ -46,189 +42,6 @@ namespace SignalRMVC.Controllers
             }
 
             return View(model);
-        }
-
-        // =====================================================
-        // Send message to all
-        // =====================================================
-        [HttpGet("SendMessageToAll")]
-        [Authorize]
-        public async Task<IActionResult> SendMessageToAll(string user, string message)
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-            var senderUser = await _userManager.FindByNameAsync(user);
-
-            var chatMessage = new ChatMessage
-            {
-                SenderId = senderUser?.Id,
-                ReceiverId = null,
-                Message = message,
-                GroupName = null,
-                CreatedOn = DateTime.Now
-            };
-
-            _db.ChatMessages.Add(chatMessage);
-            await _db.SaveChangesAsync();
-
-            await _basicChatHub.Clients.All.SendAsync("MessageReceived", user, message);
-            return Ok();
-        }
-
-        // =====================================================
-        // Send message to receiver
-        // =====================================================
-        [HttpGet("SendMessageToReceiver")]
-        [Authorize]
-        public async Task<IActionResult> SendMessageToReceiver(string sender, string receiver, string message)
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-            var userId = await _db.Users
-                .Where(u => u.Email.ToLower() == receiver.ToLower())
-                .Select(u => u.Id)
-                .FirstOrDefaultAsync();
-
-            if (!string.IsNullOrEmpty(userId))
-            {
-                var senderUser = await _userManager.FindByNameAsync(sender);
-                var receiverUser = await _userManager.FindByEmailAsync(receiver);
-
-                if (receiverUser != null)
-                {
-                    var chatMessage = new ChatMessage
-                    {
-                        SenderId = senderUser?.Id,
-                        ReceiverId = receiverUser.Id,
-                        Message = message,
-                        CreatedOn = DateTime.Now
-                    };
-
-                    _db.ChatMessages.Add(chatMessage);
-                    await _db.SaveChangesAsync();
-                }
-
-                await _basicChatHub.Clients.User(userId).SendAsync("MessageReceived", sender, message);
-            }
-
-            return Ok();
-        }
-
-        // =====================================================
-        // Send message to group
-        // =====================================================
-        [HttpPost("SendMessageToGroup")]
-        [Authorize]
-        public async Task<IActionResult> SendMessageToGroup([FromForm] string user, [FromForm] string room, [FromForm] string message, [FromForm] int replyToMessageId = 0)
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-            var senderUser = await _userManager.FindByNameAsync(user);
-
-            if (senderUser != null)
-            {
-                string replyToMessageSender = string.Empty;
-                string? replyToMessageText = null;
-                bool replyToMessageDeleted = false;
-
-                if (replyToMessageId > 0)
-                {
-                    var parentReplyMessage = await _db.ChatMessages
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(m => m.Id == replyToMessageId && m.GroupName == room);
-
-                    if (parentReplyMessage == null)
-                    {
-                        return BadRequest("Reply target not found.");
-                    }
-
-                    var replySender = await _userManager.FindByIdAsync(parentReplyMessage.SenderId ?? string.Empty);
-                    replyToMessageSender = replySender?.UserName ?? replySender?.FullName ?? string.Empty;
-                    replyToMessageText = parentReplyMessage.IsDelete ? "Message deleted" : parentReplyMessage.Message;
-                    replyToMessageDeleted = parentReplyMessage.IsDelete;
-                }
-
-                var chatMessage = new ChatMessage
-                {
-                    SenderId = senderUser.Id,
-                    ReceiverId = null,
-                    Message = message,
-                    GroupName = room,
-                    ReplyToMessageId = replyToMessageId,
-                    CreatedOn = DateTime.Now
-                };
-
-                var roomObj = await _db.ChatRoom.FirstOrDefaultAsync(r => r.Name == room);
-                var recipientIds = new List<string>();
-
-                if (roomObj != null)
-                {
-                    recipientIds = await _db.GroupUserMapping
-                        .AsNoTracking()
-                        .Where(g => g.GroupId == roomObj.Id && g.UserId != senderUser.Id && g.Active)
-                        .Select(g => g.UserId)
-                        .ToListAsync();
-
-                    var readStatuses = recipientIds.Select(recipientId => new ChatMessageReadStatus
-                    {
-                        ChatMessage = chatMessage,
-                        UserId = recipientId,
-                        IsRead = false,
-                        CreatedOn = DateTime.Now
-                    }).ToList();
-
-                    _db.ChatMessageReadStatuses.AddRange(readStatuses);
-                }
-
-                _db.ChatMessages.Add(chatMessage);
-                await _db.SaveChangesAsync();
-
-                var messageId = chatMessage.Id;
-                var messageTime = chatMessage.CreatedOn.HasValue
-                    ? chatMessage.CreatedOn.Value.ToString("dd-MM-yy HH:mm")
-                    : "";
-
-                object? replyMessageDto = replyToMessageId > 0
-                    ? new
-                    {
-                        id = replyToMessageId,
-                        message = replyToMessageText,
-                        senderName = replyToMessageSender
-                    }
-                    : null;
-
-                var messageDto = new
-                {
-                    id = messageId,
-                    senderId = senderUser.Id,
-                    senderName = senderUser.UserName ?? user,
-                    message,
-                    messageTime,
-                    receiver = room,
-                    isGroup = true,
-                    replyToMessageId,
-                    replyToMessageSender,
-                    replyToMessageText,
-                    replyToMessageDeleted,
-                    replyMessage = replyMessageDto
-                };
-
-                await _basicChatHub.Clients.Group(room).SendAsync("MessageReceived", messageDto);
-
-                if (roomObj != null)
-                {
-                    foreach (var recipientId in recipientIds)
-                    {
-                        await _basicChatHub.Clients.User(recipientId)
-                            .SendAsync("ReceiveUnreadDelta", roomObj.Id.ToString(), room, 1, true);
-                    }
-                }
-            }
-
-            return Ok();
         }
 
         // =====================================================
@@ -366,35 +179,6 @@ namespace SignalRMVC.Controllers
 
                 return StatusCode(500, "Something went wrong");
             }
-        }
-
-        // =====================================================
-        // Edit Message (Controller)
-        // =====================================================
-        [HttpPost]
-        [Authorize]
-        public async Task<IActionResult> EditMessage(int id, string newContent)
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-            if (string.IsNullOrWhiteSpace(newContent))
-                return BadRequest("Message cannot be empty.");
-
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var message = await _db.ChatMessages.FindAsync(id);
-
-            if (message == null)
-                return NotFound("Message not found.");
-
-            if (message.SenderId != userId)
-                return Forbid("You can only edit your own messages.");
-
-            message.Message = newContent;
-            await _db.SaveChangesAsync();
-
-            return Ok();
         }
 
         // =====================================================

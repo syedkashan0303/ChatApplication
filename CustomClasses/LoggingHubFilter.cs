@@ -36,7 +36,7 @@ namespace SignalRMVC.CustomClasses
                         "SLOW Hub Method | {HubMethod} | User: {Username} | Conn: {ConnId} | {ElapsedMs}ms",
                         method, user, connId, sw.ElapsedMilliseconds);
                 else
-                    _logger.LogInformation(
+                    _logger.LogDebug(
                         "Hub Method | {HubMethod} | User: {Username} | {ElapsedMs}ms",
                         method, user, sw.ElapsedMilliseconds);
 

@@ -608,13 +608,5 @@ namespace SignalRMVC.Controllers
         {
             return HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         }
-
-        // ⚠️ NOTE: This method can block threads if called anywhere
-        // Keep only for testing, DO NOT use in production
-        public async Task<string> DelayResponse()
-        {
-            await Task.Delay(TimeSpan.FromMinutes(1));
-            return "This response was intentionally delayed for testing.";
-        }
     }
 }
