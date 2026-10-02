@@ -1022,6 +1022,21 @@
     }
 
     // ==========================
+    // ✅ KEEP SESSION ALIVE (SignalR traffic does not renew the login cookie)
+    // ==========================
+    const KEEP_ALIVE_INTERVAL_MS = 20 * 60 * 1000;
+
+    setInterval(function () {
+        fetch("/Home/KeepAlive", { credentials: "same-origin", headers: { "Accept": "application/json" } })
+            .then(function (res) {
+                if (res.status === 401) {
+                    showConnectionBanner("Your session has expired. Please refresh the page and log in again.", "danger");
+                }
+            })
+            .catch(function () { /* network blip: the next tick will retry */ });
+    }, KEEP_ALIVE_INTERVAL_MS);
+
+    // ==========================
     // ✅ SERVER EVENT: RedirectToLogin
     // ==========================
     connectionChat.on("RedirectToLogin", () => {

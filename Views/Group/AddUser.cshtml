@@ -87,7 +87,7 @@
                 <!-- Password Field with Toggle -->
                 <div class="mb-3 password-container">
                     <label asp-for="PasswordHash" class="form-label required-field">Password</label>
-                    <input type="password" class="form-control passtotext" asp-for="PasswordHash" id="passwordField" required>
+                    <input type="password" data-no-pw-toggle class="form-control passtotext" asp-for="PasswordHash" id="passwordField" required>
                     <i class="fas fa-eye password-toggle" id="togglePassword"></i>
                     <span asp-validation-for="PasswordHash" class="text-danger"></span>
                 </div>
@@ -95,7 +95,7 @@
                 <!-- Confirm Password Field -->
                 <div class="mb-3">
                     <label for="ConfirmPassword" class="form-label required-field">Confirm Password</label>
-                    <input type="password" class="form-control passtotext" id="ConfirmPassword" name="ConfirmPassword" required>
+                    <input type="password" data-no-pw-toggle class="form-control passtotext" id="ConfirmPassword" name="ConfirmPassword" required>
                     <span id="confirmPasswordError" class="text-danger"></span>
                 </div>
 

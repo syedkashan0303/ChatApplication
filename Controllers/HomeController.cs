@@ -253,6 +253,14 @@ namespace SignalRMVC.Controllers
         }
 
         // =====================================================
+        // Keep-alive: an authenticated HTTP request renews the sliding auth cookie.
+        // Chat traffic goes over SignalR, which never touches the cookie, so the page calls this periodically.
+        // =====================================================
+        [HttpGet]
+        [Authorize]
+        public IActionResult KeepAlive() => NoContent();
+
+        // =====================================================
         // Font size (per user, saved in DB)
         // =====================================================
         [HttpPost]
