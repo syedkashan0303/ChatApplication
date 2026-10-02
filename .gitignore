@@ -89,3 +89,12 @@
 /bin/Release/net8.0/Incidents
 /.freebuff
 /.freebuff
+/obj/Release/net8.0/SignalRMVC.GeneratedMSBuildEditorConfig.editorconfig
+/obj/Release/net8.0/staticwebassets.build.endpoints.json
+/obj/Release/net8.0/staticwebassets.build.json
+/obj/Release/net8.0/staticwebassets.publish.endpoints.json
+/obj/Release/net8.0/staticwebassets.publish.json
+/obj/Release/net8.0/PubTmp/Out/SignalRMVC.staticwebassets.endpoints.json
+/bin/Release/net8.0/SignalRMVC.staticwebassets.endpoints.json
+/obj/Release/net8.0
+/bin/Release/net8.0
