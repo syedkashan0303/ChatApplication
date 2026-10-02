@@ -99,6 +99,27 @@
   },
   {
     "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
+    "Method": "RestartApplication",
+    "RelativePath": "diagnostics/restart",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "mode",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "reason",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "SignalRMVC.FreezeMonitor.Controllers.DiagnosticsController",
     "Method": "GetRingBuffer",
     "RelativePath": "diagnostics/ringbuffer",
     "HttpMethod": "GET",

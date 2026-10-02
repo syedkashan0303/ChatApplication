@@ -14,6 +14,10 @@ public sealed class FreezeMonitorOptions
     public string IncidentFolder { get; set; } = "Incidents";
     public bool EnableDiagnosticsApi { get; set; } = true;
 
+    // Working-set thresholds used by the Diagnostics page (warning banner + "Restart application" emphasis)
+    public int MemoryWarningMegabytes { get; set; } = 1500;
+    public int MemoryCriticalMegabytes { get; set; } = 3000;
+
     public FreezeDetectionOptions FreezeDetection { get; set; } = new();
     public ProcDumpOptions ProcDump { get; set; } = new();
     public SmtpOptions SMTP { get; set; } = new();

@@ -21,6 +21,7 @@ public sealed class DiagnosticsController : ControllerBase
     private readonly DiagnosticsAnalyzer _analyzer;
     private readonly HubDiagnosticsService _hubDiagnostics;
     private readonly DbDiagnosticsService _dbDiagnostics;
+    private readonly IHostApplicationLifetime _lifetime;
     private readonly IOptionsMonitor<FreezeMonitorOptions> _options;
     private readonly ILogger<DiagnosticsController> _logger;
 
@@ -34,6 +35,7 @@ public sealed class DiagnosticsController : ControllerBase
         DiagnosticsAnalyzer analyzer,
         HubDiagnosticsService hubDiagnostics,
         DbDiagnosticsService dbDiagnostics,
+        IHostApplicationLifetime lifetime,
         IOptionsMonitor<FreezeMonitorOptions> options,
         ILogger<DiagnosticsController> logger)
     {
@@ -46,6 +48,7 @@ public sealed class DiagnosticsController : ControllerBase
         _analyzer = analyzer;
         _hubDiagnostics = hubDiagnostics;
         _dbDiagnostics = dbDiagnostics;
+        _lifetime = lifetime;
         _options = options;
         _logger = logger;
     }
@@ -95,6 +98,16 @@ public sealed class DiagnosticsController : ControllerBase
             hub = _hubDiagnostics.GetSnapshot(),
             database = _dbDiagnostics.GetSnapshot(),
             clientReports = _hubDiagnostics.GetClientReports(TimeSpan.FromMinutes(10)),
+            control = new
+            {
+                workingSetMegabytes = latest == null ? 0 : latest.WorkingSetBytes / (1024 * 1024),
+                memoryWarningMegabytes = _options.CurrentValue.MemoryWarningMegabytes,
+                memoryCriticalMegabytes = _options.CurrentValue.MemoryCriticalMegabytes,
+                hostedInIis = IsHostedInIis(),
+                appPoolName = Environment.GetEnvironmentVariable("APP_POOL_ID"),
+                processId = Environment.ProcessId,
+                processStartTimeUtc = System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime()
+            },
             runtime = new
             {
                 threadPoolPendingWorkItems = ThreadPool.PendingWorkItemCount,
@@ -179,6 +192,88 @@ public sealed class DiagnosticsController : ControllerBase
         _logger.LogInformation("Manual incident capture triggered successfully by user {User}. Incident ID: {IncidentId}", User.Identity?.Name, report.IncidentId);
         return Ok(report);
     }
+
+    // =====================================================
+    // Application control: restart the app (IIS starts a fresh worker process on the next request).
+    //  graceful = StopApplication (lets in-flight requests finish, up to the host shutdown timeout)
+    //  force    = exit the process immediately (use when graceful does not work / memory is exhausted)
+    // A frozen process may not be able to answer this request at all; then recycle the app pool in IIS Manager.
+    // =====================================================
+    [HttpPost("restart")]
+    public async Task<IActionResult> RestartApplication(
+        [FromQuery] string mode = "graceful",
+        [FromQuery] string? reason = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!DiagnosticsEnabled())
+        {
+            return NotFound();
+        }
+
+        // Custom header = cannot be sent by a cross-site form/link, which blocks CSRF-triggered restarts.
+        if (!Request.Headers.ContainsKey("X-Diagnostics-Action"))
+        {
+            return BadRequest(new { message = "Missing X-Diagnostics-Action header." });
+        }
+
+        var force = string.Equals(mode, "force", StringComparison.OrdinalIgnoreCase);
+        if (!force && !string.Equals(mode, "graceful", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { message = "mode must be 'graceful' or 'force'." });
+        }
+
+        var user = User.Identity?.Name ?? "unknown";
+        var workingSetMb = Environment.WorkingSet / (1024 * 1024);
+        var actualReason = string.IsNullOrWhiteSpace(reason) ? "No reason given" : reason.Trim();
+        if (actualReason.Length > 200) actualReason = actualReason[..200];
+
+        _logger.LogCritical(
+            "APPLICATION RESTART requested by {User}. Mode={Mode} WorkingSetMB={WorkingSetMb} Hosted in IIS={Iis}. Reason: {Reason}",
+            user, force ? "force" : "graceful", workingSetMb, IsHostedInIis(), actualReason);
+
+        // Keep a snapshot of the state we are about to throw away (best effort, bounded to 10s).
+        string? incidentId = null;
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(10));
+            var report = await _incidentWriterService.WriteIncidentAsync(
+                $"Manual {(force ? "force" : "graceful")} restart by {user} (working set {workingSetMb} MB): {actualReason}",
+                HealthStatusLevel.Warning,
+                cancellationToken: timeout.Token);
+            incidentId = report.IncidentId;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not capture an incident bundle before restart; continuing.");
+        }
+
+        // Small delay so this HTTP response reaches the browser first.
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1.5));
+            if (force)
+            {
+                Environment.Exit(0);
+            }
+            else
+            {
+                _lifetime.StopApplication();
+            }
+        });
+
+        return Ok(new
+        {
+            status = "restarting",
+            mode = force ? "force" : "graceful",
+            incidentId,
+            willRestartAutomatically = IsHostedInIis()
+        });
+    }
+
+    // IIS / IIS Express set APP_POOL_ID for the worker process; plain Kestrel (dotnet run / exe) does not.
+    private static bool IsHostedInIis() =>
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("APP_POOL_ID"));
 
     private bool DiagnosticsEnabled()
     {

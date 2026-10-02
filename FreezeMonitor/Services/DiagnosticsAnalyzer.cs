@@ -344,12 +344,13 @@ public sealed class DiagnosticsAnalyzer
                     Add("cpu", Warning, "CPU", "CPU usage is high", $"Average {avgCpu:F0}% over the last {cpuWindow.Count} samples.", "Keep an eye on it; this will worsen with more users.");
             }
 
-            const long gb = 1024L * 1024 * 1024;
-            if (latest.WorkingSetBytes > 2 * gb)
+            var workingSetMb = latest.WorkingSetBytes / (1024 * 1024);
+            if (workingSetMb >= options.MemoryWarningMegabytes)
             {
-                Add("mem-high", Warning, "Memory", "Process memory is high",
-                    $"Working set {latest.WorkingSetBytes / (1024 * 1024)} MB (managed {latest.ManagedMemoryBytes / (1024 * 1024)} MB).",
-                    "Restart during a quiet window if it keeps rising; look for large in-memory collections.");
+                var criticalMemory = workingSetMb >= options.MemoryCriticalMegabytes;
+                Add("mem-high", criticalMemory ? Critical : Warning, "Memory", criticalMemory ? "Process memory is critically high" : "Process memory is high",
+                    $"Working set {workingSetMb} MB (managed {latest.ManagedMemoryBytes / (1024 * 1024)} MB). Limits: warning {options.MemoryWarningMegabytes} MB, critical {options.MemoryCriticalMegabytes} MB.",
+                    "Use 'Application Control' on this page to restart the app in a quiet window. If it keeps climbing after restarts, look for large in-memory collections.");
             }
 
             if (recent.Count >= 20)

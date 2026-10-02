@@ -161,6 +161,30 @@
         font-weight: 600;
     }
 
+    /* ---- application control ---- */
+    .ctl-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+    .ctl-mem { min-width: 260px; flex: 1 1 260px; }
+    .ctl-actions { flex: 2 1 320px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .ctl-help { flex-basis: 100%; line-height: 1.5; }
+    .btn-restart { background: #92400e; border-color: #d97706; color: #fff; }
+    .btn-restart:hover { background: #b45309; }
+    .btn-kill { background: #7f1d1d; border-color: #dc2626; color: #fff; }
+    .btn-kill:hover { background: #991b1b; }
+    .btn-diag:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .mem-bar { position: relative; height: 10px; background: #0f172a; border-radius: 6px; margin-top: 8px; overflow: visible; }
+    .mem-bar-fill { height: 100%; width: 0; background: #34d399; border-radius: 6px; transition: width 0.4s ease; }
+    .mem-bar-fill.warn { background: #f59e0b; }
+    .mem-bar-fill.crit { background: #ef4444; }
+    .mem-mark { position: absolute; top: -3px; width: 2px; height: 16px; background: #f59e0b; }
+    .mem-mark-crit { background: #ef4444; }
+
+    .memory-alert { display: none; padding: 12px 16px; border-radius: 8px; margin-bottom: 14px; font-weight: 600; }
+    .memory-alert.warn { display: block; background: #451a03; border: 1px solid #d97706; color: #fde68a; }
+    .memory-alert.crit { display: block; background: #450a0a; border: 1px solid #dc2626; color: #fecaca; animation: pulse 1.5s infinite; }
+
+    .restart-overlay { display: none; margin-top: 14px; padding: 12px 16px; border-radius: 8px; background: #1e3a5f; color: #bfdbfe; font-weight: 600; }
+
     /* ---- metrics ---- */
     .metrics-grid {
         display: grid;
@@ -266,6 +290,36 @@
         </div>
         <div class="issue-summary" id="issueSummary"></div>
         <div id="issuesList"><div class="empty-row">Loading...</div></div>
+    </div>
+
+    <!-- Application control -->
+    <div class="section-card" id="controlCard">
+        <div class="section-title">
+            <span><i class="fa-solid fa-power-off me-2"></i> Application Control</span>
+            <span class="section-sub" id="ctlHosting"></span>
+        </div>
+        <div class="memory-alert" id="memoryAlert"></div>
+        <div class="ctl-row">
+            <div class="ctl-mem">
+                <div class="metric-label">Memory (working set)</div>
+                <div class="metric-value" id="ctlMemValue">-- MB</div>
+                <div class="mem-bar"><div class="mem-bar-fill" id="ctlMemBar"></div><span class="mem-mark" id="ctlMemWarnMark"></span><span class="mem-mark mem-mark-crit" id="ctlMemCritMark"></span></div>
+                <div class="metric-sub" id="ctlMemSub"></div>
+            </div>
+            <div class="ctl-actions">
+                <button type="button" class="btn-diag btn-restart" id="btnRestart">
+                    <i class="fa-solid fa-rotate me-1"></i> Restart application
+                </button>
+                <button type="button" class="btn-diag btn-kill" id="btnKill">
+                    <i class="fa-solid fa-skull-crossbones me-1"></i> Kill process
+                </button>
+                <div class="section-sub ctl-help">
+                    <b>Restart</b> lets running requests finish, then stops the app. <b>Kill</b> ends the process immediately (use if Restart does not work).
+                    Chat clients reconnect automatically; anyone mid-request gets an error and can retry.
+                </div>
+            </div>
+        </div>
+        <div class="restart-overlay" id="restartStatus"></div>
     </div>
 
     <!-- Core metrics -->
@@ -636,6 +690,104 @@
                 badge.className = 'status-badge status-' + status.toLowerCase();
             }
 
+            // ---------- application control ----------
+            var controlInfo = null;
+
+            function renderControl(overview) {
+                var c = overview.control || {};
+                controlInfo = c;
+
+                var mem = c.workingSetMegabytes || 0, warn = c.memoryWarningMegabytes || 1, crit = c.memoryCriticalMegabytes || 1;
+                var scaleMax = Math.max(crit * 1.2, mem * 1.05);
+                var level = mem >= crit ? 'crit' : mem >= warn ? 'warn' : '';
+
+                document.getElementById('ctlMemValue').textContent = mem + ' MB';
+                var bar = document.getElementById('ctlMemBar');
+                bar.style.width = Math.min(100, mem / scaleMax * 100) + '%';
+                bar.className = 'mem-bar-fill ' + level;
+                document.getElementById('ctlMemWarnMark').style.left = (warn / scaleMax * 100) + '%';
+                document.getElementById('ctlMemCritMark').style.left = (crit / scaleMax * 100) + '%';
+                document.getElementById('ctlMemSub').textContent = 'Warning at ' + warn + ' MB, critical at ' + crit + ' MB';
+
+                var alertBox = document.getElementById('memoryAlert');
+                alertBox.className = 'memory-alert' + (level ? ' ' + level : '');
+                alertBox.textContent = level === 'crit'
+                    ? 'Memory is critically high (' + mem + ' MB). Restart the application as soon as users can tolerate a short interruption.'
+                    : level === 'warn' ? 'Memory is high (' + mem + ' MB). Consider restarting the application during a quiet period.' : '';
+
+                document.getElementById('ctlHosting').textContent = c.hostedInIis
+                    ? 'Hosted in IIS' + (c.appPoolName ? ' (app pool: ' + c.appPoolName + ')' : '') + ' - restarts automatically on the next request'
+                    : 'NOT hosted in IIS - the process will stop and will NOT start again by itself';
+            }
+
+            function restartApp(mode) {
+                var force = mode === 'force';
+                var hostNote = (controlInfo && controlInfo.hostedInIis) ? '' : '\n\nWARNING: the app is not hosted in IIS, so it will NOT come back automatically.';
+
+                if (force) {
+                    var typed = prompt('Kill process: the app ends immediately and everyone is disconnected.' + hostNote + '\n\nType KILL to confirm:');
+                    if (typed !== 'KILL') return;
+                } else if (!confirm('Restart the application?\n\nRunning requests are allowed to finish, then the app stops. Chat clients reconnect automatically.' + hostNote)) {
+                    return;
+                }
+
+                var reason = prompt('Reason (saved in the log and the incident snapshot):', controlInfo && controlInfo.workingSetMegabytes >= controlInfo.memoryWarningMegabytes ? 'High memory usage' : 'Manual restart');
+                if (reason === null) return;
+
+                var startTime = controlInfo ? controlInfo.processStartTimeUtc : null;
+                var status = document.getElementById('restartStatus');
+                var btns = [document.getElementById('btnRestart'), document.getElementById('btnKill')];
+                btns.forEach(function (b) { b.disabled = true; });
+                status.style.display = 'block';
+                status.textContent = 'Saving a diagnostic snapshot and sending the restart request...';
+                paused = true;
+
+                fetch('/diagnostics/restart?mode=' + mode + '&reason=' + encodeURIComponent(reason), {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'X-Diagnostics-Action': 'restart', 'Accept': 'application/json' }
+                })
+                    .then(function (res) { return res.ok ? res.json() : res.text().then(function (t) { throw new Error(t || ('HTTP ' + res.status)); }); })
+                    .then(function (data) {
+                        status.textContent = 'Restarting' + (data.incidentId ? ' (snapshot ' + data.incidentId + ' saved)' : '') + '... this page reloads when the app is back.';
+                        waitForRestart(startTime, data.willRestartAutomatically);
+                    })
+                    .catch(function (err) {
+                        paused = false;
+                        btns.forEach(function (b) { b.disabled = false; });
+                        status.textContent = 'Restart request failed: ' + err.message;
+                    });
+            }
+
+            function waitForRestart(oldStartTime, willRestart) {
+                var status = document.getElementById('restartStatus');
+                if (!willRestart) {
+                    status.textContent = 'The process is stopping. It is not hosted in IIS, so start it again manually.';
+                    return;
+                }
+
+                var attempts = 0;
+                var timer = setInterval(function () {
+                    attempts++;
+                    // a new process has a different start time
+                    fetch('/diagnostics/overview', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+                        .then(function (res) { return res.ok ? res.json() : null; })
+                        .then(function (data) {
+                            if (data && data.control && data.control.processStartTimeUtc !== oldStartTime) {
+                                clearInterval(timer);
+                                status.textContent = 'Application is back. Reloading...';
+                                setTimeout(function () { location.reload(); }, 800);
+                            }
+                        })
+                        .catch(function () { /* server is down while restarting: keep polling */ });
+
+                    if (attempts > 60) {
+                        clearInterval(timer);
+                        status.textContent = 'The app has not come back after 3 minutes. Check the server / IIS.';
+                    }
+                }, 3000);
+            }
+
             // ---------- loaders ----------
             function refresh() {
                 if (paused) return;
@@ -663,6 +815,7 @@
                         renderClients(overview);
                         renderHistory(overview);
                         renderEnvironment(health, overview);
+                        renderControl(overview);
 
                         var lag = overview.monitorLagSeconds;
                         document.getElementById('valLastUpdated').textContent =
@@ -705,6 +858,9 @@
                     .then(function (data) { alert('Incident captured.\nIncident ID: ' + data.incidentId); window.loadIncidents(); })
                     .catch(function (err) { alert('Failed to capture incident: ' + err.message); });
             };
+
+            document.getElementById('btnRestart').addEventListener('click', function () { restartApp('graceful'); });
+            document.getElementById('btnKill').addEventListener('click', function () { restartApp('force'); });
 
             document.getElementById('btnPause').addEventListener('click', function () {
                 paused = !paused;
