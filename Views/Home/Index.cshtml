@@ -126,6 +126,36 @@
     }
 
 
+    .pin-btn {
+        border: none;
+        background: none;
+        color: inherit;
+        padding: 0 4px;
+        font-size: 0.8rem;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        transform: rotate(45deg);
+    }
+
+    .group-item:hover .pin-btn,
+    .group-item.pinned .pin-btn {
+        opacity: 0.85;
+    }
+
+    .group-item.pinned .pin-btn {
+        color: #f0b429;
+    }
+
+    .pin-btn:hover {
+        opacity: 1;
+    }
+
+    @@media (hover: none) {
+        .pin-btn {
+            opacity: 0.45;
+        }
+    }
+
     .group-item {
         transition: all 0.2s ease;
         border: none;
@@ -1490,15 +1520,19 @@
                         hasUserHeader = true;
                     }
 
-                    groupList.append(
-                        `<li class="group-item" data-room="${room.name}" data-id="${room.safeId}" data-isroom="${room.isRoom}">
-                            <div class="letter-avatar d-flex align-items-center justify-content-center me-2">
-                                ${firstLetter}
-                            </div>
-                            <span>${room.name}</span>
-                            <span id="unread-count-${room.safeId}" class="badge bg-danger ms-2" style="display: none;"></span>
-                        </li>`
-                    );
+                    const $item = $("<li>")
+                        .addClass("group-item")
+                        .toggleClass("pinned", room.isPinned === true)
+                        .attr({ "data-room": room.name, "data-id": room.safeId, "data-isroom": room.isRoom })
+                        .append(
+                            $("<div>").addClass("letter-avatar d-flex align-items-center justify-content-center me-2").text(firstLetter),
+                            $("<span>").text(room.name),
+                            $("<span>").attr("id", "unread-count-" + room.safeId).addClass("badge bg-danger ms-2").css("display", "none"),
+                            $("<button>").attr({ type: "button", title: room.isPinned ? "Unpin chat" : "Pin chat" }).addClass("pin-btn ms-auto")
+                                .html('<i class="fa-solid fa-thumbtack"></i>')
+                        );
+
+                    groupList.append($item);
                 });
 
                 filterGroups();
@@ -1560,7 +1594,9 @@
     // ==========================
     // ✅ CLICK ROOM / USER CHAT
     // ==========================
-    $(document).on("click", ".group-item", function () {
+    $(document).on("click", ".group-item", function (e) {
+        if ($(e.target).closest(".pin-btn").length) return; // pin button must not open the chat
+
 
         var roomName = $(this).data("room");
         var roomId = $(this).data("id");
@@ -2028,6 +2064,61 @@
         }
     }
 
+    // ==========================
+    // ✅ PIN CHAT (per user, saved in DB)
+    // ==========================
+    $(document).on("click", ".pin-btn", function (e) {
+        e.stopPropagation();
+        const $item = $(this).closest("li.group-item");
+        const $btn = $(this).prop("disabled", true);
+
+        $.ajax({
+            url: "/Home/TogglePin",
+            type: "POST",
+            data: { targetId: $item.attr("data-id"), isRoom: $item.attr("data-isroom") === "true" },
+            success: function (res) {
+                if (!res || !res.success) {
+                    toastr.warning((res && res.message) || "Could not pin chat.");
+                    return;
+                }
+
+                $item.toggleClass("pinned", res.pinned);
+                $btn.attr("title", res.pinned ? "Unpin chat" : "Pin chat");
+
+                if (res.pinned) {
+                    // newest pin goes after the last existing pin of its section
+                    placeAfterPinned($item);
+                } else {
+                    sortChatListByUnread();
+                }
+            },
+            error: function () {
+                toastr.error("Could not update pin. Please try again.");
+            },
+            complete: function () {
+                $btn.prop("disabled", false);
+            }
+        });
+    });
+
+    // Insert a chat right after the last pinned chat of its section (or right under the section header)
+    function placeAfterPinned($item) {
+        const isRoom = $item.attr("data-isroom") === "true";
+        const $list = $("#groupList");
+        const $header = $list.find("li.list-separator:contains('" + (isRoom ? "Groups" : "Users") + "')");
+
+        $item.detach();
+
+        let $anchor = $header;
+        let $next = $header.next();
+        while ($next.length && $next.hasClass("group-item") && $next.hasClass("pinned")) {
+            $anchor = $next;
+            $next = $next.next();
+        }
+
+        if ($anchor.length) $item.insertAfter($anchor); else $list.prepend($item);
+    }
+
     // Move chat item to top
         function moveChatToTop(safeId, isRoom) {
             console.log("moveChatToTop :", "safeId:", safeId, "isRoom:", isRoom);
@@ -2040,24 +2131,9 @@
 
             if (!chatItem.length) return;
 
-            chatItem.detach();
-
-            if (isRoom) {
-                // ✅ Move group chat to TOP of Groups section
-                var groupHeader = groupList.find("li.list-separator:contains('Groups')");
-                if (groupHeader.length) {
-                    chatItem.insertAfter(groupHeader); // 👈 always top
-                } else {
-                    groupList.prepend(chatItem);
-                }
-            } else {
-                // ✅ Move user chat to TOP of Users section
-                var userHeader = groupList.find("li.list-separator:contains('Users')");
-                if (userHeader.length) {
-                    chatItem.insertAfter(userHeader); // 👈 always top
-                } else {
-                    groupList.prepend(chatItem);
-                }
+            // Pinned chats keep their pinned position; others go right below the pinned ones
+            if (!chatItem.hasClass("pinned")) {
+                placeAfterPinned(chatItem);
             }
 
             // highlight
@@ -2124,15 +2200,21 @@
                 const badgeText = li.find(".badge").text();
                 const count = badgeText ? parseInt(badgeText) : 0;
 
-                const item = { element: li.detach(), count: count };
+                const item = { element: li.detach(), count: count, pinned: li.hasClass("pinned") };
 
                 if (currentSection === "Groups") groups.push(item);
                 else if (currentSection === "Users") users.push(item);
             });
 
             // sort by unread count DESC
-            groups.sort((a, b) => b.count - a.count);
-            users.sort((a, b) => b.count - a.count);
+            // pinned chats stay on top in their pin order; the rest by unread count
+            const byPinThenUnread = (a, b) => {
+                if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+                if (a.pinned) return 0;
+                return b.count - a.count;
+            };
+            groups.sort(byPinThenUnread);
+            users.sort(byPinThenUnread);
 
             const groupHeader = groupList.find("li.list-separator:contains('Groups')");
             const userHeader = groupList.find("li.list-separator:contains('Users')");

@@ -44,6 +44,20 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<UserPinnedChat>(entity =>
+        {
+            entity.Property(p => p.TargetId).HasMaxLength(128).IsRequired();
+
+            entity.HasIndex(p => new { p.UserId, p.IsRoom, p.TargetId })
+                .IsUnique()
+                .HasDatabaseName("IX_UserPinnedChats_UserId_IsRoom_TargetId");
+
+            entity.HasOne(p => p.User)
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // Configure UserLoginLogs table
         builder.Entity<UserLoginLog>(entity =>
         {
@@ -66,6 +80,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ChatLog> ChatLogs { get; set; }
     public DbSet<ChatMessageReadStatus> ChatMessageReadStatuses { get; set; }
     public DbSet<ChatMessageReaction> ChatMessageReactions { get; set; }
+    public DbSet<UserPinnedChat> UserPinnedChats { get; set; }
     public DbSet<UsersMessageReadStatus> UsersMessageReadStatus { get; set; }
     public DbSet<UserLoginLog> UserLoginLogs { get; set; }
 

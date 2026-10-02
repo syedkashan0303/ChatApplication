@@ -250,6 +250,81 @@ namespace SignalRMVC.Controllers
         }
 
         // =====================================================
+        // Pin / unpin a chat (per user)
+        // =====================================================
+        private const int MaxPinnedChats = 3;
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> TogglePin([FromForm] string targetId, [FromForm] bool isRoom)
+        {
+            if (string.IsNullOrWhiteSpace(targetId) || targetId.Length > 128)
+                return BadRequest(new { success = false, message = "Invalid chat." });
+
+            using var scope = _scopeFactory.CreateScope();
+            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var userId = GetUserId();
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var existing = await _db.UserPinnedChats
+                .FirstOrDefaultAsync(p => p.UserId == userId && p.IsRoom == isRoom && p.TargetId == targetId);
+
+            if (existing != null)
+            {
+                _db.UserPinnedChats.Remove(existing);
+                await _db.SaveChangesAsync();
+                return Ok(new { success = true, pinned = false });
+            }
+
+            // Only real, accessible chats can be pinned
+            if (isRoom)
+            {
+                if (!int.TryParse(targetId, out var roomId))
+                    return BadRequest(new { success = false, message = "Invalid chat." });
+
+                var isMember = await _db.GroupUserMapping.AsNoTracking().AnyAsync(g =>
+                    g.UserId == userId && g.GroupId == roomId && g.Active &&
+                    _db.ChatRoom.Any(r => r.Id == roomId && !r.isDelete));
+
+                if (!isMember)
+                    return BadRequest(new { success = false, message = "Chat not found." });
+            }
+            else
+            {
+                var userExists = targetId != userId &&
+                    await _db.Users.AsNoTracking().AnyAsync(u => u.Id == targetId && !u.IsDeleted);
+
+                if (!userExists)
+                    return BadRequest(new { success = false, message = "Chat not found." });
+            }
+
+            var pinCount = await _db.UserPinnedChats.CountAsync(p => p.UserId == userId);
+            if (pinCount >= MaxPinnedChats)
+                return Ok(new { success = false, message = $"You can pin up to {MaxPinnedChats} chats. Unpin one first." });
+
+            _db.UserPinnedChats.Add(new UserPinnedChat
+            {
+                UserId = userId,
+                IsRoom = isRoom,
+                TargetId = targetId,
+                CreatedOn = DateTime.Now
+            });
+
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Double-click raced past the unique index; the pin already exists.
+            }
+
+            return Ok(new { success = true, pinned = true });
+        }
+
+        // =====================================================
         // Get Rooms
         // =====================================================
         [HttpGet]
@@ -306,7 +381,34 @@ namespace SignalRMVC.Controllers
             }
 
             // Partition users into Category 1 (active conversations in SP order) and Category 2 (no conversations, alphabetical)
+            // This user's pinned chats (pin order = time pinned)
+            var pins = await _db.UserPinnedChats
+                .AsNoTracking()
+                .Where(p => p.UserId == userId)
+                .OrderBy(p => p.CreatedOn)
+                .Select(p => new { p.IsRoom, p.TargetId })
+                .ToListAsync();
+
+            var pinnedUserIds = pins.Where(p => !p.IsRoom).Select(p => p.TargetId).ToList();
+            var pinnedRoomIds = pins.Where(p => p.IsRoom).Select(p => p.TargetId).ToList();
+
             var userDict = users.ToDictionary(u => u.Id, u => u);
+
+            var pinnedUserRooms = new List<Room>();
+            foreach (var pinnedId in pinnedUserIds)
+            {
+                if (userDict.TryGetValue(pinnedId, out var pinnedUser))
+                {
+                    pinnedUserRooms.Add(new Room
+                    {
+                        Name = pinnedUser.UserName ?? string.Empty,
+                        SafeId = pinnedUser.Id,
+                        IsRoom = false,
+                        IsPinned = true
+                    });
+                    userDict.Remove(pinnedId);
+                }
+            }
 
             var category1Rooms = new List<Room>();
             foreach (var sortedId in sortedUserIds)
@@ -345,6 +447,15 @@ namespace SignalRMVC.Controllers
                 .OrderBy(r => r.Name)
                 .ToListAsync();
 
+            // Pinned groups first (in pin order), then the rest alphabetically
+            rooms = rooms
+                .OrderBy(r => { var i = pinnedRoomIds.IndexOf(r.SafeId); return i < 0 ? int.MaxValue : i; })
+                .ThenBy(r => r.Name)
+                .ToList();
+            foreach (var r in rooms)
+                r.IsPinned = pinnedRoomIds.Contains(r.SafeId);
+
+            rooms.AddRange(pinnedUserRooms);
             rooms.AddRange(category1Rooms);
             rooms.AddRange(category2Rooms);
 
@@ -400,6 +511,7 @@ namespace SignalRMVC.Controllers
             public string Name { get; set; }
             public string SafeId { get; set; }
             public bool IsRoom { get; set; }
+            public bool IsPinned { get; set; }
         }
     }
 }

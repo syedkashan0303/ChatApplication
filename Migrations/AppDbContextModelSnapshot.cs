@@ -452,6 +452,46 @@ namespace SignalRMVC.Migrations
                     b.ToTable("GroupUserMapping");
                 });
 
+            modelBuilder.Entity("SignalRMVC.Models.UserPinnedChat", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRoom")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("TargetId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "IsRoom", "TargetId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_UserPinnedChats_UserId_IsRoom_TargetId");
+
+                    b.ToTable("UserPinnedChats");
+
+                    b.HasOne("SignalRMVC.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("SignalRMVC.Models.UserLoginLog", b =>
                 {
                     b.Property<long>("Id")
