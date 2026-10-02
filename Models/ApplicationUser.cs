@@ -7,5 +7,6 @@ namespace SignalRMVC.Models
         public string? FullName { get; set; }
         public bool IsDeleted { get; set; }
         public bool IsDarkTheme { get; set; }
+        public int FontSize { get; set; } = 18;
     }
 }

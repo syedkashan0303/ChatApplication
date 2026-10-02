@@ -181,6 +181,9 @@ namespace SignalRMVC.Migrations
                     b.Property<string>("FullName")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("FontSize")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsDarkTheme")
                         .HasColumnType("bit");
 

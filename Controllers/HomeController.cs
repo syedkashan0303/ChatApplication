@@ -26,6 +26,8 @@ namespace SignalRMVC.Controllers
             _logger = logger;
         }
 
+        private static readonly int[] AllowedFontSizes = { 9, 14, 16, 18, 20, 22, 27, 34 };
+
         [Authorize]
         public async Task<IActionResult> Index()
         {
@@ -39,6 +41,7 @@ namespace SignalRMVC.Controllers
             {
                 var roles = await _userManager.GetRolesAsync(user);
                 model.UserRoles = roles;
+                model.FontSize = AllowedFontSizes.Contains(user.FontSize) ? user.FontSize : 18;
             }
 
             return View(model);
@@ -247,6 +250,28 @@ namespace SignalRMVC.Controllers
             }
 
             return Ok();
+        }
+
+        // =====================================================
+        // Font size (per user, saved in DB)
+        // =====================================================
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> SaveFontSize([FromForm] int size)
+        {
+            if (!AllowedFontSizes.Contains(size))
+                return BadRequest(new { success = false, message = "Invalid font size." });
+
+            var userId = GetUserId();
+
+            using var scope = _scopeFactory.CreateScope();
+            var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            await _db.Users
+                .Where(u => u.Id == userId)
+                .ExecuteUpdateAsync(s => s.SetProperty(u => u.FontSize, size));
+
+            return Ok(new { success = true });
         }
 
         // =====================================================

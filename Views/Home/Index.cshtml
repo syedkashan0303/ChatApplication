@@ -733,7 +733,7 @@
     let isLoading = false;
     let allMessagesLoaded = false; // ✅ FIX: start false, not true
     let currentRoom = null;
-    let fontSize = 18;
+    let fontSize = @Model.FontSize;
     let currentReplyTarget = null;
 
     // ✅ to avoid duplicate marker insertion
@@ -1411,8 +1411,11 @@
             $('#chatMessage').css('direction', 'ltr');
         });
 
+        $("#fontSizeDropdown").val(fontSize);
+        customFontSize(fontSize);
+
         setTimeout(() => {
-            customFontSize(18);
+            customFontSize(fontSize);
         }, 500);
     });
 
@@ -1664,10 +1667,15 @@
     $("#fontSizeDropdown").on("change", function () {
         fontSize = parseInt($(this).val());
         customFontSize(fontSize);
+        $.post("/Home/SaveFontSize", { size: fontSize })
+            .fail(function () { toastr.warning("Could not save font size."); });
     });
 
     function customFontSize(size) {
         $(".message-text").css("font-size", size + "px");
+
+        // same size in the message input box (grow the box a little for large sizes)
+        $("#chatMessage").css({ "font-size": size + "px", "height": Math.max(50, 50 + (size - 18) * 2) + "px" });
 
         if (size >= 22) {
             $(".message-text").css("line-height", size + 15 + "px");
